@@ -34,6 +34,7 @@ int kitty_generate_theme(const Base16Scheme *scheme, const char *output_path, co
     if (font && font->monospace[0]) {
         fprintf(f, "# Font configuration\n");
         fprintf(f, "font_family %s\n", font->monospace);
+        fprintf(f, "font_size %d\n", font->sizes.terminal);
         fprintf(f, "\n");
     }
     

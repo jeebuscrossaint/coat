@@ -35,7 +35,7 @@ int helix_generate_theme(const Base16Scheme *scheme, const char *output_path) {
     }
     fprintf(f, "\n");
     
-    // Palette section
+    // Palette section (all required baseXX colors)
     fprintf(f, "[palette]\n");
     fprintf(f, "base00 = \"#%s\"\n", strip_hash(scheme->base00));
     fprintf(f, "base01 = \"#%s\"\n", strip_hash(scheme->base01));
@@ -54,30 +54,50 @@ int helix_generate_theme(const Base16Scheme *scheme, const char *output_path) {
     fprintf(f, "base0E = \"#%s\"\n", strip_hash(scheme->base0E));
     fprintf(f, "base0F = \"#%s\"\n", strip_hash(scheme->base0F));
     fprintf(f, "\n");
+
+    // ANSI section for Helix (Stylix/base16-helix exact mapping)
+    fprintf(f, "[ansi]\n");
+    fprintf(f, "black = 'base00'\n");
+    fprintf(f, "red = 'base08'\n");
+    fprintf(f, "green = 'base0B'\n");
+    fprintf(f, "yellow = 'base0A'\n");
+    fprintf(f, "blue = 'base0D'\n");
+    fprintf(f, "magenta = 'base0E'\n");
+    fprintf(f, "cyan = 'base0C'\n");
+    fprintf(f, "white = 'base05'\n");
+    fprintf(f, "bright-black = 'base03'\n");
+    fprintf(f, "bright-red = 'base09'\n");
+    fprintf(f, "bright-green = 'base0B'\n");
+    fprintf(f, "bright-yellow = 'base0A'\n");
+    fprintf(f, "bright-blue = 'base0D'\n");
+    fprintf(f, "bright-magenta = 'base0E'\n");
+    fprintf(f, "bright-cyan = 'base0C'\n");
+    fprintf(f, "bright-white = 'base07'\n");
+    fprintf(f, "\n");
     
-    // UI elements
+    // UI elements (Stylix/base16-helix exact mapping, quoted keys)
     fprintf(f, "# UI\n");
-    fprintf(f, "\"ui.background\" = { bg = \"base00\" }\n");
-    fprintf(f, "\"ui.text\" = \"base05\"\n");
-    fprintf(f, "\"ui.text.focus\" = { fg = \"base05\", modifiers = [\"bold\"] }\n");
-    fprintf(f, "\"ui.selection\" = { bg = \"base02\" }\n");
-    fprintf(f, "\"ui.selection.primary\" = { bg = \"base02\" }\n");
-    fprintf(f, "\"ui.linenr\" = \"base03\"\n");
-    fprintf(f, "\"ui.linenr.selected\" = { fg = \"base04\", modifiers = [\"bold\"] }\n");
-    fprintf(f, "\"ui.cursor\" = { fg = \"base00\", bg = \"base05\" }\n");
-    fprintf(f, "\"ui.cursor.primary\" = { fg = \"base00\", bg = \"base0D\" }\n");
-    fprintf(f, "\"ui.cursor.match\" = { bg = \"base02\", modifiers = [\"underlined\"] }\n");
-    fprintf(f, "\"ui.cursorline\" = { bg = \"base01\" }\n");
-    fprintf(f, "\"ui.statusline\" = { fg = \"base05\", bg = \"base01\" }\n");
-    fprintf(f, "\"ui.statusline.inactive\" = { fg = \"base03\", bg = \"base01\" }\n");
-    fprintf(f, "\"ui.popup\" = { bg = \"base01\" }\n");
-    fprintf(f, "\"ui.window\" = { bg = \"base01\" }\n");
-    fprintf(f, "\"ui.help\" = { fg = \"base05\", bg = \"base01\" }\n");
-    fprintf(f, "\"ui.menu\" = { bg = \"base01\" }\n");
-    fprintf(f, "\"ui.menu.selected\" = { bg = \"base02\" }\n");
-    fprintf(f, "\"ui.virtual.whitespace\" = \"base03\"\n");
-    fprintf(f, "\"ui.virtual.ruler\" = { bg = \"base01\" }\n");
-    fprintf(f, "\"ui.virtual.indent-guide\" = \"base03\"\n");
+    fprintf(f, "\"ui.background\" = { bg = 'base00' }\n");
+    fprintf(f, "\"ui.text\" = 'base05'\n");
+    fprintf(f, "\"ui.text.focus\" = { fg = 'base05', modifiers = ['bold'] }\n");
+    fprintf(f, "\"ui.selection\" = { bg = 'base02' }\n");
+    fprintf(f, "\"ui.selection.primary\" = { bg = 'base02' }\n");
+    fprintf(f, "\"ui.linenr\" = 'base03'\n");
+    fprintf(f, "\"ui.linenr.selected\" = { fg = 'base04', modifiers = ['bold'] }\n");
+    fprintf(f, "\"ui.cursor\" = { fg = 'base00', bg = 'base05' }\n");
+    fprintf(f, "\"ui.cursor.primary\" = { fg = 'base00', bg = 'base0D' }\n");
+    fprintf(f, "\"ui.cursor.match\" = { bg = 'base02', modifiers = ['underlined'] }\n");
+    fprintf(f, "\"ui.cursorline\" = { bg = 'base01' }\n");
+    fprintf(f, "\"ui.statusline\" = { fg = 'base05', bg = 'base02' }\n");
+    fprintf(f, "\"ui.statusline.inactive\" = { fg = 'base03', bg = 'base01' }\n");
+    fprintf(f, "\"ui.popup\" = { bg = 'base01' }\n");
+    fprintf(f, "\"ui.window\" = { bg = 'base01' }\n");
+    fprintf(f, "\"ui.help\" = { fg = 'base05', bg = 'base01' }\n");
+    fprintf(f, "\"ui.menu\" = { bg = 'base01' }\n");
+    fprintf(f, "\"ui.menu.selected\" = { bg = 'base02' }\n");
+    fprintf(f, "\"ui.virtual.whitespace\" = 'base03'\n");
+    fprintf(f, "\"ui.virtual.ruler\" = { bg = 'base01' }\n");
+    fprintf(f, "\"ui.virtual.indent-guide\" = 'base03'\n");
     fprintf(f, "\n");
     
     // Syntax highlighting
@@ -106,7 +126,7 @@ int helix_generate_theme(const Base16Scheme *scheme, const char *output_path) {
     fprintf(f, "\"punctuation.delimiter\" = \"base05\"\n");
     fprintf(f, "\"punctuation.bracket\" = \"base05\"\n");
     fprintf(f, "\"special\" = \"base0C\"\n");
-    fprintf(f, "\"attribute\" = \"base0A\"\n");
+    // Removed invalid 'attribute' key from theme output
     fprintf(f, "\"namespace\" = \"base0A\"\n");
     fprintf(f, "\"tag\" = \"base08\"\n");
     fprintf(f, "\n");

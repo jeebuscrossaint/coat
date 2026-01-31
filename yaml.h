@@ -10,12 +10,20 @@
 #define MAX_ENABLED_ITEMS 64
 #define MAX_STRING_LEN 256
 
+// Font sizes structure
+typedef struct {
+    int terminal;    // Size for terminals and text editors
+    int desktop;     // Size for window titles, status bars
+    int popups;      // Size for notifications, popups
+} FontSizes;
+
 // Font configuration structure
 typedef struct {
     char emoji[MAX_STRING_LEN];
     char monospace[MAX_STRING_LEN];
     char sansserif[MAX_STRING_LEN];
     char serif[MAX_STRING_LEN];
+    FontSizes sizes;  // Font sizes
 } FontConfig;
 
 // Main configuration structure

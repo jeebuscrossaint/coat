@@ -71,6 +71,39 @@ GTK theming is applied automatically to `~/.config/gtk-3.0/gtk.css` and `~/.conf
 
 **Note:** This uses Libadwaita color definitions compatible with GNOME 40+ and modern GTK apps.
 
+### Chromium (Chrome, Brave, Edge, Vivaldi, etc.)
+
+Chromium theming is applied by generating a browser extension theme.
+
+**The module automatically:**
+- Generates a complete Chrome theme extension with manifest.json
+- Themes all UI elements (tabs, toolbar, address bar, new tab page)
+- Supports all Chromium-based browsers
+
+**To activate:**
+1. Open your browser and navigate to:
+   - Chrome: `chrome://extensions/`
+   - Brave: `brave://extensions/`
+   - Edge: `edge://extensions/`
+   - Vivaldi: `vivaldi://extensions/`
+2. Enable **Developer mode** (toggle in top-right corner)
+3. Click **Load unpacked**
+4. Navigate to: `~/.config/coat/chromium/coat-theme/`
+5. Select the folder
+
+**The theme will be applied immediately!**
+
+**Features themed:**
+- Window frame colors
+- Tab colors (active and inactive)
+- Toolbar and address bar (omnibox)
+- New tab page background and text
+- Button colors
+- Bookmark bar
+- Link colors
+
+**Note:** The theme persists across browser restarts. To change themes, run `coat apply` again with a different scheme.
+
 ### Dunst Notification Daemon
 
 Dunst configuration is applied automatically to `~/.config/dunst/dunstrc`.
@@ -152,6 +185,7 @@ Currently supported:
 - **vscode** - Visual Studio Code color theme
 - **gtk** - GTK 3.0/4.0 applications (GNOME, etc.)
 - **dunst** - Dunst notification daemon theme
+- **chromium** - Chromium-based browsers (Chrome, Brave, Edge, Vivaldi)
 
 Coming soon:
 - alacritty

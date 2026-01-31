@@ -378,26 +378,12 @@ int vscode_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
     fclose(f);
     json_object_put(root);
     
+
     printf("  VSCode theme extension created at %s\n", ext_dir);
     printf("  Theme set to 'Coat' in settings.json\n");
-    printf("  VSCode should detect the change and reload automatically.\n");
-    
-    return 0;
-}
 
-int vscode_generate_theme(const Base16Scheme *scheme, const char *output_path, const FontConfig *font) {
-    (void)font;  // Unused for theme generation
-    json_object *theme = generate_theme_json(scheme);
+    // Manual reload instructions only; SIGHUP removed to prevent VSCode hang
+    printf("  If the theme does not appear, reload VSCode (Ctrl+Shift+P → Reload Window).\n");
     
-    FILE *f = fopen(output_path, "w");
-    if (!f) {
-        fprintf(stderr, "Failed to write theme to %s\n", output_path);
-        json_object_put(theme);
-        return -1;
-    }
-    
-    fprintf(f, "%s\n", json_object_to_json_string_ext(theme, JSON_C_TO_STRING_PRETTY));
-    fclose(f);
-    json_object_put(theme);
     return 0;
 }

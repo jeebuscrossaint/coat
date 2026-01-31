@@ -25,8 +25,11 @@
 #include "zathura.h"
 #include "yazi.h"
 #include "vscode.h"
+#include "firefox.h"
 #include "gtk.h"
 #include "dunst.h"
+#include "xresources.h"
+#include "mangowc.h"
 
 static char* get_config_dir(void) {
     const char *home = getenv("HOME");
@@ -319,6 +322,12 @@ int main(int argc, char *argv[]) {
                         applied++;
                     }
                     printf("\n");
+                } else if (strcmp(app, "firefox") == 0) {
+                    printf("Applying to Firefox...\n");
+                    if (firefox_apply_theme(scheme, &config->font) == 0) {
+                        applied++;
+                    }
+                    printf("\n");
                 } else if (strcmp(app, "gtk") == 0) {
                     printf("Applying to GTK...\n");
                     if (gtk_apply_theme(scheme, &config->font) == 0) {
@@ -330,6 +339,17 @@ int main(int argc, char *argv[]) {
                     if (dunst_apply_theme(scheme, &config->font) == 0) {
                         applied++;
                     }
+                    printf("\n");
+                } else if (strcmp(app, "xresources") == 0) {
+                    printf("Applying to Xresources...\n");
+                    if (xresources_apply_theme(scheme, &config->font) == 0) {
+                        applied++;
+                    }
+                    printf("\n");
+                } else if (strcmp(app, "mangowc") == 0) {
+                    printf("Applying to MangoWC...\n");
+                    mangowc_apply_theme(scheme, &config->font);
+                    applied++;
                     printf("\n");
                 } else {
                     printf("Warning: No module for '%s' yet\n", app);

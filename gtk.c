@@ -15,19 +15,8 @@ static const char* strip_hash(const char *color) {
     return (color[0] == '#') ? color + 1 : color;
 }
 
-// Generate GTK 3.0 CSS file from a Base16 scheme
-static int gtk_generate_gtk3_css(const Base16Scheme *scheme, const char *output_path) {
-    if (!scheme || !output_path) {
-        return -1;
-    }
-    
-    FILE *f = fopen(output_path, "w");
-    if (!f) {
-        fprintf(stderr, "Failed to create GTK 3.0 CSS file: %s\n", output_path);
-        return -1;
-    }
-    
-    // Write header
+// Generate GTK color definitions to an already-open file
+static void write_gtk_colors(FILE *f, const Base16Scheme *scheme) {
     fprintf(f, "/*\n");
     fprintf(f, " * coat GTK theme: %s\n", scheme->name);
     fprintf(f, " * %s\n", scheme->author);
@@ -59,7 +48,7 @@ static int gtk_generate_gtk3_css(const Base16Scheme *scheme, const char *output_
     fprintf(f, "@define-color view_fg_color #%s;\n", strip_hash(scheme->base05));
     fprintf(f, "@define-color headerbar_bg_color #%s;\n", strip_hash(scheme->base01));
     fprintf(f, "@define-color headerbar_fg_color #%s;\n", strip_hash(scheme->base05));
-    fprintf(f, "@define-color headerbar_border_color rgba(%s, 0.7);\n", strip_hash(scheme->base01));
+    fprintf(f, "@define-color headerbar_border_color #%s;\n", strip_hash(scheme->base01));
     fprintf(f, "@define-color headerbar_backdrop_color @window_bg_color;\n");
     fprintf(f, "@define-color headerbar_shade_color rgba(0, 0, 0, 0.07);\n");
     fprintf(f, "@define-color headerbar_darker_shade_color rgba(0, 0, 0, 0.07);\n");
@@ -132,8 +121,16 @@ static int gtk_generate_gtk3_css(const Base16Scheme *scheme, const char *output_
     fprintf(f, "@define-color dark_5 #%s;\n", strip_hash(scheme->base05));
     fprintf(f, "\n");
     
-    fclose(f);
-    return 0;
+    // Override Adwaita's colors with our Base16 colors
+    fprintf(f, "/* Color overrides */\n");
+    fprintf(f, "window { background-color: @window_bg_color; color: @window_fg_color; }\n");
+    fprintf(f, "headerbar { background-color: @headerbar_bg_color; color: @headerbar_fg_color; }\n");
+    fprintf(f, "entry { background-color: @view_bg_color; color: @view_fg_color; caret-color: @accent_color; }\n");
+    fprintf(f, "textview text { background-color: @view_bg_color; color: @view_fg_color; }\n");
+    fprintf(f, "button { background: @accent_bg_color; color: @accent_fg_color; }\n");
+    fprintf(f, "button:checked { background: @accent_bg_color; }\n");
+    fprintf(f, ".view { background-color: @view_bg_color; color: @view_fg_color; }\n");
+    fprintf(f, "list { background-color: @view_bg_color; color: @view_fg_color; }\n");
 }
 
 // Apply GTK theme
@@ -149,86 +146,104 @@ int gtk_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
         return -1;
     }
     
-    // Create GTK config directories
+    // Create theme directory
+    char theme_dir[1024];
     char gtk3_dir[1024];
     char gtk4_dir[1024];
-    snprintf(gtk3_dir, sizeof(gtk3_dir), "%s/.config/gtk-3.0", home);
-    snprintf(gtk4_dir, sizeof(gtk4_dir), "%s/.config/gtk-4.0", home);
     
-    // Create directories if they don't exist
+    snprintf(theme_dir, sizeof(theme_dir), "%s/.themes/coat", home);
+    snprintf(gtk3_dir, sizeof(gtk3_dir), "%s/gtk-3.0", theme_dir);
+    snprintf(gtk4_dir, sizeof(gtk4_dir), "%s/gtk-4.0", theme_dir);
+    
+    // Create directories
+    mkdir(theme_dir, 0755);
     mkdir(gtk3_dir, 0755);
     mkdir(gtk4_dir, 0755);
     
-    // Generate GTK 3.0 CSS
-    char gtk3_css_path[1024];
-    snprintf(gtk3_css_path, sizeof(gtk3_css_path), "%s/gtk.css", gtk3_dir);
+    // Generate GTK 3.0 CSS with Adwaita import
+    char gtk3_css[1024];
+    snprintf(gtk3_css, sizeof(gtk3_css), "%s/gtk.css", gtk3_dir);
     
-    if (gtk_generate_gtk3_css(scheme, gtk3_css_path) != 0) {
+    FILE *f = fopen(gtk3_css, "w");
+    if (!f) {
+        fprintf(stderr, "Failed to create GTK 3.0 CSS: %s\n", gtk3_css);
         return -1;
     }
     
-    printf("  Created GTK 3.0 theme: %s\n", gtk3_css_path);
+    // Import base Adwaita dark theme, then override colors
+    fprintf(f, "/* coat GTK theme based on Adwaita-dark */\n");
+    fprintf(f, "@import url(\"resource:///org/gtk/libgtk/theme/Adwaita/gtk-contained-dark.css\");\n\n");
     
-    // Generate GTK 4.0 CSS (same content as GTK 3.0)
-    char gtk4_css_path[1024];
-    snprintf(gtk4_css_path, sizeof(gtk4_css_path), "%s/gtk.css", gtk4_dir);
+    // Write color overrides
+    write_gtk_colors(f, scheme);
+    fclose(f);
     
-    if (gtk_generate_gtk3_css(scheme, gtk4_css_path) != 0) {
+    // Generate GTK 4.0 CSS
+    char gtk4_css[1024];
+    snprintf(gtk4_css, sizeof(gtk4_css), "%s/gtk.css", gtk4_dir);
+    
+    f = fopen(gtk4_css, "w");
+    if (!f) {
+        fprintf(stderr, "Failed to create GTK 4.0 CSS: %s\n", gtk4_css);
         return -1;
     }
     
-    printf("  Created GTK 4.0 theme: %s\n", gtk4_css_path);
+    fprintf(f, "/* coat GTK 4 theme based on Adwaita-dark */\n");
+    fprintf(f, "@import url(\"resource:///org/gtk/libgtk/theme/Adwaita/gtk-contained-dark.css\");\n\n");
+    write_gtk_colors(f, scheme);
+    fclose(f);
     
-    // Create GTK settings file for GTK 3.0
-    char gtk3_settings_path[1024];
-    snprintf(gtk3_settings_path, sizeof(gtk3_settings_path), "%s/settings.ini", gtk3_dir);
+    // Create index.theme
+    char index_theme[1024];
+    snprintf(index_theme, sizeof(index_theme), "%s/index.theme", theme_dir);
     
-    FILE *f = fopen(gtk3_settings_path, "w");
-    if (f) {
-        fprintf(f, "[Settings]\n");
-        
-        // Set theme preference based on variant
-        if (scheme->variant[0] && strcmp(scheme->variant, "dark") == 0) {
-            fprintf(f, "gtk-application-prefer-dark-theme=1\n");
-        } else {
-            fprintf(f, "gtk-application-prefer-dark-theme=0\n");
-        }
-        
-        // Set font if provided
-        if (font && font->sansserif[0]) {
-            fprintf(f, "gtk-font-name=%s 10\n", font->sansserif);
-        }
-        
-        fclose(f);
-        printf("  Created GTK 3.0 settings: %s\n", gtk3_settings_path);
+    f = fopen(index_theme, "w");
+    if (!f) {
+        fprintf(stderr, "Failed to create index.theme: %s\n", index_theme);
+        return -1;
     }
     
-    // Create GTK settings file for GTK 4.0
-    char gtk4_settings_path[1024];
-    snprintf(gtk4_settings_path, sizeof(gtk4_settings_path), "%s/settings.ini", gtk4_dir);
+    fprintf(f, "[Desktop Entry]\n");
+    fprintf(f, "Type=X-GNOME-Metatheme\n");
+    fprintf(f, "Name=coat\n");
+    fprintf(f, "Comment=Base16 theme: %s (based on Adwaita-dark)\n", scheme->name);
+    fprintf(f, "Encoding=UTF-8\n\n");
+    fprintf(f, "[X-GNOME-Metatheme]\n");
+    fprintf(f, "GtkTheme=coat\n");
+    fprintf(f, "IconTheme=Adwaita\n");
+    fprintf(f, "CursorTheme=Adwaita\n");
+    fclose(f);
     
-    f = fopen(gtk4_settings_path, "w");
-    if (f) {
-        fprintf(f, "[Settings]\n");
-        
-        // Set theme preference based on variant
-        if (scheme->variant[0] && strcmp(scheme->variant, "dark") == 0) {
-            fprintf(f, "gtk-application-prefer-dark-theme=1\n");
-        } else {
-            fprintf(f, "gtk-application-prefer-dark-theme=0\n");
-        }
-        
-        // Set font if provided
-        if (font && font->sansserif[0]) {
-            fprintf(f, "gtk-font-name=%s 10\n", font->sansserif);
-        }
-        
-        fclose(f);
-        printf("  Created GTK 4.0 settings: %s\n", gtk4_settings_path);
+    // Set GTK font via gsettings
+    char font_main[256] = "";
+    char font_mono[256] = "";
+    if (font) {
+        char font_cmd[512];
+        // Always use the same font and size for both font-name and monospace-font-name
+        snprintf(font_main, sizeof(font_main), "%s%s", font->sansserif[0] ? font->sansserif : "Sans",
+             strstr(font->sansserif, "Regular") ? "" : " Regular");
+        snprintf(font_cmd, sizeof(font_cmd),
+            "gsettings set org.gnome.desktop.interface font-name '%s %d' 2>/dev/null",
+            font_main, font->sizes.terminal);
+        system(font_cmd);
+
+        snprintf(font_mono, sizeof(font_mono), "%s%s", font->monospace[0] ? font->monospace : "monospace",
+             strstr(font->monospace, "Regular") ? "" : " Regular");
+        snprintf(font_cmd, sizeof(font_cmd),
+            "gsettings set org.gnome.desktop.interface monospace-font-name '%s %d' 2>/dev/null",
+            font_mono, font->sizes.terminal);
+        system(font_cmd);
     }
     
-    printf("  GTK theme applied successfully!\n");
-    printf("  Note: You may need to restart GTK applications for changes to take effect.\n");
+    printf("  Created GTK theme: %s\n", theme_dir);
+    printf("  ✓ GTK 3.0: %s\n", gtk3_css);
+    printf("  ✓ GTK 4.0: %s\n", gtk4_css);
+    if (font) {
+        printf("  ✓ Set font: %s %d, monospace: %s %d\n",
+               font_main, font->sizes.terminal, font_mono, font->sizes.terminal);
+    }
+    printf("\n  To apply: Select 'coat' in nwg-look or run:\n");
+    printf("    gsettings set org.gnome.desktop.interface gtk-theme 'coat'\n");
     
     return 0;
 }

@@ -63,9 +63,9 @@ static int dunst_generate_config(const Base16Scheme *scheme, const char *output_
     
     fprintf(f, "    # Text\n");
     if (font && font->sansserif[0]) {
-        fprintf(f, "    font = %s 10\n", font->sansserif);
+        fprintf(f, "    font = %s %d\n", font->sansserif, font->sizes.popups);
     } else {
-        fprintf(f, "    font = sans 10\n");
+        fprintf(f, "    font = sans %d\n", font ? font->sizes.popups : 10);
     }
     fprintf(f, "    line_height = 0\n");
     fprintf(f, "    markup = full\n");

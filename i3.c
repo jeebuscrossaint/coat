@@ -33,7 +33,7 @@ int i3_generate_theme(const Base16Scheme *scheme, const char *output_path, const
     // Font configuration
     if (font && font->monospace[0]) {
         fprintf(f, "# Font configuration\n");
-        fprintf(f, "font pango:%s 10\n", font->monospace);
+        fprintf(f, "font pango:%s %d\n", font->monospace, font->sizes.desktop);
         fprintf(f, "\n");
     }
     

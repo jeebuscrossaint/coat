@@ -71,7 +71,8 @@ int rofi_generate_theme(const Base16Scheme *scheme, const char *output_path, con
     fprintf(f, "    display-drun: \"Applications:\";\n");
     fprintf(f, "    display-window: \"Windows:\";\n");
     fprintf(f, "    drun-display-format: \"{name}\";\n");
-    fprintf(f, "    font: \"%s 10\";\n", font && font->monospace[0] ? font->monospace : "monospace");
+    int font_size = font ? font->sizes.popups : 10;
+    fprintf(f, "    font: \"%s %d\";\n", font && font->monospace[0] ? font->monospace : "monospace", font_size);
     fprintf(f, "    modi: \"window,run,drun\";\n");
     fprintf(f, "}\n");
     fprintf(f, "\n");

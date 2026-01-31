@@ -30,6 +30,9 @@ CoatConfig* coat_config_new(void) {
     config->font.monospace[0] = '\0';
     config->font.sansserif[0] = '\0';
     config->font.serif[0] = '\0';
+    config->font.sizes.terminal = 12;
+    config->font.sizes.desktop = 10;
+    config->font.sizes.popups = 10;
 
     return config;
 }
@@ -78,7 +81,11 @@ int coat_config_load(CoatConfig *config, const char *filepath) {
         STATE_FONT_EMOJI,
         STATE_FONT_MONOSPACE,
         STATE_FONT_SANSSERIF,
-        STATE_FONT_SERIF
+        STATE_FONT_SERIF,
+        STATE_FONT_SIZES,
+        STATE_FONT_SIZE_TERMINAL,
+        STATE_FONT_SIZE_DESKTOP,
+        STATE_FONT_SIZE_POPUPS
     } state = STATE_NONE;
 
     char current_key[MAX_STRING_LEN] = {0};
@@ -101,11 +108,15 @@ int coat_config_load(CoatConfig *config, const char *filepath) {
             case YAML_MAPPING_START_EVENT:
                 if (strcmp(current_key, "font") == 0) {
                     in_font_section = 1;
+                } else if (strcmp(current_key, "sizes") == 0 && in_font_section) {
+                    state = STATE_FONT_SIZES;
                 }
                 break;
 
             case YAML_MAPPING_END_EVENT:
-                if (in_font_section) {
+                if (state == STATE_FONT_SIZES) {
+                    state = STATE_NONE;
+                } else if (in_font_section) {
                     in_font_section = 0;
                 }
                 break;
@@ -132,6 +143,27 @@ int coat_config_load(CoatConfig *config, const char *filepath) {
                 } else if (state == STATE_SCHEME) {
                     strncpy(config->scheme, value, MAX_STRING_LEN - 1);
                     state = STATE_NONE;
+                } else if (state == STATE_FONT_SIZES) {
+                    // Handle font.sizes subsection
+                    if (state == STATE_FONT_SIZE_TERMINAL) {
+                        config->font.sizes.terminal = atoi(value);
+                        state = STATE_FONT_SIZES;
+                    } else if (state == STATE_FONT_SIZE_DESKTOP) {
+                        config->font.sizes.desktop = atoi(value);
+                        state = STATE_FONT_SIZES;
+                    } else if (state == STATE_FONT_SIZE_POPUPS) {
+                        config->font.sizes.popups = atoi(value);
+                        state = STATE_FONT_SIZES;
+                    } else {
+                        // This is a key in font.sizes
+                        if (strcmp(value, "terminal") == 0) {
+                            state = STATE_FONT_SIZE_TERMINAL;
+                        } else if (strcmp(value, "desktop") == 0) {
+                            state = STATE_FONT_SIZE_DESKTOP;
+                        } else if (strcmp(value, "popups") == 0) {
+                            state = STATE_FONT_SIZE_POPUPS;
+                        }
+                    }
                 } else if (in_font_section) {
                     // Handle font subsections
                     if (state == STATE_FONT_EMOJI) {
