@@ -35,58 +35,19 @@ int helix_generate_theme(const Base16Scheme *scheme, const char *output_path) {
     }
     fprintf(f, "\n");
     
-    // Palette section (all required baseXX colors)
-    fprintf(f, "[palette]\n");
-    fprintf(f, "base00 = \"#%s\"\n", strip_hash(scheme->base00));
-    fprintf(f, "base01 = \"#%s\"\n", strip_hash(scheme->base01));
-    fprintf(f, "base02 = \"#%s\"\n", strip_hash(scheme->base02));
-    fprintf(f, "base03 = \"#%s\"\n", strip_hash(scheme->base03));
-    fprintf(f, "base04 = \"#%s\"\n", strip_hash(scheme->base04));
-    fprintf(f, "base05 = \"#%s\"\n", strip_hash(scheme->base05));
-    fprintf(f, "base06 = \"#%s\"\n", strip_hash(scheme->base06));
-    fprintf(f, "base07 = \"#%s\"\n", strip_hash(scheme->base07));
-    fprintf(f, "base08 = \"#%s\"\n", strip_hash(scheme->base08));
-    fprintf(f, "base09 = \"#%s\"\n", strip_hash(scheme->base09));
-    fprintf(f, "base0A = \"#%s\"\n", strip_hash(scheme->base0A));
-    fprintf(f, "base0B = \"#%s\"\n", strip_hash(scheme->base0B));
-    fprintf(f, "base0C = \"#%s\"\n", strip_hash(scheme->base0C));
-    fprintf(f, "base0D = \"#%s\"\n", strip_hash(scheme->base0D));
-    fprintf(f, "base0E = \"#%s\"\n", strip_hash(scheme->base0E));
-    fprintf(f, "base0F = \"#%s\"\n", strip_hash(scheme->base0F));
-    fprintf(f, "\n");
-
-    // ANSI section for Helix (Stylix/base16-helix exact mapping)
-    fprintf(f, "[ansi]\n");
-    fprintf(f, "black = 'base00'\n");
-    fprintf(f, "red = 'base08'\n");
-    fprintf(f, "green = 'base0B'\n");
-    fprintf(f, "yellow = 'base0A'\n");
-    fprintf(f, "blue = 'base0D'\n");
-    fprintf(f, "magenta = 'base0E'\n");
-    fprintf(f, "cyan = 'base0C'\n");
-    fprintf(f, "white = 'base05'\n");
-    fprintf(f, "bright-black = 'base03'\n");
-    fprintf(f, "bright-red = 'base09'\n");
-    fprintf(f, "bright-green = 'base0B'\n");
-    fprintf(f, "bright-yellow = 'base0A'\n");
-    fprintf(f, "bright-blue = 'base0D'\n");
-    fprintf(f, "bright-magenta = 'base0E'\n");
-    fprintf(f, "bright-cyan = 'base0C'\n");
-    fprintf(f, "bright-white = 'base07'\n");
-    fprintf(f, "\n");
-    
     // UI elements (Stylix/base16-helix exact mapping, quoted keys)
+    // IMPORTANT: All quoted key-value pairs MUST come before [palette] and [ansi] sections
     fprintf(f, "# UI\n");
     fprintf(f, "\"ui.background\" = { bg = 'base00' }\n");
     fprintf(f, "\"ui.text\" = 'base05'\n");
     fprintf(f, "\"ui.text.focus\" = { fg = 'base05', modifiers = ['bold'] }\n");
     fprintf(f, "\"ui.selection\" = { bg = 'base02' }\n");
-    fprintf(f, "\"ui.selection.primary\" = { bg = 'base02' }\n");
+    fprintf(f, "\"ui.selection.primary\" = { bg = 'base03' }\n");
     fprintf(f, "\"ui.linenr\" = 'base03'\n");
     fprintf(f, "\"ui.linenr.selected\" = { fg = 'base04', modifiers = ['bold'] }\n");
     fprintf(f, "\"ui.cursor\" = { fg = 'base00', bg = 'base05' }\n");
     fprintf(f, "\"ui.cursor.primary\" = { fg = 'base00', bg = 'base0D' }\n");
-    fprintf(f, "\"ui.cursor.match\" = { bg = 'base02', modifiers = ['underlined'] }\n");
+    fprintf(f, "\"ui.cursor.match\" = { bg = 'base03', modifiers = ['underlined'] }\n");
     fprintf(f, "\"ui.cursorline\" = { bg = 'base01' }\n");
     fprintf(f, "\"ui.statusline\" = { fg = 'base05', bg = 'base02' }\n");
     fprintf(f, "\"ui.statusline.inactive\" = { fg = 'base03', bg = 'base01' }\n");
@@ -126,7 +87,6 @@ int helix_generate_theme(const Base16Scheme *scheme, const char *output_path) {
     fprintf(f, "\"punctuation.delimiter\" = \"base05\"\n");
     fprintf(f, "\"punctuation.bracket\" = \"base05\"\n");
     fprintf(f, "\"special\" = \"base0C\"\n");
-    // Removed invalid 'attribute' key from theme output
     fprintf(f, "\"namespace\" = \"base0A\"\n");
     fprintf(f, "\"tag\" = \"base08\"\n");
     fprintf(f, "\n");
@@ -161,6 +121,48 @@ int helix_generate_theme(const Base16Scheme *scheme, const char *output_path) {
     fprintf(f, "\"diff.plus\" = \"base0B\"\n");
     fprintf(f, "\"diff.minus\" = \"base08\"\n");
     fprintf(f, "\"diff.delta\" = \"base0A\"\n");
+    fprintf(f, "\n");
+    
+    // Palette section (all required baseXX colors)
+    // IMPORTANT: This MUST come after all quoted key-value pairs
+    fprintf(f, "[palette]\n");
+    fprintf(f, "base00 = \"#%s\"\n", strip_hash(scheme->base00));
+    fprintf(f, "base01 = \"#%s\"\n", strip_hash(scheme->base01));
+    fprintf(f, "base02 = \"#%s\"\n", strip_hash(scheme->base02));
+    fprintf(f, "base03 = \"#%s\"\n", strip_hash(scheme->base03));
+    fprintf(f, "base04 = \"#%s\"\n", strip_hash(scheme->base04));
+    fprintf(f, "base05 = \"#%s\"\n", strip_hash(scheme->base05));
+    fprintf(f, "base06 = \"#%s\"\n", strip_hash(scheme->base06));
+    fprintf(f, "base07 = \"#%s\"\n", strip_hash(scheme->base07));
+    fprintf(f, "base08 = \"#%s\"\n", strip_hash(scheme->base08));
+    fprintf(f, "base09 = \"#%s\"\n", strip_hash(scheme->base09));
+    fprintf(f, "base0A = \"#%s\"\n", strip_hash(scheme->base0A));
+    fprintf(f, "base0B = \"#%s\"\n", strip_hash(scheme->base0B));
+    fprintf(f, "base0C = \"#%s\"\n", strip_hash(scheme->base0C));
+    fprintf(f, "base0D = \"#%s\"\n", strip_hash(scheme->base0D));
+    fprintf(f, "base0E = \"#%s\"\n", strip_hash(scheme->base0E));
+    fprintf(f, "base0F = \"#%s\"\n", strip_hash(scheme->base0F));
+    fprintf(f, "\n");
+
+    // ANSI section for Helix (Stylix/base16-helix exact mapping)
+    // IMPORTANT: This MUST come after [palette]
+    fprintf(f, "[ansi]\n");
+    fprintf(f, "black = 'base00'\n");
+    fprintf(f, "red = 'base08'\n");
+    fprintf(f, "green = 'base0B'\n");
+    fprintf(f, "yellow = 'base0A'\n");
+    fprintf(f, "blue = 'base0D'\n");
+    fprintf(f, "magenta = 'base0E'\n");
+    fprintf(f, "cyan = 'base0C'\n");
+    fprintf(f, "white = 'base05'\n");
+    fprintf(f, "bright-black = 'base03'\n");
+    fprintf(f, "bright-red = 'base09'\n");
+    fprintf(f, "bright-green = 'base0B'\n");
+    fprintf(f, "bright-yellow = 'base0A'\n");
+    fprintf(f, "bright-blue = 'base0D'\n");
+    fprintf(f, "bright-magenta = 'base0E'\n");
+    fprintf(f, "bright-cyan = 'base0C'\n");
+    fprintf(f, "bright-white = 'base07'\n");
     
     fclose(f);
     return 0;
