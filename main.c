@@ -30,6 +30,9 @@
 #include "dunst.h"
 #include "xresources.h"
 #include "mangowc.h"
+#include "vesktop.h"
+#include "swaylock.h"
+#include "sway.h"
 
 static char* get_config_dir(void) {
     const char *home = getenv("HOME");
@@ -246,7 +249,7 @@ int main(int argc, char *argv[]) {
                     printf("\n");
                 } else if (strcmp(app, "kitty") == 0) {
                     printf("Applying to kitty...\n");
-                    if (kitty_apply_theme(scheme, &config->font) == 0) {
+                    if (kitty_apply_theme(scheme, &config->font, &config->opacity) == 0) {
                         applied++;
                     }
                     printf("\n");
@@ -350,6 +353,24 @@ int main(int argc, char *argv[]) {
                     printf("Applying to MangoWC...\n");
                     mangowc_apply_theme(scheme, &config->font);
                     applied++;
+                    printf("\n");
+                } else if (strcmp(app, "vesktop") == 0 || strcmp(app, "vencord") == 0 || strcmp(app, "discord") == 0) {
+                    printf("Applying to Vesktop/Vencord...\n");
+                    if (vesktop_apply_theme(scheme, &config->font) == 0) {
+                        applied++;
+                    }
+                    printf("\n");
+                } else if (strcmp(app, "swaylock") == 0) {
+                    printf("Applying to swaylock...\n");
+                    if (swaylock_apply_theme(scheme, &config->opacity) == 0) {
+                        applied++;
+                    }
+                    printf("\n");
+                } else if (strcmp(app, "sway") == 0) {
+                    printf("Applying to sway...\n");
+                    if (sway_apply_theme(scheme, &config->font) == 0) {
+                        applied++;
+                    }
                     printf("\n");
                 } else {
                     printf("Warning: No module for '%s' yet\n", app);

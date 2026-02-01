@@ -8,9 +8,9 @@ CFLAGS += $(shell pkg-config --cflags yaml-0.1 json-c)
 
 BUILD_DIR = build
 TARGET = coat
-SRCS = main.c fish.c yaml.c tinted_parser.c schemes.c schemes_list.c kitty.c i3.c helix.c rofi.c bat.c tty.c avizo.c bemenu.c btop.c cava.c zathura.c yazi.c vscode.c gtk.c dunst.c xresources.c mangowc.c firefox.c
+SRCS = main.c fish.c yaml.c tinted_parser.c schemes.c schemes_list.c kitty.c i3.c helix.c rofi.c bat.c tty.c avizo.c bemenu.c btop.c cava.c zathura.c yazi.c vscode.c gtk.c dunst.c xresources.c mangowc.c firefox.c vesktop.c swaylock.c sway.c
 OBJS = $(addprefix $(BUILD_DIR)/, $(SRCS:.c=.o))
-HEADERS = fish.h yaml.h tinted_parser.h schemes.h schemes_list.h kitty.h i3.h helix.h rofi.h bat.h tty.h avizo.h bemenu.h btop.h cava.h zathura.h yazi.h vscode.h gtk.h dunst.h xresources.h mangowc.h
+HEADERS = fish.h yaml.h tinted_parser.h schemes.h schemes_list.h kitty.h i3.h helix.h rofi.h bat.h tty.h avizo.h bemenu.h btop.h cava.h zathura.h yazi.h vscode.h gtk.h dunst.h xresources.h mangowc.h vesktop.h swaylock.h sway.h
 
 .PHONY: all clean install uninstall
 

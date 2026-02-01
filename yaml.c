@@ -33,6 +33,10 @@ CoatConfig* coat_config_new(void) {
     config->font.sizes.terminal = 12;
     config->font.sizes.desktop = 10;
     config->font.sizes.popups = 10;
+    config->opacity.terminal = 1.0;
+    config->opacity.applications = 1.0;
+    config->opacity.desktop = 1.0;
+    config->opacity.popups = 1.0;
 
     return config;
 }
@@ -85,11 +89,17 @@ int coat_config_load(CoatConfig *config, const char *filepath) {
         STATE_FONT_SIZES,
         STATE_FONT_SIZE_TERMINAL,
         STATE_FONT_SIZE_DESKTOP,
-        STATE_FONT_SIZE_POPUPS
+        STATE_FONT_SIZE_POPUPS,
+        STATE_OPACITY,
+        STATE_OPACITY_TERMINAL,
+        STATE_OPACITY_APPLICATIONS,
+        STATE_OPACITY_DESKTOP,
+        STATE_OPACITY_POPUPS
     } state = STATE_NONE;
 
     char current_key[MAX_STRING_LEN] = {0};
     int in_font_section = 0;
+    int in_opacity_section = 0;
     int done = 0;
 
     while (!done) {
@@ -108,6 +118,9 @@ int coat_config_load(CoatConfig *config, const char *filepath) {
             case YAML_MAPPING_START_EVENT:
                 if (strcmp(current_key, "font") == 0) {
                     in_font_section = 1;
+                } else if (strcmp(current_key, "opacity") == 0) {
+                    in_opacity_section = 1;
+                    state = STATE_OPACITY;
                 } else if (strcmp(current_key, "sizes") == 0 && in_font_section) {
                     state = STATE_FONT_SIZES;
                 }
@@ -116,6 +129,9 @@ int coat_config_load(CoatConfig *config, const char *filepath) {
             case YAML_MAPPING_END_EVENT:
                 if (state == STATE_FONT_SIZES) {
                     state = STATE_NONE;
+                } else if (state == STATE_OPACITY) {
+                    state = STATE_NONE;
+                    in_opacity_section = 0;
                 } else if (in_font_section) {
                     in_font_section = 0;
                 }
@@ -188,6 +204,32 @@ int coat_config_load(CoatConfig *config, const char *filepath) {
                             state = STATE_FONT_SANSSERIF;
                         } else if (strcmp(value, "serif") == 0) {
                             state = STATE_FONT_SERIF;
+                        }
+                    }
+                } else if (in_opacity_section) {
+                    // Handle opacity subsections
+                    if (state == STATE_OPACITY_TERMINAL) {
+                        config->opacity.terminal = atof(value);
+                        state = STATE_OPACITY;
+                    } else if (state == STATE_OPACITY_APPLICATIONS) {
+                        config->opacity.applications = atof(value);
+                        state = STATE_OPACITY;
+                    } else if (state == STATE_OPACITY_DESKTOP) {
+                        config->opacity.desktop = atof(value);
+                        state = STATE_OPACITY;
+                    } else if (state == STATE_OPACITY_POPUPS) {
+                        config->opacity.popups = atof(value);
+                        state = STATE_OPACITY;
+                    } else {
+                        // This is a key in the opacity section
+                        if (strcmp(value, "terminal") == 0) {
+                            state = STATE_OPACITY_TERMINAL;
+                        } else if (strcmp(value, "applications") == 0) {
+                            state = STATE_OPACITY_APPLICATIONS;
+                        } else if (strcmp(value, "desktop") == 0) {
+                            state = STATE_OPACITY_DESKTOP;
+                        } else if (strcmp(value, "popups") == 0) {
+                            state = STATE_OPACITY_POPUPS;
                         }
                     }
                 } else {

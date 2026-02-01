@@ -17,6 +17,14 @@ typedef struct {
     int popups;      // Size for notifications, popups
 } FontSizes;
 
+// Opacity settings structure
+typedef struct {
+    float terminal;      // Opacity for terminal windows (0.0-1.0)
+    float applications;  // Opacity for application windows (0.0-1.0)
+    float desktop;       // Opacity for bars/widgets (0.0-1.0)
+    float popups;        // Opacity for notifications/popups (0.0-1.0)
+} OpacityConfig;
+
 // Font configuration structure
 typedef struct {
     char emoji[MAX_STRING_LEN];
@@ -32,6 +40,7 @@ typedef struct {
     int enabled_count;        // Number of enabled items
     char scheme[MAX_STRING_LEN];  // Color scheme name
     FontConfig font;          // Font configuration
+    OpacityConfig opacity;    // Opacity configuration
 } CoatConfig;
 
 // Function declarations

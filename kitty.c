@@ -11,7 +11,7 @@
 #include <unistd.h>
 
 // Generate a kitty terminal theme file from a Base16 scheme
-int kitty_generate_theme(const Base16Scheme *scheme, const char *output_path, const FontConfig *font) {
+int kitty_generate_theme(const Base16Scheme *scheme, const char *output_path, const FontConfig *font, const OpacityConfig *opacity) {
     if (!scheme || !output_path) {
         return -1;
     }
@@ -35,6 +35,13 @@ int kitty_generate_theme(const Base16Scheme *scheme, const char *output_path, co
         fprintf(f, "# Font configuration\n");
         fprintf(f, "font_family %s\n", font->monospace);
         fprintf(f, "font_size %d\n", font->sizes.terminal);
+        fprintf(f, "\n");
+    }
+    
+    // Opacity configuration
+    if (opacity && opacity->terminal < 1.0) {
+        fprintf(f, "# Opacity\n");
+        fprintf(f, "background_opacity %.2f\n", opacity->terminal);
         fprintf(f, "\n");
     }
     
@@ -131,7 +138,7 @@ int kitty_generate_theme(const Base16Scheme *scheme, const char *output_path, co
 }
 
 // Apply kitty theme to current kitty configuration
-int kitty_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
+int kitty_apply_theme(const Base16Scheme *scheme, const FontConfig *font, const OpacityConfig *opacity) {
     if (!scheme) {
         return -1;
     }
@@ -153,7 +160,7 @@ int kitty_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
     
     printf("Generating kitty theme: %s\n", theme_path);
     
-    if (kitty_generate_theme(scheme, theme_path, font) != 0) {
+    if (kitty_generate_theme(scheme, theme_path, font, opacity) != 0) {
         return -1;
     }
     

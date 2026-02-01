@@ -43,6 +43,55 @@ include coat-theme.conf
 - `i3-msg reload` (done automatically by `coat apply`)
 - Or press `$mod+Shift+r`
 
+### Sway Window Manager
+
+**Permanent activation (add to `~/.config/sway/config`):**
+```
+include ~/.config/sway/coat-theme
+```
+
+**Then reload the config:**
+```bash
+swaymsg reload
+```
+
+**What's themed:**
+- Window borders and backgrounds
+- Client colors (focused, unfocused, urgent, placeholder)
+- Child borders and indicators
+- Font configuration (if configured in coat.yaml)
+
+### Swaybar
+
+**Permanent activation (add to `~/.config/sway/config`):**
+```
+include ~/.config/sway/coat-swaybar-theme
+```
+
+**Note:** The generated swaybar configuration includes a complete `bar { }` block, which may conflict with your existing bar configuration. You have two options:
+
+**Option 1:** Comment out or remove your existing bar configuration in `~/.config/sway/config` and use the generated one.
+
+**Option 2:** Manually extract only the `colors { }` section from `~/.config/sway/coat-swaybar-theme` and add it to your existing bar configuration.
+
+**Then reload:**
+```bash
+swaymsg reload
+```
+
+**Customization:**
+Edit `~/.config/sway/coat-swaybar-theme` to customize:
+- Bar position (top/bottom)
+- Status command (use i3status, waybar, etc.)
+- Font settings
+- Colors remain managed by coat
+
+**What's themed:**
+- Bar background and separator
+- Statusline text color
+- Workspace colors (focused, active, inactive, urgent)
+- Binding mode indicator
+
 ### Helix Editor
 
 **Permanent activation (add to `~/.config/helix/config.toml`):**
@@ -172,6 +221,7 @@ Currently supported:
 - **fish** - Fish shell syntax highlighting and pager colors
 - **kitty** - Kitty terminal emulator colors and theme
 - **i3** - i3 window manager colors (window borders, bar, workspaces)
+- **sway** - Sway window manager colors (window borders, client theming)
 - **helix** - Helix text editor theme
 - **rofi** - Rofi application launcher theme
 - **bat** - Bat syntax highlighter theme
@@ -186,6 +236,7 @@ Currently supported:
 - **gtk** - GTK 3.0/4.0 applications (GNOME, etc.)
 - **dunst** - Dunst notification daemon theme
 - **chromium** - Chromium-based browsers (Chrome, Brave, Edge, Vivaldi)
+- **swaylock** - Swaylock screen locker for Wayland
 
 Coming soon:
 - alacritty
