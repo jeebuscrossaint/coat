@@ -146,23 +146,23 @@ int gtk_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
         return -1;
     }
     
-    // Create theme directory
-    char theme_dir[1024];
-    char gtk3_dir[1024];
-    char gtk4_dir[1024];
+    // Create GTK config directories
+    char gtk3_config_dir[1024];
+    char gtk4_config_dir[1024];
     
-    snprintf(theme_dir, sizeof(theme_dir), "%s/.themes/coat", home);
-    snprintf(gtk3_dir, sizeof(gtk3_dir), "%s/gtk-3.0", theme_dir);
-    snprintf(gtk4_dir, sizeof(gtk4_dir), "%s/gtk-4.0", theme_dir);
+    snprintf(gtk3_config_dir, sizeof(gtk3_config_dir), "%s/.config/gtk-3.0", home);
+    snprintf(gtk4_config_dir, sizeof(gtk4_config_dir), "%s/.config/gtk-4.0", home);
     
     // Create directories
-    mkdir(theme_dir, 0755);
-    mkdir(gtk3_dir, 0755);
-    mkdir(gtk4_dir, 0755);
+    mkdir(gtk3_config_dir, 0755);
+    mkdir(gtk4_config_dir, 0755);
     
-    // Generate GTK 3.0 CSS with Adwaita import
+    // Generate GTK 3.0 CSS (appended to config)
     char gtk3_css[1024];
-    snprintf(gtk3_css, sizeof(gtk3_css), "%s/gtk.css", gtk3_dir);
+    snprintf(gtk3_css, sizeof(gtk3_css), "%s/gtk.css", gtk3_config_dir);
+    
+    // Remove symlink if it exists (adw-gtk3 creates these)
+    unlink(gtk3_css);
     
     FILE *f = fopen(gtk3_css, "w");
     if (!f) {
@@ -170,9 +170,11 @@ int gtk_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
         return -1;
     }
     
-    // Import base Adwaita dark theme, then override colors
-    fprintf(f, "/* coat GTK theme based on Adwaita-dark */\n");
-    fprintf(f, "@import url(\"resource:///org/gtk/libgtk/theme/Adwaita/gtk-contained-dark.css\");\n\n");
+    // Stylix approach: use adw-gtk3 as base theme, append color overrides
+    int is_light = (scheme->variant[0] && strstr(scheme->variant, "light") != NULL);
+    const char *variant_name = is_light ? "light" : "dark";
+    
+    fprintf(f, "/* coat GTK theme - color overrides (variant: %s) */\n\n", variant_name);
     
     // Write color overrides
     write_gtk_colors(f, scheme);
@@ -180,7 +182,10 @@ int gtk_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
     
     // Generate GTK 4.0 CSS
     char gtk4_css[1024];
-    snprintf(gtk4_css, sizeof(gtk4_css), "%s/gtk.css", gtk4_dir);
+    snprintf(gtk4_css, sizeof(gtk4_css), "%s/gtk.css", gtk4_config_dir);
+    
+    // Remove symlink if it exists (adw-gtk3 creates these)
+    unlink(gtk4_css);
     
     f = fopen(gtk4_css, "w");
     if (!f) {
@@ -188,31 +193,16 @@ int gtk_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
         return -1;
     }
     
-    fprintf(f, "/* coat GTK 4 theme based on Adwaita-dark */\n");
-    fprintf(f, "@import url(\"resource:///org/gtk/libgtk/theme/Adwaita/gtk-contained-dark.css\");\n\n");
+    fprintf(f, "/* coat GTK 4 theme - color overrides (variant: %s) */\n\n", variant_name);
     write_gtk_colors(f, scheme);
     fclose(f);
     
-    // Create index.theme
-    char index_theme[1024];
-    snprintf(index_theme, sizeof(index_theme), "%s/index.theme", theme_dir);
-    
-    f = fopen(index_theme, "w");
-    if (!f) {
-        fprintf(stderr, "Failed to create index.theme: %s\n", index_theme);
-        return -1;
-    }
-    
-    fprintf(f, "[Desktop Entry]\n");
-    fprintf(f, "Type=X-GNOME-Metatheme\n");
-    fprintf(f, "Name=coat\n");
-    fprintf(f, "Comment=Base16 theme: %s (based on Adwaita-dark)\n", scheme->name);
-    fprintf(f, "Encoding=UTF-8\n\n");
-    fprintf(f, "[X-GNOME-Metatheme]\n");
-    fprintf(f, "GtkTheme=coat\n");
-    fprintf(f, "IconTheme=Adwaita\n");
-    fprintf(f, "CursorTheme=Adwaita\n");
-    fclose(f);
+    // Set GTK theme to adw-gtk3 or adw-gtk3-dark via gsettings (like Stylix)
+    const char *theme_name = is_light ? "adw-gtk3" : "adw-gtk3-dark";
+    char theme_cmd[512];
+    snprintf(theme_cmd, sizeof(theme_cmd),
+        "gsettings set org.gnome.desktop.interface gtk-theme '%s' 2>/dev/null", theme_name);
+    system(theme_cmd);
     
     // Set GTK font via gsettings
     char font_main[256] = "";
@@ -235,15 +225,20 @@ int gtk_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
         system(font_cmd);
     }
     
-    printf("  Created GTK theme: %s\n", theme_dir);
-    printf("  ✓ GTK 3.0: %s\n", gtk3_css);
-    printf("  ✓ GTK 4.0: %s\n", gtk4_css);
+    // Notify GTK apps to reload settings
+    // This sends SIGHUP to gtk-based apps, causing many to reload their theme
+    system("pkill -HUP -f 'gtk' 2>/dev/null");
+    
+    printf("  ✓ GTK 3.0 CSS: %s\n", gtk3_css);
+    printf("  ✓ GTK 4.0 CSS: %s\n", gtk4_css);
+    printf("  ✓ Set GTK theme to '%s'\n", theme_name);
     if (font) {
         printf("  ✓ Set font: %s %d, monospace: %s %d\n",
                font_main, font->sizes.terminal, font_mono, font->sizes.terminal);
     }
-    printf("\n  To apply: Select 'coat' in nwg-look or run:\n");
-    printf("    gsettings set org.gnome.desktop.interface gtk-theme 'coat'\n");
+    printf("  ✓ Notified GTK apps to reload theme\n");
+    printf("\n  Note: Ensure 'adw-gtk3' and 'adw-gtk3-dark' themes are installed.\n");
+    printf("  Some apps may require a restart to fully apply the theme.\n");
     
     return 0;
 }

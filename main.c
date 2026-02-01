@@ -59,7 +59,7 @@ static void print_usage(const char *prog_name) {
     printf("  clone               Clone the schemes repository\n");
     printf("  list [OPTIONS]      List available color schemes\n");
     printf("  search <term>       Search for schemes by name/author\n");
-    printf("  apply               Apply current scheme to enabled applications\n");
+    printf("  apply [app]         Apply current scheme (all apps or specific app)\n");
     printf("  help                Show this help message\n");
     printf("\n");
     printf("List Options:\n");
