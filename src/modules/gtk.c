@@ -224,16 +224,8 @@ int gtk_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
     // Notify GTK apps to reload settings
     (void)system("pkill -HUP -f 'gtk' 2>/dev/null");
     
-    printf("  ✓ GTK 3.0 CSS: %s\n", gtk3_css);
-    printf("  ✓ GTK 4.0 CSS: %s\n", gtk4_css);
-    printf("  ✓ Set GTK theme to '%s'\n", theme_name);
-    if (font) {
-        printf("  ✓ Set font: %s %d, monospace: %s %d\n",
-               font_main, font->sizes.terminal, font_mono, font->sizes.terminal);
-    }
-    printf("  ✓ Notified GTK apps to reload theme\n");
-    printf("\n  Note: Ensure 'adw-gtk3' and 'adw-gtk3-dark' themes are installed.\n");
-    printf("  Some apps may require a restart to fully apply the theme.\n");
+    printf("  ✓ %s\n", gtk3_css);
+    printf("  ✓ %s\n", gtk4_css);
     
     return 0;
 }

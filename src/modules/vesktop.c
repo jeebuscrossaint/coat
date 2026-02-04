@@ -279,16 +279,7 @@ int vesktop_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
     
     if (success_count == 0) {
         fprintf(stderr, "  ✗ Neither Vesktop nor Vencord installation found\n");
-        fprintf(stderr, "    Looked in:\n");
-        fprintf(stderr, "    - ~/.config/vesktop/\n");
-        fprintf(stderr, "    - ~/.config/Vencord/\n");
         return -1;
-    }
-    
-    printf("\n  Theme installed. Enable it in Settings → Vencord → Themes → coat.theme.css\n");
-    printf("  Or restart Discord/Vesktop if auto-loading is enabled.\n");
-    if (font && font->sansserif[0]) {
-        printf("  Note: To change Discord's font, use a separate CSS snippet\n");
     }
     
     return 0;

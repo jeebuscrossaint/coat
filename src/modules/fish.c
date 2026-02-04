@@ -99,18 +99,11 @@ int fish_apply_theme(const Base16Scheme *scheme) {
     char theme_path[1024];
     snprintf(theme_path, sizeof(theme_path), "%s/coat.theme", themes_dir);
     
-    printf("Generating fish theme: %s\n", theme_path);
-    
     if (fish_generate_theme(scheme, theme_path) != 0) {
+        fprintf(stderr, "Failed to generate fish theme\n");
         return -1;
     }
     
-    printf("Fish theme generated successfully!\n");
-    printf("\nTo activate, run:\n");
-    printf("  fish_config theme save coat\n");
-    printf("\nOr add to ~/.config/fish/config.fish:\n");
-    printf("  fish_config theme choose coat\n");
-    printf("\nSee USAGE.md for more details.\n");
-    
+    printf("  ✓ %s\n", theme_path);
     return 0;
 }

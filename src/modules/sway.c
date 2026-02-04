@@ -123,15 +123,7 @@ int sway_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
         return -1;
     }
     
-    printf("Sway theme generated successfully!\n");
-    printf("\nTo use this theme, add to ~/.config/sway/config:\n");
-    printf("  include ~/.config/sway/coat-theme\n");
-    printf("\n");
-    printf("IMPORTANT: Remove any 'bar { }' blocks from your main config!\n");
-    printf("The coat-theme includes a complete bar configuration with swayrbar.\n");
-    printf("Having both will create duplicate bars.\n");
-    printf("\nThen reload sway:\n");
-    printf("  swaymsg reload\n");
+    printf("  ✓ %s\n", theme_path);
     
     return 0;
 }

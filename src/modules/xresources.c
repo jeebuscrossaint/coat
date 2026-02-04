@@ -203,19 +203,7 @@ int xresources_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
     printf("  Reloading X resources...\n");
     char cmd[2048];
     snprintf(cmd, sizeof(cmd), "xrdb -merge %s 2>/dev/null", xresources_path);
-    int result = system(cmd);
-    
-    if (result == 0) {
-        printf("  ✓ X resources reloaded!\n");
-    } else {
-        printf("  Note: Could not reload automatically. Run 'xrdb -merge ~/.Xresources' to apply.\n");
-    }
-    
-    printf("\n");
-    printf("  To make permanent, add to your X session startup:\n");
-    printf("    xrdb -merge ~/.Xresources\n");
-    printf("\n");
-    printf("  Or add to ~/.xinitrc or ~/.xprofile\n");
+    system(cmd);
     
     return 0;
 }

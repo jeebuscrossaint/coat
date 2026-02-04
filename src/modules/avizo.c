@@ -92,16 +92,7 @@ int avizo_apply_theme(const Base16Scheme *scheme) {
     
     fclose(f);
     
-    printf("Avizo config generated successfully!\n");
-    printf("\nAvizo will automatically use the new theme on next notification.\n");
-    printf("\nMake sure avizo-service is running:\n");
-    printf("  avizo-service &\n");
-    printf("\nOr add to your Sway config:\n");
-    printf("  exec \"avizo-service\"\n");
-    printf("\nTest with:\n");
-    printf("  volumectl -u up\n");
-    printf("  lightctl up\n");
-    printf("\nSee USAGE.md for more details.\n");
+    printf("  ✓ %s\n", config_path);
     
     return 0;
 }

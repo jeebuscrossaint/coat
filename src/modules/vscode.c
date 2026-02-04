@@ -375,11 +375,7 @@ int vscode_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
     json_object_put(root);
     
 
-    printf("  VSCode theme extension created at %s\n", ext_dir);
-    printf("  Theme set to 'Coat' in settings.json\n");
-
-    // Manual reload instructions only; SIGHUP removed to prevent VSCode hang
-    printf("  If the theme does not appear, reload VSCode (Ctrl+Shift+P → Reload Window).\n");
+    printf("  ✓ %s\n", ext_dir);
     
     return 0;
 }

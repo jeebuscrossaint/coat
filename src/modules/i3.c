@@ -113,22 +113,10 @@ int i3_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
         return -1;
     }
     
-    printf("i3 theme generated successfully!\n");
+    printf("  ✓ %s\n", theme_path);
     
     // Try to reload i3 config
-    printf("Reloading i3 config...\n");
-    int result = system("i3-msg reload 2>/dev/null");
-    
-    if (result == 0) {
-        printf("✓ i3 config reloaded!\n");
-    } else {
-        printf("Could not reload i3 automatically.\n");
-        printf("Reload manually: $mod+Shift+r\n");
-    }
-    
-    printf("\nTo make permanent, add to ~/.config/i3/config:\n");
-    printf("  include coat-theme.conf\n");
-    printf("\nSee USAGE.md for more details.\n");
+    system("i3-msg reload 2>/dev/null");
     
     return 0;
 }

@@ -120,12 +120,7 @@ int cava_apply_theme(const Base16Scheme *scheme) {
     
     fclose(f);
     
-    printf("CAVA config generated successfully!\n");
-    printf("\nCAVA will automatically use the new colors on next launch.\n");
-    printf("\nTo start CAVA:\n");
-    printf("  cava\n");
-    printf("\nOr in a terminal split/tmux pane for a persistent visualizer.\n");
-    printf("\nSee USAGE.md for more details.\n");
+    printf("  ✓ %s\n", config_path);
     
     return 0;
 }

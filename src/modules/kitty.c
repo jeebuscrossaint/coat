@@ -160,35 +160,16 @@ int kitty_apply_theme(const Base16Scheme *scheme, const FontConfig *font, const 
         return -1;
     }
     
-    printf("Kitty theme generated successfully!\n");
-    
-    // Auto-apply the theme using kitty remote control
-    printf("Activating theme...\n");
-    
-    // First try to apply colors to all running kitty instances
+    // Auto-apply to running instances
     char apply_cmd[2048];
     snprintf(apply_cmd, sizeof(apply_cmd), 
              "kitty @ --to unix:/tmp/kitty set-colors --all --configured %s 2>/dev/null", 
              theme_path);
     
-    int result = system(apply_cmd);
-    
-    if (result == 0) {
-        printf("✓ Kitty theme activated in running instances!\n");
-    } else {
-        // Try alternative method - send SIGUSR1 to reload config
-        printf("Attempting to reload kitty config...\n");
-        result = system("pkill -SIGUSR1 kitty 2>/dev/null");
-        
-        if (result == 0) {
-            printf("✓ Sent reload signal to kitty!\n");
-        }
+    if (system(apply_cmd) != 0) {
+        (void)system("pkill -SIGUSR1 kitty 2>/dev/null");
     }
     
-    printf("\nTo make permanent, add to ~/.config/kitty/kitty.conf:\n");
-    printf("  include coat-theme.conf\n");
-    printf("\nOr reload manually: Ctrl+Shift+F5\n");
-    printf("\nSee USAGE.md for more details.\n");
-    
+    printf("  ✓ %s\n", theme_path);
     return 0;
 }

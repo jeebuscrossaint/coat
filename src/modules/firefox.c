@@ -91,8 +91,6 @@ int firefox_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
         fclose(f);
     }
 
-    printf("  ✓ Firefox theme written to: %s\n", chrome_dir);
-    printf("    - userChrome.css (UI)\n    - userContent.css (web content)\n");
-    printf("  To enable, set toolkit.legacyUserProfileCustomizations.stylesheets = true in about:config and restart Firefox.\n");
+    printf("  ✓ %s\n", chrome_dir);
     return 0;
 }

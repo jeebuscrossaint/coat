@@ -195,11 +195,7 @@ int helix_apply_theme(const Base16Scheme *scheme) {
         return -1;
     }
     
-    printf("Helix theme generated successfully!\n");
-    printf("\nTo activate, add to ~/.config/helix/config.toml:\n");
-    printf("  theme = \"coat\"\n");
-    printf("\nThen restart helix or reload config with :config-reload\n");
-    printf("\nSee USAGE.md for more details.\n");
+    printf("  ✓ %s\n", theme_path);
     
     return 0;
 }

@@ -168,17 +168,10 @@ int dunst_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
         return -1;
     }
     
-    printf("  Created dunst config: %s\n", config_path);
+    printf("  ✓ %s\n", config_path);
     
     // Try to restart dunst to apply the theme
-    printf("  Restarting dunst to apply theme...\n");
-    int result = system("killall dunst 2>/dev/null; dunst &");
-    
-    if (result == 0) {
-        printf("  Dunst restarted successfully!\n");
-    } else {
-        printf("  Note: Could not restart dunst automatically. Run 'killall dunst && dunst &' to apply.\n");
-    }
+    system("killall dunst 2>/dev/null; dunst &");
     
     return 0;
 }

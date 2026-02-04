@@ -186,8 +186,7 @@ int yazi_apply_theme(const Base16Scheme *scheme) {
         return -1;
     }
     
-    printf("Theme applied to: %s\n", theme_path);
-    printf("Restart yazi to see the changes.\n");
+    printf("  ✓ %s\n", theme_path);
     
     return 0;
 }

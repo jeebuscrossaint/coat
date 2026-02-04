@@ -230,23 +230,10 @@ int bat_apply_theme(const Base16Scheme *scheme) {
         return -1;
     }
     
-    printf("Bat theme generated successfully!\n");
-    printf("Building bat theme cache...\n");
+    printf("  ✓ %s\n", theme_path);
     
     // Run bat cache --build to rebuild the theme cache
-    int cache_result = system("bat cache --build > /dev/null 2>&1");
-    if (cache_result == 0) {
-        printf("✓ Bat cache rebuilt!\n");
-    } else {
-        printf("Note: Could not rebuild bat cache automatically.\n");
-        printf("Run manually: bat cache --build\n");
-    }
-    
-    printf("\nTo activate, add to ~/.config/bat/config:\n");
-    printf("  --theme=\"coat\"\n");
-    printf("\nOr use temporarily with:\n");
-    printf("  bat --theme=coat <file>\n");
-    printf("\nSee USAGE.md for more details.\n");
+    system("bat cache --build > /dev/null 2>&1");
     
     return 0;
 }

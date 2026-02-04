@@ -149,19 +149,7 @@ int swaylock_apply_theme(const Base16Scheme *scheme, const OpacityConfig *opacit
         return -1;
     }
     
-    printf("Swaylock config generated successfully!\n");
-    printf("\nSwaylock will use the new theme on next lock.\n");
-    printf("\nTo test:\n");
-    printf("  swaylock\n");
-    printf("\nOr add to your Sway config to bind to a key:\n");
-    printf("  bindsym $mod+l exec swaylock\n");
-    printf("\nFor auto-lock on idle:\n");
-    printf("  exec swayidle -w \\\n");
-    printf("    timeout 300 'swaylock -f' \\\n");
-    printf("    timeout 600 'swaymsg \"output * dpms off\"' \\\n");
-    printf("    resume 'swaymsg \"output * dpms on\"' \\\n");
-    printf("    before-sleep 'swaylock -f'\n");
-    printf("\nSee USAGE.md for more details.\n");
+    printf("  ✓ %s\n", config_path);
     
     return 0;
 }

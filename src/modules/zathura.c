@@ -120,8 +120,7 @@ int zathura_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
         return -1;
     }
     
-    printf("Theme applied to: %s\n", theme_path);
-    printf("Restart zathura or open a new PDF to see the changes.\n");
+    printf("  ✓ %s\n", theme_path);
     
     return 0;
 }

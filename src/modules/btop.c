@@ -124,15 +124,7 @@ int btop_apply_theme(const Base16Scheme *scheme) {
     
     fclose(f);
     
-    printf("Btop theme generated successfully!\n");
-    printf("\nTo activate:\n");
-    printf("1. Open btop\n");
-    printf("2. Press ESC to open menu\n");
-    printf("3. Navigate to 'Options' > 'Color theme'\n");
-    printf("4. Select 'coat'\n");
-    printf("\nOr set in ~/.config/btop/btop.conf:\n");
-    printf("  color_theme = \"coat\"\n");
-    printf("\nSee USAGE.md for more details.\n");
+    printf("  ✓ %s\n", theme_path);
     
     return 0;
 }

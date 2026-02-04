@@ -114,12 +114,9 @@ int tty_apply_theme(const Base16Scheme *scheme) {
         return -1;
     }
     
-    printf("TTY theme script generated successfully!\n");
-    
     // Try to apply immediately if we're in a TTY
     const char *term = getenv("TERM");
     if (term && strcmp(term, "linux") == 0) {
-        printf("Applying theme to current TTY...\n");
         char cmd[1100];
         snprintf(cmd, sizeof(cmd), "%s", script_path);
         int result = system(cmd);
@@ -132,27 +129,7 @@ int tty_apply_theme(const Base16Scheme *scheme) {
         printf("Not running in a TTY. Theme will apply on next TTY login.\n");
     }
     
-    printf("\nTo make permanent, add one of the following:\n");
-    printf("\n1. For systemd systems, create /etc/systemd/system/tty-theme.service:\n");
-    printf("   [Unit]\n");
-    printf("   Description=Set TTY color scheme\n");
-    printf("   DefaultDependencies=no\n");
-    printf("   After=local-fs.target\n");
-    printf("\n");
-    printf("   [Service]\n");
-    printf("   Type=oneshot\n");
-    printf("   ExecStart=%s\n", script_path);
-    printf("   StandardInput=tty\n");
-    printf("   StandardOutput=tty\n");
-    printf("\n");
-    printf("   [Install]\n");
-    printf("   WantedBy=sysinit.target\n");
-    printf("\n   Then run: sudo systemctl enable --now tty-theme.service\n");
-    printf("\n2. Or add to ~/.bashrc or ~/.zshrc:\n");
-    printf("   %s\n", script_path);
-    printf("\n3. Or copy to /etc/profile.d/ (requires root):\n");
-    printf("   sudo cp %s /etc/profile.d/tty-theme.sh\n", script_path);
-    printf("\nSee USAGE.md for more details.\n");
+    printf("  ✓ %s\n", script_path);
     
     return 0;
 }

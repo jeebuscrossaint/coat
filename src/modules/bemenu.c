@@ -110,18 +110,7 @@ int bemenu_apply_theme(const Base16Scheme *scheme) {
         chmod(wrapper_path, 0755);
     }
     
-    printf("Bemenu theme generated successfully!\n");
-    printf("\nTo use the themed bemenu:\n");
-    printf("\n1. Use the wrapper script:\n");
-    printf("   %s\n", wrapper_path);
-    printf("\n2. Or source the theme in your scripts:\n");
-    printf("   . %s\n", script_path);
-    printf("   echo \"item1\\nitem2\\nitem3\" | bemenu\n");
-    printf("\n3. Or add to your Sway config:\n");
-    printf("   bindsym $mod+d exec %s\n", wrapper_path);
-    printf("\n4. Replace bemenu-run in your PATH:\n");
-    printf("   ln -sf %s ~/bin/bemenu-run\n", wrapper_path);
-    printf("\nSee USAGE.md for more details.\n");
+    printf("  ✓ %s\n", wrapper_path);
     
     return 0;
 }

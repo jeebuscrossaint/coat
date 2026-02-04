@@ -145,13 +145,19 @@ static void print_usage(const char *prog_name) {
     printf("  clone               Clone the schemes repository\n");
     printf("  list [OPTIONS]      List available color schemes\n");
     printf("  search <term>       Search for schemes by name/author\n");
-    printf("  apply [app]         Apply current scheme (all apps or specific app)\n");
+    printf("  apply [app]         Apply current scheme to all apps or specific app\n");
+    printf("  docs <app>          Show setup instructions for specific app\n");
     printf("  help                Show this help message\n");
     printf("\n");
     printf("List Options:\n");
     printf("  --dark              Show only dark variant schemes\n");
     printf("  --light             Show only light variant schemes\n");
     printf("  --no-preview        Disable color preview (enabled by default)\n");
+    printf("\n");
+    printf("Apply Examples:\n");
+    printf("  %s apply            Apply to all enabled apps in config\n", prog_name);
+    printf("  %s apply kitty      Apply only to kitty\n", prog_name);
+    printf("  %s apply fish       Apply only to fish shell\n", prog_name);
     printf("\n");
     printf("If no command is provided, displays current configuration.\n");
 }
@@ -174,6 +180,133 @@ int main(int argc, char *argv[]) {
             int result = schemes_clone(config_dir);
             free(config_dir);
             return result == 0 ? 0 : 1;
+        } else if (strcmp(argv[1], "docs") == 0) {
+            if (argc < 3) {
+                fprintf(stderr, "Error: docs command requires an app name\\n\\n");
+                fprintf(stderr, "Usage: %s docs <app>\\n\\n", argv[0]);
+                fprintf(stderr, "Examples:\\n");
+                fprintf(stderr, "  %s docs fish\\n", argv[0]);
+                fprintf(stderr, "  %s docs kitty\\n", argv[0]);
+                free(config_dir);
+                return 1;
+            }
+            
+            const char *app = argv[2];
+            const AppModule *mod = find_app_module(app);
+            
+            if (!mod) {
+                fprintf(stderr, "Error: No module found for '%s'\n\n", app);
+                fprintf(stderr, "Available modules:\n");
+                for (int i = 0; i < num_app_modules; i++) {
+                    fprintf(stderr, "  - %s", app_modules[i].name);
+                    if (app_modules[i].aliases[0]) {
+                        fprintf(stderr, " (aliases: ");
+                        for (int j = 0; j < 4 && app_modules[i].aliases[j]; j++) {
+                            if (j > 0) fprintf(stderr, ", ");
+                            fprintf(stderr, "%s", app_modules[i].aliases[j]);
+                        }
+                        fprintf(stderr, ")");
+                    }
+                    fprintf(stderr, "\n");
+                }
+                free(config_dir);
+                return 1;
+            }
+            
+            // Show documentation for the app
+            printf("=== %s Setup Instructions ===\n\n", mod->name);
+            
+            // App-specific documentation
+            if (strcmp(mod->name, "fish") == 0) {
+                printf("To activate the fish theme:\n\n");
+                printf("  fish_config theme save coat\n\n");
+                printf("Or add to ~/.config/fish/config.fish:\n\n");
+                printf("  fish_config theme choose coat\n");
+            } else if (strcmp(mod->name, "kitty") == 0) {
+                printf("Add to ~/.config/kitty/kitty.conf:\n\n");
+                printf("  include coat-theme.conf\n\n");
+                printf("Then reload: Ctrl+Shift+F5\n");
+            } else if (strcmp(mod->name, "helix") == 0) {
+                printf("Add to ~/.config/helix/config.toml:\n\n");
+                printf("  theme = \"coat\"\n\n");
+                printf("Then restart helix or run :config-reload\n");
+            } else if (strcmp(mod->name, "i3") == 0) {
+                printf("Add to ~/.config/i3/config:\n\n");
+                printf("  include coat-theme.conf\n\n");
+                printf("Then reload: $mod+Shift+r\n");
+            } else if (strcmp(mod->name, "rofi") == 0) {
+                printf("Add to ~/.config/rofi/config.rasi:\n\n");
+                printf("  @theme \"coat\"\n\n");
+                printf("Or test with: rofi -show drun -theme coat\n");
+            } else if (strcmp(mod->name, "bat") == 0) {
+                printf("Add to ~/.config/bat/config:\n\n");
+                printf("  --theme=\"coat\"\n\n");
+                printf("Or use temporarily: bat --theme=coat <file>\n");
+            } else if (strcmp(mod->name, "sway") == 0) {
+                printf("Add to ~/.config/sway/config:\n\n");
+                printf("  include ~/.config/sway/coat-theme\n\n");
+                printf("IMPORTANT: Remove any 'bar { }' blocks!\n");
+                printf("The coat-theme includes a complete bar configuration.\n\n");
+                printf("Then reload: swaymsg reload\n");
+            } else if (strcmp(mod->name, "vscode") == 0) {
+                printf("The theme is automatically activated.\n\n");
+                printf("If it doesn't appear, reload VSCode:\n");
+                printf("  Ctrl+Shift+P → Reload Window\n");
+            } else if (strcmp(mod->name, "gtk") == 0) {
+                printf("Theme is applied via gsettings automatically.\n\n");
+                printf("Ensure 'adw-gtk3' and 'adw-gtk3-dark' are installed.\n");
+                printf("Some apps may require a restart.\n");
+            } else if (strcmp(mod->name, "firefox") == 0) {
+                printf("Files created:\n");
+                printf("  - userChrome.css (UI theme)\n");
+                printf("  - userContent.css (web content theme)\n\n");
+                printf("To enable, in about:config set:\n");
+                printf("  toolkit.legacyUserProfileCustomizations.stylesheets = true\n\n");
+                printf("Then restart Firefox.\n");
+            } else if (strcmp(mod->name, "swaylock") == 0) {
+                printf("Theme is applied automatically.\n\n");
+                printf("Test with: swaylock\n\n");
+                printf("To bind to a key, add to Sway config:\n");
+                printf("  bindsym $mod+l exec swaylock\n");
+            } else if (strcmp(mod->name, "dunst") == 0) {
+                printf("Dunst is restarted automatically to apply the theme.\n\n");
+                printf("If it doesn't restart, run manually:\n");
+                printf("  killall dunst && dunst &\n");
+            } else if (strcmp(mod->name, "btop") == 0) {
+                printf("To activate:\n\n");
+                printf("1. Open btop\n");
+                printf("2. Press ESC to open menu\n");
+                printf("3. Navigate to 'Options' > 'Color theme'\n");
+                printf("4. Select 'coat'\n\n");
+                printf("Or set in ~/.config/btop/btop.conf:\n");
+                printf("  color_theme = \"coat\"\n");
+            } else if (strcmp(mod->name, "yazi") == 0) {
+                printf("Restart yazi to see the changes.\n");
+            } else if (strcmp(mod->name, "zathura") == 0) {
+                printf("Restart zathura or open a new PDF to see the changes.\n");
+            } else if (strcmp(mod->name, "vesktop") == 0) {
+                printf("Enable the theme in Discord/Vesktop:\n\n");
+                printf("  Settings → Vencord → Themes → coat.theme.css\n\n");
+                printf("Or restart if auto-loading is enabled.\n");
+            } else if (strcmp(mod->name, "tty") == 0) {
+                printf("To make permanent, choose one:\n\n");
+                printf("1. Add to ~/.bashrc or ~/.zshrc:\n");
+                printf("   ~/.config/coat/tty-theme.sh\n\n");
+                printf("2. Copy to /etc/profile.d/ (requires root):\n");
+                printf("   sudo cp ~/.config/coat/tty-theme.sh /etc/profile.d/\n\n");
+                printf("3. Create systemd service (see USAGE.md)\n");
+            } else if (strcmp(mod->name, "xresources") == 0) {
+                printf("Theme is automatically merged.\n\n");
+                printf("To make permanent, add to ~/.xinitrc or ~/.xprofile:\n");
+                printf("  xrdb -merge ~/.Xresources\n");
+            } else {
+                printf("The %s theme has been applied.\n", mod->name);
+                printf("See USAGE.md for detailed information.\n");
+            }
+            
+            printf("\n");
+            free(config_dir);
+            return 0;
         } else if (strcmp(argv[1], "list") == 0) {
             // Ensure schemes exist
             if (!schemes_exists(config_dir)) {
@@ -257,6 +390,32 @@ int main(int argc, char *argv[]) {
             free(config_dir);
             return result == 0 ? 0 : 1;
         } else if (strcmp(argv[1], "apply") == 0) {
+            // Check if specific app was provided
+            const char *specific_app = (argc > 2) ? argv[2] : NULL;
+            
+            // If specific app provided, validate it exists first
+            if (specific_app) {
+                const AppModule *test_mod = find_app_module(specific_app);
+                if (!test_mod) {
+                    fprintf(stderr, "Error: No module found for '%s'\n\n", specific_app);
+                    fprintf(stderr, "Available modules:\n");
+                    for (int i = 0; i < num_app_modules; i++) {
+                        fprintf(stderr, "  - %s", app_modules[i].name);
+                        if (app_modules[i].aliases[0]) {
+                            fprintf(stderr, " (aliases: ");
+                            for (int j = 0; j < 4 && app_modules[i].aliases[j]; j++) {
+                                if (j > 0) fprintf(stderr, ", ");
+                                fprintf(stderr, "%s", app_modules[i].aliases[j]);
+                            }
+                            fprintf(stderr, ")");
+                        }
+                        fprintf(stderr, "\n");
+                    }
+                    free(config_dir);
+                    return 1;
+                }
+            }
+            
             // Ensure schemes exist
             if (!schemes_exists(config_dir)) {
                 printf("Schemes repository not found. Cloning...\n");
@@ -317,30 +476,44 @@ int main(int argc, char *argv[]) {
                 return 1;
             }
             
-            printf("Applying scheme: %s\n\n", scheme->name);
+            printf("Applying scheme: %s\n", scheme->name);
             
-            // Apply to enabled applications
-            int applied = 0;
-            for (int i = 0; i < config->enabled_count; i++) {
-                const char *app = config->enabled[i];
-                const AppModule *mod = find_app_module(app);
+            // If specific app is provided, only apply to that app
+            if (specific_app) {
+                printf("Target: %s only\n\n", specific_app);
+                const AppModule *mod = find_app_module(specific_app);
                 
-                if (mod) {
-                    printf("Applying to %s...\n", mod->name);
-                    if (apply_module(mod, scheme, &config->font, &config->opacity) == 0) {
-                        applied++;
-                    }
-                    printf("\n");
+                printf("Applying to %s...\n", mod->name);
+                if (apply_module(mod, scheme, &config->font, &config->opacity) == 0) {
+                    printf("\n✓ Successfully applied scheme to %s!\n", mod->name);
                 } else {
-                    printf("Warning: No module for '%s'\n\n", app);
+                    fprintf(stderr, "\n✗ Failed to apply scheme to %s\n", mod->name);
                 }
-            }
-            
-            if (applied > 0) {
-                printf("Successfully applied scheme to %d application%s!\n", 
-                       applied, applied == 1 ? "" : "s");
             } else {
-                printf("No applications were configured.\n");
+                // Apply to all enabled applications
+                printf("\n");
+                int applied = 0;
+                for (int i = 0; i < config->enabled_count; i++) {
+                    const char *app = config->enabled[i];
+                    const AppModule *mod = find_app_module(app);
+                    
+                    if (mod) {
+                        printf("Applying to %s...\n", mod->name);
+                        if (apply_module(mod, scheme, &config->font, &config->opacity) == 0) {
+                            applied++;
+                        }
+                        printf("\n");
+                    } else {
+                        printf("Warning: No module for '%s'\n\n", app);
+                    }
+                }
+                
+                if (applied > 0) {
+                    printf("Successfully applied scheme to %d application%s!\n", 
+                           applied, applied == 1 ? "" : "s");
+                } else {
+                    printf("No applications were configured.\n");
+                }
             }
             
             free(schemes_path);

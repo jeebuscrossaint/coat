@@ -63,8 +63,5 @@ void mangowc_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
     
     fclose(f);
     
-    printf("mangowc colors generated successfully!\n");
-    printf("\nTo make permanent, add to ~/.config/mango/config.conf:\n");
-    printf("  source=./coat-colors.conf\n");
-    printf("\nSee USAGE.md for more details.\n");
+    printf("  ✓ %s\n", colors_path);
 }

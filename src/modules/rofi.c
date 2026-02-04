@@ -227,12 +227,7 @@ int rofi_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
         return -1;
     }
     
-    printf("Rofi theme generated successfully!\n");
-    printf("\nTo activate, add to ~/.config/rofi/config.rasi:\n");
-    printf("  @theme \"coat\"\n");
-    printf("\nOr test with:\n");
-    printf("  rofi -show drun -theme coat\n");
-    printf("\nSee USAGE.md for more details.\n");
+    printf("  ✓ %s\n", theme_path);
     
     return 0;
 }
