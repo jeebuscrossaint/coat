@@ -1,7 +1,3 @@
-//
-// Created for coat btop theming module
-//
-
 #include "btop.h"
 #include "tinted_parser.h"
 #include <stdio.h>

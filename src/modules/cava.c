@@ -1,7 +1,3 @@
-//
-// Created for coat CAVA theming module
-//
-
 #include "cava.h"
 #include "tinted_parser.h"
 #include <stdio.h>
@@ -9,18 +5,8 @@
 #include <string.h>
 #include <sys/stat.h>
 
-// Helper to strip # from hex color if present
 static const char* strip_hash(const char *color) {
     return (color[0] == '#') ? color + 1 : color;
-}
-
-// Helper to convert hex to RGB components
-static void hex_to_rgb(const char *hex, int *r, int *g, int *b) {
-    unsigned int color;
-    sscanf(strip_hash(hex), "%x", &color);
-    *r = (color >> 16) & 0xFF;
-    *g = (color >> 8) & 0xFF;
-    *b = color & 0xFF;
 }
 
 // Apply theme to CAVA audio visualizer

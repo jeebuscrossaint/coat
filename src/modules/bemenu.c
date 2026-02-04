@@ -1,7 +1,3 @@
-//
-// Created for coat bemenu theming module
-//
-
 #include "bemenu.h"
 #include "tinted_parser.h"
 #include <stdio.h>

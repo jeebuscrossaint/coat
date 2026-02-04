@@ -1,7 +1,3 @@
-//
-// Created for coat TTY theming module
-//
-
 #include "tty.h"
 #include "tinted_parser.h"
 #include <stdio.h>

@@ -1,7 +1,3 @@
-//
-// Created by amarnath on 1/19/26.
-//
-
 #define _POSIX_C_SOURCE 200809L
 #include "schemes_list.h"
 #include "tinted_parser.h"

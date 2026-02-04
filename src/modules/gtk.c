@@ -1,7 +1,3 @@
-//
-// Created by amarnath on 1/19/26.
-//
-
 #include "gtk.h"
 #include "tinted_parser.h"
 #include <stdio.h>
@@ -202,7 +198,7 @@ int gtk_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
     char theme_cmd[512];
     snprintf(theme_cmd, sizeof(theme_cmd),
         "gsettings set org.gnome.desktop.interface gtk-theme '%s' 2>/dev/null", theme_name);
-    system(theme_cmd);
+    (void)system(theme_cmd);
     
     // Set GTK font via gsettings
     char font_main[256] = "";
@@ -215,19 +211,18 @@ int gtk_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
         snprintf(font_cmd, sizeof(font_cmd),
             "gsettings set org.gnome.desktop.interface font-name '%s %d' 2>/dev/null",
             font_main, font->sizes.terminal);
-        system(font_cmd);
+        (void)system(font_cmd);
 
         snprintf(font_mono, sizeof(font_mono), "%s%s", font->monospace[0] ? font->monospace : "monospace",
              strstr(font->monospace, "Regular") ? "" : " Regular");
         snprintf(font_cmd, sizeof(font_cmd),
             "gsettings set org.gnome.desktop.interface monospace-font-name '%s %d' 2>/dev/null",
             font_mono, font->sizes.terminal);
-        system(font_cmd);
+        (void)system(font_cmd);
     }
     
     // Notify GTK apps to reload settings
-    // This sends SIGHUP to gtk-based apps, causing many to reload their theme
-    system("pkill -HUP -f 'gtk' 2>/dev/null");
+    (void)system("pkill -HUP -f 'gtk' 2>/dev/null");
     
     printf("  ✓ GTK 3.0 CSS: %s\n", gtk3_css);
     printf("  ✓ GTK 4.0 CSS: %s\n", gtk4_css);

@@ -1,7 +1,3 @@
-//
-// Created by amarnath on 1/19/26.
-//
-
 #include "bat.h"
 #include "tinted_parser.h"
 #include <stdio.h>
@@ -9,7 +5,6 @@
 #include <string.h>
 #include <sys/stat.h>
 
-// Helper to strip '#' from hex colors
 static const char* strip_hash(const char *color) {
     return (color && color[0] == '#') ? color + 1 : color;
 }

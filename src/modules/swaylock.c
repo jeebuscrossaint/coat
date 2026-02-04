@@ -1,7 +1,3 @@
-//
-// Created by coat
-//
-
 #include "swaylock.h"
 #include "tinted_parser.h"
 #include <stdio.h>

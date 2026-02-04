@@ -1,7 +1,4 @@
-//
-// Created by amarnath on 1/19/26.
-//
-
+#define _POSIX_C_SOURCE 200809L
 #include "vscode.h"
 #include "tinted_parser.h"
 #include <stdio.h>
@@ -46,8 +43,21 @@ static int mkdirp(const char *path) {
     return mkdir(tmp, 0755);
 }
 
-// Helper to create color customizations object
-static json_object* create_workbench_colors(const Base16Scheme *scheme) {
+// Generate the VSCode theme JSON
+static json_object* generate_theme_json(const Base16Scheme *scheme) {
+    json_object *theme = json_object_new_object();
+    
+    // Determine if this is a light or dark theme
+    const char *theme_type = "dark";
+    if (scheme->variant[0] && strcmp(scheme->variant, "light") == 0) {
+        theme_type = "light";
+    }
+    
+    // Theme metadata
+    json_object_object_add(theme, "name", json_object_new_string("Coat"));
+    json_object_object_add(theme, "type", json_object_new_string(theme_type));
+    
+    // Colors object (UI theming)
     json_object *colors = json_object_new_object();
     
     // Activity bar
@@ -150,127 +160,179 @@ static json_object* create_workbench_colors(const Base16Scheme *scheme) {
     json_object_object_add(colors, "notifications.background", color_obj(scheme->base01));
     json_object_object_add(colors, "notifications.foreground", color_obj(scheme->base05));
     
-    // Git
+    // Git decorations
     json_object_object_add(colors, "gitDecoration.modifiedResourceForeground", color_obj(scheme->base0A));
     json_object_object_add(colors, "gitDecoration.deletedResourceForeground", color_obj(scheme->base08));
     json_object_object_add(colors, "gitDecoration.untrackedResourceForeground", color_obj(scheme->base0B));
     json_object_object_add(colors, "gitDecoration.ignoredResourceForeground", color_obj(scheme->base03));
     json_object_object_add(colors, "gitDecoration.conflictingResourceForeground", color_obj(scheme->base09));
     
-    return colors;
-}
-
-// Helper to create token colors array
-static json_object* create_token_colors(const Base16Scheme *scheme) {
-    json_object *rules = json_object_new_array();
+    json_object_object_add(theme, "colors", colors);
     
-    // Comment
-    json_object *rule = json_object_new_object();
-    json_object_object_add(rule, "scope", json_object_new_string("comment"));
-    json_object *settings = json_object_new_object();
-    json_object_object_add(settings, "foreground", color_obj(scheme->base03));
-    json_object_object_add(settings, "fontStyle", json_object_new_string("italic"));
-    json_object_object_add(rule, "settings", settings);
-    json_object_array_add(rules, rule);
+    // Token colors (syntax highlighting)
+    json_object *token_colors = json_object_new_array();
     
-    // Constant
-    rule = json_object_new_object();
-    json_object_object_add(rule, "scope", json_object_new_string("constant"));
-    settings = json_object_new_object();
-    json_object_object_add(settings, "foreground", color_obj(scheme->base09));
-    json_object_object_add(rule, "settings", settings);
-    json_object_array_add(rules, rule);
+    // Comments
+    json_object *comment = json_object_new_object();
+    json_object_object_add(comment, "scope", json_object_new_string("comment"));
+    json_object *comment_settings = json_object_new_object();
+    json_object_object_add(comment_settings, "foreground", color_obj(scheme->base03));
+    json_object_object_add(comment_settings, "fontStyle", json_object_new_string("italic"));
+    json_object_object_add(comment, "settings", comment_settings);
+    json_object_array_add(token_colors, comment);
     
-    // Entity name
-    rule = json_object_new_object();
-    json_object_object_add(rule, "scope", json_object_new_string("entity.name"));
-    settings = json_object_new_object();
-    json_object_object_add(settings, "foreground", color_obj(scheme->base0A));
-    json_object_object_add(rule, "settings", settings);
-    json_object_array_add(rules, rule);
+    // Constants
+    json_object *constant = json_object_new_object();
+    json_object_object_add(constant, "scope", json_object_new_string("constant"));
+    json_object *constant_settings = json_object_new_object();
+    json_object_object_add(constant_settings, "foreground", color_obj(scheme->base09));
+    json_object_object_add(constant, "settings", constant_settings);
+    json_object_array_add(token_colors, constant);
     
-    // Function name
-    rule = json_object_new_object();
-    json_object_object_add(rule, "scope", json_object_new_string("entity.name.function"));
-    settings = json_object_new_object();
-    json_object_object_add(settings, "foreground", color_obj(scheme->base0D));
-    json_object_object_add(rule, "settings", settings);
-    json_object_array_add(rules, rule);
+    // Entity names
+    json_object *entity_name = json_object_new_object();
+    json_object_object_add(entity_name, "scope", json_object_new_string("entity.name"));
+    json_object *entity_name_settings = json_object_new_object();
+    json_object_object_add(entity_name_settings, "foreground", color_obj(scheme->base0A));
+    json_object_object_add(entity_name, "settings", entity_name_settings);
+    json_object_array_add(token_colors, entity_name);
     
-    // Keyword
-    rule = json_object_new_object();
-    json_object_object_add(rule, "scope", json_object_new_string("keyword"));
-    settings = json_object_new_object();
-    json_object_object_add(settings, "foreground", color_obj(scheme->base0E));
-    json_object_object_add(rule, "settings", settings);
-    json_object_array_add(rules, rule);
+    // Functions
+    json_object *func = json_object_new_object();
+    json_object_object_add(func, "scope", json_object_new_string("entity.name.function"));
+    json_object *func_settings = json_object_new_object();
+    json_object_object_add(func_settings, "foreground", color_obj(scheme->base0D));
+    json_object_object_add(func, "settings", func_settings);
+    json_object_array_add(token_colors, func);
+    
+    // Keywords
+    json_object *keyword = json_object_new_object();
+    json_object_object_add(keyword, "scope", json_object_new_string("keyword"));
+    json_object *keyword_settings = json_object_new_object();
+    json_object_object_add(keyword_settings, "foreground", color_obj(scheme->base0E));
+    json_object_object_add(keyword, "settings", keyword_settings);
+    json_object_array_add(token_colors, keyword);
     
     // Storage
-    rule = json_object_new_object();
-    json_object_object_add(rule, "scope", json_object_new_string("storage"));
-    settings = json_object_new_object();
-    json_object_object_add(settings, "foreground", color_obj(scheme->base0E));
-    json_object_object_add(rule, "settings", settings);
-    json_object_array_add(rules, rule);
+    json_object *storage = json_object_new_object();
+    json_object_object_add(storage, "scope", json_object_new_string("storage"));
+    json_object *storage_settings = json_object_new_object();
+    json_object_object_add(storage_settings, "foreground", color_obj(scheme->base0E));
+    json_object_object_add(storage, "settings", storage_settings);
+    json_object_array_add(token_colors, storage);
     
-    // String
-    rule = json_object_new_object();
-    json_object_object_add(rule, "scope", json_object_new_string("string"));
-    settings = json_object_new_object();
-    json_object_object_add(settings, "foreground", color_obj(scheme->base0B));
-    json_object_object_add(rule, "settings", settings);
-    json_object_array_add(rules, rule);
+    // Strings
+    json_object *string = json_object_new_object();
+    json_object_object_add(string, "scope", json_object_new_string("string"));
+    json_object *string_settings = json_object_new_object();
+    json_object_object_add(string_settings, "foreground", color_obj(scheme->base0B));
+    json_object_object_add(string, "settings", string_settings);
+    json_object_array_add(token_colors, string);
     
-    // Variable
-    rule = json_object_new_object();
-    json_object_object_add(rule, "scope", json_object_new_string("variable"));
-    settings = json_object_new_object();
-    json_object_object_add(settings, "foreground", color_obj(scheme->base08));
-    json_object_object_add(rule, "settings", settings);
-    json_object_array_add(rules, rule);
+    // Variables
+    json_object *variable = json_object_new_object();
+    json_object_object_add(variable, "scope", json_object_new_string("variable"));
+    json_object *variable_settings = json_object_new_object();
+    json_object_object_add(variable_settings, "foreground", color_obj(scheme->base08));
+    json_object_object_add(variable, "settings", variable_settings);
+    json_object_array_add(token_colors, variable);
     
-    return rules;
+    json_object_object_add(theme, "tokenColors", token_colors);
+    
+    return theme;
 }
 
-// Generate a VSCode theme from a Base16 scheme
-int vscode_generate_theme(const Base16Scheme *scheme, const char *output_path, const FontConfig *font) {
-    (void)output_path;  // Not used in JSON approach
-    (void)font;  // Font will be handled in apply_theme
-    (void)scheme;  // Suppress unused warnings
-    return 0;
-}
-
-// Apply VSCode theme to current VSCode configuration
-int vscode_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
-    if (!scheme) {
-        return -1;
+// Generate package.json for the extension
+static json_object* generate_package_json(const Base16Scheme *scheme) {
+    json_object *package = json_object_new_object();
+    
+    // Determine base UI theme
+    const char *ui_theme = "vs-dark";
+    if (scheme->variant[0] && strcmp(scheme->variant, "light") == 0) {
+        ui_theme = "vs";
     }
     
+    json_object_object_add(package, "name", json_object_new_string("coat-theme"));
+    json_object_object_add(package, "displayName", json_object_new_string("Coat Theme"));
+    json_object_object_add(package, "description", json_object_new_string("Base16 theme generated by Coat"));
+    json_object_object_add(package, "version", json_object_new_string("1.0.0"));
+    json_object_object_add(package, "publisher", json_object_new_string("coat"));
+    
+    json_object *engines = json_object_new_object();
+    json_object_object_add(engines, "vscode", json_object_new_string("^1.50.0"));
+    json_object_object_add(package, "engines", engines);
+    
+    json_object *categories = json_object_new_array();
+    json_object_array_add(categories, json_object_new_string("Themes"));
+    json_object_object_add(package, "categories", categories);
+    
+    json_object *contributes = json_object_new_object();
+    json_object *themes = json_object_new_array();
+    json_object *theme_contrib = json_object_new_object();
+    json_object_object_add(theme_contrib, "label", json_object_new_string("Coat"));
+    json_object_object_add(theme_contrib, "uiTheme", json_object_new_string(ui_theme));
+    json_object_object_add(theme_contrib, "path", json_object_new_string("./themes/coat-color-theme.json"));
+    json_object_array_add(themes, theme_contrib);
+    json_object_object_add(contributes, "themes", themes);
+    json_object_object_add(package, "contributes", contributes);
+    
+    return package;
+}
+
+int vscode_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
     const char *home = getenv("HOME");
     if (!home) {
-        fprintf(stderr, "Could not determine home directory\n");
+        fprintf(stderr, "Could not get HOME directory\n");
         return -1;
     }
     
-    // VSCode config directory
-    char config_dir[1024];
-    snprintf(config_dir, sizeof(config_dir), "%s/.config/Code/User", home);
+    // Create extension directory
+    char ext_dir[512];
+    snprintf(ext_dir, sizeof(ext_dir), "%s/.vscode/extensions/coat-theme", home);
+    mkdirp(ext_dir);
     
-    struct stat st = {0};
-    if (stat(config_dir, &st) == -1) {
-        if (mkdir(config_dir, 0755) != 0) {
-            fprintf(stderr, "Failed to create VSCode config directory\n");
-            return -1;
-        }
+    // Create themes subdirectory
+    char themes_dir[512];
+    snprintf(themes_dir, sizeof(themes_dir), "%s/themes", ext_dir);
+    mkdir(themes_dir, 0755);
+    
+    // Write package.json
+    char package_path[512];
+    snprintf(package_path, sizeof(package_path), "%s/package.json", ext_dir);
+    FILE *f = fopen(package_path, "w");
+    if (!f) {
+        fprintf(stderr, "Failed to write package.json\n");
+        return -1;
     }
+    json_object *package = generate_package_json(scheme);
+    fprintf(f, "%s\n", json_object_to_json_string_ext(package, JSON_C_TO_STRING_PRETTY));
+    fclose(f);
+    json_object_put(package);
     
-    // Settings path
-    char settings_path[1024];
-    snprintf(settings_path, sizeof(settings_path), "%s/settings.json", config_dir);
+    // Write theme file
+    char theme_path[512];
+    snprintf(theme_path, sizeof(theme_path), "%s/themes/coat-color-theme.json", ext_dir);
+    f = fopen(theme_path, "w");
+    if (!f) {
+        fprintf(stderr, "Failed to write theme file\n");
+        return -1;
+    }
+    json_object *theme = generate_theme_json(scheme);
+    fprintf(f, "%s\n", json_object_to_json_string_ext(theme, JSON_C_TO_STRING_PRETTY));
+    fclose(f);
+    json_object_put(theme);
     
-    // Load existing settings or create new
+    // Update settings.json to use the theme
+    // Ensure the settings directory exists
+    char settings_dir[512];
+    snprintf(settings_dir, sizeof(settings_dir), "%s/.config/Code/User", home);
+    mkdirp(settings_dir);
+    
+    char settings_path[512];
+    snprintf(settings_path, sizeof(settings_path), "%s/settings.json", settings_dir);
+    
     json_object *root = NULL;
-    FILE *f = fopen(settings_path, "r");
+    f = fopen(settings_path, "r");
     if (f) {
         fseek(f, 0, SEEK_END);
         long fsize = ftell(f);
@@ -278,48 +340,46 @@ int vscode_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
         
         char *content = malloc(fsize + 1);
         if (content) {
-            fread(content, 1, fsize, f);
-            content[fsize] = 0;
+            size_t read = fread(content, 1, fsize, f);
+            content[read] = 0;
             root = json_tokener_parse(content);
             free(content);
         }
         fclose(f);
     }
     
-    // Create new object if parse failed or file didn't exist
     if (!root) {
         root = json_object_new_object();
     }
     
-    // Add/update font if provided
+    // Force theme reload by removing the old setting first
+    json_object_object_del(root, "workbench.colorTheme");
+    
+    // Set the theme (this forces VSCode to reload it)
+    json_object_object_add(root, "workbench.colorTheme", json_object_new_string("Coat"));
+    
+    // Add font if provided
     if (font && font->monospace[0]) {
         json_object_object_add(root, "editor.fontFamily", json_object_new_string(font->monospace));
     }
     
-    // Apply workbench colors directly (not scoped to a theme)
-    json_object *workbench_colors = create_workbench_colors(scheme);
-    json_object_object_add(root, "workbench.colorCustomizations", workbench_colors);
-    
-    // Apply token colors directly (not scoped to a theme)
-    json_object *token_custom = json_object_new_object();
-    json_object_object_add(token_custom, "textMateRules", create_token_colors(scheme));
-    json_object_object_add(root, "editor.tokenColorCustomizations", token_custom);
-    
-    // Write back to file with pretty printing
+    // Write back
     f = fopen(settings_path, "w");
     if (!f) {
         fprintf(stderr, "Failed to write settings.json\n");
         json_object_put(root);
         return -1;
     }
-    
     fprintf(f, "%s\n", json_object_to_json_string_ext(root, JSON_C_TO_STRING_PRETTY));
     fclose(f);
-    
     json_object_put(root);
     
-    printf("VSCode settings updated: %s\n", settings_path);
-    printf("Theme 'Coat' applied. VSCode will auto-reload the settings.\n");
+
+    printf("  VSCode theme extension created at %s\n", ext_dir);
+    printf("  Theme set to 'Coat' in settings.json\n");
+
+    // Manual reload instructions only; SIGHUP removed to prevent VSCode hang
+    printf("  If the theme does not appear, reload VSCode (Ctrl+Shift+P → Reload Window).\n");
     
     return 0;
 }

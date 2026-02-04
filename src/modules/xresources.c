@@ -1,7 +1,3 @@
-//
-// Created by coat
-//
-
 #include "xresources.h"
 #include "tinted_parser.h"
 #include "yaml.h"

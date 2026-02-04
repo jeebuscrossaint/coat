@@ -1,7 +1,3 @@
-//
-// Created by amarnath on 1/19/26.
-//
-
 #include "schemes.h"
 #include <stdio.h>
 #include <stdlib.h>

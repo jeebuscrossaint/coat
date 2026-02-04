@@ -1,7 +1,3 @@
-//
-// Vesktop/Vencord theming module
-//
-
 #include "vesktop.h"
 #include <stdio.h>
 #include <stdlib.h>

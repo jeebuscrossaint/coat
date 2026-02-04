@@ -1,14 +1,10 @@
-//
-// Created by amarnath on 1/19/26.
-//
-
 #define _POSIX_C_SOURCE 200809L
 #include "tinted_parser.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <yaml.h>
+#include "/usr/include/yaml.h"
 
 // Helper function to slugify a string (convert to lowercase, replace spaces with dashes)
 static void slugify(const char *input, char *output, size_t output_size) {

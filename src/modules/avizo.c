@@ -1,7 +1,3 @@
-//
-// Created for coat Avizo theming module
-//
-
 #include "avizo.h"
 #include "tinted_parser.h"
 #include <stdio.h>

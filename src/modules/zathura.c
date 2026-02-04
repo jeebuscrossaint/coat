@@ -1,7 +1,3 @@
-//
-// Created by amarnath on 1/19/26.
-//
-
 #include "zathura.h"
 #include "tinted_parser.h"
 #include <stdio.h>

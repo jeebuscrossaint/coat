@@ -1,38 +1,121 @@
-//
-// Created by amarnath on 1/18/26.
-//
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <pwd.h>
+
 #include "yaml.h"
 #include "schemes.h"
 #include "tinted_parser.h"
 #include "schemes_list.h"
-#include "fish.h"
-#include "kitty.h"
-#include "i3.h"
-#include "helix.h"
-#include "rofi.h"
-#include "bat.h"
-#include "tty.h"
+
+// Application modules
 #include "avizo.h"
+#include "bat.h"
 #include "bemenu.h"
 #include "btop.h"
 #include "cava.h"
-#include "zathura.h"
-#include "yazi.h"
-#include "vscode.h"
-#include "firefox.h"
-#include "gtk.h"
 #include "dunst.h"
-#include "xresources.h"
+#include "firefox.h"
+#include "fish.h"
+#include "gtk.h"
+#include "helix.h"
+#include "i3.h"
+#include "kitty.h"
 #include "mangowc.h"
-#include "vesktop.h"
-#include "swaylock.h"
+#include "rofi.h"
 #include "sway.h"
+#include "swaylock.h"
+#include "tty.h"
+#include "vesktop.h"
+#include "vscode.h"
+#include "xresources.h"
+#include "yazi.h"
+#include "zathura.h"
+
+// Application module definition
+typedef struct {
+    const char *name;
+    const char *aliases[4];  // Additional names this module can match
+    int (*apply_fn)(Base16Scheme *, FontConfig *, OpacityConfig *);
+    int needs_font;
+    int needs_opacity;
+} AppModule;
+
+// Helper functions for module application
+static int apply_simple(Base16Scheme *s, FontConfig *f, OpacityConfig *o, int (*fn)(Base16Scheme *)) {
+    (void)f; (void)o;
+    return fn(s);
+}
+
+static int apply_font(Base16Scheme *s, FontConfig *f, OpacityConfig *o, int (*fn)(Base16Scheme *, FontConfig *)) {
+    (void)o;
+    return fn(s, f);
+}
+
+static int apply_opacity(Base16Scheme *s, FontConfig *f, OpacityConfig *o, int (*fn)(Base16Scheme *, OpacityConfig *)) {
+    (void)f;
+    return fn(s, o);
+}
+
+static int apply_font_opacity(Base16Scheme *s, FontConfig *f, OpacityConfig *o, int (*fn)(Base16Scheme *, FontConfig *, OpacityConfig *)) {
+    return fn(s, f, o);
+}
+
+// Application modules table
+static const AppModule app_modules[] = {
+    {"avizo", {NULL}, (void*)avizo_apply_theme, 0, 0},
+    {"bat", {NULL}, (void*)bat_apply_theme, 0, 0},
+    {"bemenu", {NULL}, (void*)bemenu_apply_theme, 0, 0},
+    {"btop", {NULL}, (void*)btop_apply_theme, 0, 0},
+    {"cava", {NULL}, (void*)cava_apply_theme, 0, 0},
+    {"dunst", {NULL}, (void*)dunst_apply_theme, 1, 0},
+    {"firefox", {NULL}, (void*)firefox_apply_theme, 1, 0},
+    {"fish", {NULL}, (void*)fish_apply_theme, 0, 0},
+    {"gtk", {NULL}, (void*)gtk_apply_theme, 1, 0},
+    {"helix", {NULL}, (void*)helix_apply_theme, 0, 0},
+    {"i3", {NULL}, (void*)i3_apply_theme, 1, 0},
+    {"kitty", {NULL}, (void*)kitty_apply_theme, 1, 1},
+    {"mangowc", {NULL}, (void*)mangowc_apply_theme, 1, 0},
+    {"rofi", {NULL}, (void*)rofi_apply_theme, 1, 0},
+    {"sway", {NULL}, (void*)sway_apply_theme, 1, 0},
+    {"swaylock", {NULL}, (void*)swaylock_apply_theme, 0, 1},
+    {"tty", {"console", NULL}, (void*)tty_apply_theme, 0, 0},
+    {"vesktop", {"vencord", "discord", NULL}, (void*)vesktop_apply_theme, 1, 0},
+    {"vscode", {NULL}, (void*)vscode_apply_theme, 1, 0},
+    {"xresources", {NULL}, (void*)xresources_apply_theme, 1, 0},
+    {"yazi", {NULL}, (void*)yazi_apply_theme, 0, 0},
+    {"zathura", {NULL}, (void*)zathura_apply_theme, 1, 0},
+};
+
+static const int num_app_modules = sizeof(app_modules) / sizeof(app_modules[0]);
+
+static const AppModule* find_app_module(const char *name) {
+    for (int i = 0; i < num_app_modules; i++) {
+        if (strcmp(app_modules[i].name, name) == 0) {
+            return &app_modules[i];
+        }
+        // Check aliases
+        for (int j = 0; j < 4 && app_modules[i].aliases[j]; j++) {
+            if (strcmp(app_modules[i].aliases[j], name) == 0) {
+                return &app_modules[i];
+            }
+        }
+    }
+    return NULL;
+}
+
+static int apply_module(const AppModule *mod, Base16Scheme *scheme, FontConfig *font, OpacityConfig *opacity) {
+    if (!mod->needs_font && !mod->needs_opacity) {
+        return apply_simple(scheme, font, opacity, (void*)mod->apply_fn);
+    } else if (mod->needs_font && !mod->needs_opacity) {
+        return apply_font(scheme, font, opacity, (void*)mod->apply_fn);
+    } else if (!mod->needs_font && mod->needs_opacity) {
+        return apply_opacity(scheme, font, opacity, (void*)mod->apply_fn);
+    } else {
+        return apply_font_opacity(scheme, font, opacity, mod->apply_fn);
+    }
+}
 
 static char* get_config_dir(void) {
     const char *home = getenv("HOME");
@@ -240,140 +323,16 @@ int main(int argc, char *argv[]) {
             int applied = 0;
             for (int i = 0; i < config->enabled_count; i++) {
                 const char *app = config->enabled[i];
+                const AppModule *mod = find_app_module(app);
                 
-                if (strcmp(app, "fish") == 0) {
-                    printf("Applying to fish...\n");
-                    if (fish_apply_theme(scheme) == 0) {
-                        applied++;
-                    }
-                    printf("\n");
-                } else if (strcmp(app, "kitty") == 0) {
-                    printf("Applying to kitty...\n");
-                    if (kitty_apply_theme(scheme, &config->font, &config->opacity) == 0) {
-                        applied++;
-                    }
-                    printf("\n");
-                } else if (strcmp(app, "i3") == 0) {
-                    printf("Applying to i3...\n");
-                    if (i3_apply_theme(scheme, &config->font) == 0) {
-                        applied++;
-                    }
-                    printf("\n");
-                } else if (strcmp(app, "helix") == 0) {
-                    printf("Applying to helix...\n");
-                    if (helix_apply_theme(scheme) == 0) {
-                        applied++;
-                    }
-                    printf("\n");
-                } else if (strcmp(app, "rofi") == 0) {
-                    printf("Applying to rofi...\n");
-                    if (rofi_apply_theme(scheme, &config->font) == 0) {
-                        applied++;
-                    }
-                    printf("\n");
-                } else if (strcmp(app, "bat") == 0) {
-                    printf("Applying to bat...\n");
-                    if (bat_apply_theme(scheme) == 0) {
-                        applied++;
-                    }
-                    printf("\n");
-                } else if (strcmp(app, "tty") == 0) {
-                    printf("Applying to TTY/console...\n");
-                    if (tty_apply_theme(scheme) == 0) {
-                        applied++;
-                    }
-                    printf("\n");
-                } else if (strcmp(app, "avizo") == 0) {
-                    printf("Applying to Avizo...\n");
-                    if (avizo_apply_theme(scheme) == 0) {
-                        applied++;
-                    }
-                    printf("\n");
-                } else if (strcmp(app, "bemenu") == 0) {
-                    printf("Applying to bemenu...\n");
-                    if (bemenu_apply_theme(scheme) == 0) {
-                        applied++;
-                    }
-                    printf("\n");
-                } else if (strcmp(app, "btop") == 0) {
-                    printf("Applying to btop...\n");
-                    if (btop_apply_theme(scheme) == 0) {
-                        applied++;
-                    }
-                    printf("\n");
-                } else if (strcmp(app, "cava") == 0) {
-                    printf("Applying to CAVA...\n");
-                    if (cava_apply_theme(scheme) == 0) {
-                        applied++;
-                    }
-                    printf("\n");
-                } else if (strcmp(app, "zathura") == 0) {
-                    printf("Applying to zathura...\n");
-                    if (zathura_apply_theme(scheme, &config->font) == 0) {
-                        applied++;
-                    }
-                    printf("\n");
-                } else if (strcmp(app, "yazi") == 0) {
-                    printf("Applying to yazi...\n");
-                    if (yazi_apply_theme(scheme) == 0) {
-                        applied++;
-                    }
-                    printf("\n");
-                } else if (strcmp(app, "vscode") == 0) {
-                    printf("Applying to VSCode...\n");
-                    if (vscode_apply_theme(scheme, &config->font) == 0) {
-                        applied++;
-                    }
-                    printf("\n");
-                } else if (strcmp(app, "firefox") == 0) {
-                    printf("Applying to Firefox...\n");
-                    if (firefox_apply_theme(scheme, &config->font) == 0) {
-                        applied++;
-                    }
-                    printf("\n");
-                } else if (strcmp(app, "gtk") == 0) {
-                    printf("Applying to GTK...\n");
-                    if (gtk_apply_theme(scheme, &config->font) == 0) {
-                        applied++;
-                    }
-                    printf("\n");
-                } else if (strcmp(app, "dunst") == 0) {
-                    printf("Applying to Dunst...\n");
-                    if (dunst_apply_theme(scheme, &config->font) == 0) {
-                        applied++;
-                    }
-                    printf("\n");
-                } else if (strcmp(app, "xresources") == 0) {
-                    printf("Applying to Xresources...\n");
-                    if (xresources_apply_theme(scheme, &config->font) == 0) {
-                        applied++;
-                    }
-                    printf("\n");
-                } else if (strcmp(app, "mangowc") == 0) {
-                    printf("Applying to MangoWC...\n");
-                    mangowc_apply_theme(scheme, &config->font);
-                    applied++;
-                    printf("\n");
-                } else if (strcmp(app, "vesktop") == 0 || strcmp(app, "vencord") == 0 || strcmp(app, "discord") == 0) {
-                    printf("Applying to Vesktop/Vencord...\n");
-                    if (vesktop_apply_theme(scheme, &config->font) == 0) {
-                        applied++;
-                    }
-                    printf("\n");
-                } else if (strcmp(app, "swaylock") == 0) {
-                    printf("Applying to swaylock...\n");
-                    if (swaylock_apply_theme(scheme, &config->opacity) == 0) {
-                        applied++;
-                    }
-                    printf("\n");
-                } else if (strcmp(app, "sway") == 0) {
-                    printf("Applying to sway...\n");
-                    if (sway_apply_theme(scheme, &config->font) == 0) {
+                if (mod) {
+                    printf("Applying to %s...\n", mod->name);
+                    if (apply_module(mod, scheme, &config->font, &config->opacity) == 0) {
                         applied++;
                     }
                     printf("\n");
                 } else {
-                    printf("Warning: No module for '%s' yet\n", app);
+                    printf("Warning: No module for '%s'\n\n", app);
                 }
             }
             
@@ -410,8 +369,6 @@ int main(int argc, char *argv[]) {
         }
         printf("\n");
     }
-
-    // printf("coat - Configuration Tool\n\n");
 
     // Create config structure
     CoatConfig *config = coat_config_new();

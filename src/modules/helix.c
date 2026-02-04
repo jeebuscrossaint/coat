@@ -1,7 +1,3 @@
-//
-// Created by amarnath on 1/19/26.
-//
-
 #include "helix.h"
 #include "tinted_parser.h"
 #include <stdio.h>
@@ -10,9 +6,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-// Helper to strip # from hex color if present
 static const char* strip_hash(const char *color) {
-    return (color[0] == '#') ? color + 1 : color;
+    return (color && color[0] == '#') ? color + 1 : color;
 }
 
 // Generate a helix editor theme file from a Base16 scheme
