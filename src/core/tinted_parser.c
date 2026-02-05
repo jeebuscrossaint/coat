@@ -66,7 +66,7 @@ int base16_scheme_load(Base16Scheme *scheme, const char *filepath) {
 
     FILE *file = fopen(filepath, "rb");
     if (!file) {
-        fprintf(stderr, "Failed to open scheme file: %s\n", filepath);
+        // Don't print error - caller will handle it
         return -1;
     }
 
@@ -153,6 +153,30 @@ int base16_scheme_load(Base16Scheme *scheme, const char *filepath) {
                             strncpy(scheme->base0E, value, sizeof(scheme->base0E) - 1);
                         } else if (strcmp(current_key, "base0F") == 0) {
                             strncpy(scheme->base0F, value, sizeof(scheme->base0F) - 1);
+                        } else if (strcmp(current_key, "base10") == 0) {
+                            strncpy(scheme->base10, value, sizeof(scheme->base10) - 1);
+                            scheme->is_base24 = 1;
+                        } else if (strcmp(current_key, "base11") == 0) {
+                            strncpy(scheme->base11, value, sizeof(scheme->base11) - 1);
+                            scheme->is_base24 = 1;
+                        } else if (strcmp(current_key, "base12") == 0) {
+                            strncpy(scheme->base12, value, sizeof(scheme->base12) - 1);
+                            scheme->is_base24 = 1;
+                        } else if (strcmp(current_key, "base13") == 0) {
+                            strncpy(scheme->base13, value, sizeof(scheme->base13) - 1);
+                            scheme->is_base24 = 1;
+                        } else if (strcmp(current_key, "base14") == 0) {
+                            strncpy(scheme->base14, value, sizeof(scheme->base14) - 1);
+                            scheme->is_base24 = 1;
+                        } else if (strcmp(current_key, "base15") == 0) {
+                            strncpy(scheme->base15, value, sizeof(scheme->base15) - 1);
+                            scheme->is_base24 = 1;
+                        } else if (strcmp(current_key, "base16") == 0) {
+                            strncpy(scheme->base16, value, sizeof(scheme->base16) - 1);
+                            scheme->is_base24 = 1;
+                        } else if (strcmp(current_key, "base17") == 0) {
+                            strncpy(scheme->base17, value, sizeof(scheme->base17) - 1);
+                            scheme->is_base24 = 1;
                         }
                     }
                     current_key[0] = '\0';
@@ -194,8 +218,31 @@ int base16_scheme_load_by_name(Base16Scheme *scheme, const char *scheme_name, co
         return -1;
     }
     
-    char filepath[2048];
-    snprintf(filepath, sizeof(filepath), "%s/%s.yaml", schemes_dir, scheme_name);
+    // Extract parent directory (remove /base16 suffix if present)
+    char parent_dir[2048];
+    strncpy(parent_dir, schemes_dir, sizeof(parent_dir) - 1);
+    parent_dir[sizeof(parent_dir) - 1] = '\0';
     
-    return base16_scheme_load(scheme, filepath);
+    char *base16_suffix = strstr(parent_dir, "/base16");
+    if (base16_suffix && base16_suffix[7] == '\0') {
+        *base16_suffix = '\0';
+    }
+    
+    // Try base16 directory first
+    char filepath[2048];
+    snprintf(filepath, sizeof(filepath), "%s/base16/%s.yaml", parent_dir, scheme_name);
+    if (base16_scheme_load(scheme, filepath) == 0) {
+        return 0;
+    }
+    
+    // If not found, try base24 directory
+    snprintf(filepath, sizeof(filepath), "%s/base24/%s.yaml", parent_dir, scheme_name);
+    int result = base16_scheme_load(scheme, filepath);
+    
+    // Only print error if scheme wasn't found in either directory
+    if (result != 0) {
+        fprintf(stderr, "Failed to load scheme '%s' (tried base16 and base24 directories)\n", scheme_name);
+    }
+    
+    return result;
 }

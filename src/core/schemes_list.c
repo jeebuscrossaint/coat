@@ -65,6 +65,21 @@ void schemes_show_preview(const Base16Scheme *scheme) {
     print_color_block(scheme->base0E);
     print_color_block(scheme->base0F);
     printf("\n");
+    
+    // Base24 extended colors (if present)
+    if (scheme->is_base24 && scheme->base10[0] != '\0') {
+        printf("\nBase24 Extended Colors:\n");
+        print_color_block(scheme->base10);
+        print_color_block(scheme->base11);
+        print_color_block(scheme->base12);
+        print_color_block(scheme->base13);
+        printf("\n");
+        print_color_block(scheme->base14);
+        print_color_block(scheme->base15);
+        print_color_block(scheme->base16);
+        print_color_block(scheme->base17);
+        printf("\n");
+    }
 }
 
 // Case-insensitive substring search
@@ -98,79 +113,99 @@ static int compare_schemes(const void *a, const void *b) {
 
 // List all available schemes
 int schemes_list_all(const char *schemes_dir, const char *variant_filter, const char *search_term, int show_preview) {
-    DIR *dir = opendir(schemes_dir);
-    if (!dir) {
-        fprintf(stderr, "Failed to open schemes directory: %s\n", schemes_dir);
-        return -1;
+    // We need to scan both base16 and base24 directories
+    // Extract the parent directory (remove /base16 suffix if present)
+    char parent_dir[2048];
+    strncpy(parent_dir, schemes_dir, sizeof(parent_dir) - 1);
+    
+    // Remove trailing /base16 if present
+    char *base16_suffix = strstr(parent_dir, "/base16");
+    if (base16_suffix && base16_suffix[7] == '\0') {
+        *base16_suffix = '\0';
     }
     
-    // First pass: count schemes
+    // Prepare paths for both directories
+    char base16_dir[2048], base24_dir[2048];
+    snprintf(base16_dir, sizeof(base16_dir), "%s/base16", parent_dir);
+    snprintf(base24_dir, sizeof(base24_dir), "%s/base24", parent_dir);
+    
+    const char *dirs_to_scan[] = {base16_dir, base24_dir};
+    int num_dirs = 2;
+    
+    // First pass: count schemes from all directories
     int capacity = 100;
     int count = 0;
     Base16Scheme *schemes = malloc(capacity * sizeof(Base16Scheme));
     if (!schemes) {
-        closedir(dir);
         return -1;
     }
     
-    struct dirent *entry;
-    while ((entry = readdir(dir)) != NULL) {
-        // Skip non-yaml files
-        if (strstr(entry->d_name, ".yaml") == NULL) {
+    for (int dir_idx = 0; dir_idx < num_dirs; dir_idx++) {
+        DIR *dir = opendir(dirs_to_scan[dir_idx]);
+        if (!dir) {
+            // Directory might not exist, skip it
             continue;
         }
         
-        // Skip README
-        if (strcmp(entry->d_name, "README.md") == 0) {
-            continue;
-        }
-        
-        // Expand array if needed
-        if (count >= capacity) {
-            capacity *= 2;
-            Base16Scheme *new_schemes = realloc(schemes, capacity * sizeof(Base16Scheme));
-            if (!new_schemes) {
-                free(schemes);
-                closedir(dir);
-                return -1;
+        struct dirent *entry;
+        while ((entry = readdir(dir)) != NULL) {
+            // Skip non-yaml files
+            if (strstr(entry->d_name, ".yaml") == NULL) {
+                continue;
             }
-            schemes = new_schemes;
-        }
-        
-        // Load the scheme
-        char filepath[2048];
-        snprintf(filepath, sizeof(filepath), "%s/%s", schemes_dir, entry->d_name);
-        
-        Base16Scheme *scheme = &schemes[count];
-        memset(scheme, 0, sizeof(Base16Scheme));
-        
-        if (base16_scheme_load(scheme, filepath) == 0) {
-            // Apply filters
-            int include = 1;
             
-            // Variant filter
-            if (variant_filter && scheme->variant[0]) {
-                if (strcasecmp(scheme->variant, variant_filter) != 0) {
-                    include = 0;
+            // Skip README
+            if (strcmp(entry->d_name, "README.md") == 0) {
+                continue;
+            }
+            
+            // Expand array if needed
+            if (count >= capacity) {
+                capacity *= 2;
+                Base16Scheme *new_schemes = realloc(schemes, capacity * sizeof(Base16Scheme));
+                if (!new_schemes) {
+                    free(schemes);
+                    closedir(dir);
+                    return -1;
+                }
+                schemes = new_schemes;
+            }
+            
+            // Load the scheme
+            char filepath[2048];
+            snprintf(filepath, sizeof(filepath), "%s/%s", dirs_to_scan[dir_idx], entry->d_name);
+            
+            Base16Scheme *scheme = &schemes[count];
+            memset(scheme, 0, sizeof(Base16Scheme));
+            
+            if (base16_scheme_load(scheme, filepath) == 0) {
+                // Apply filters
+                int include = 1;
+                
+                // Variant filter
+                if (variant_filter && scheme->variant[0]) {
+                    if (strcasecmp(scheme->variant, variant_filter) != 0) {
+                        include = 0;
+                    }
+                }
+                
+                // Search filter
+                if (search_term && include) {
+                    if (!contains_ignore_case(scheme->name, search_term) &&
+                        !contains_ignore_case(scheme->author, search_term) &&
+                        !contains_ignore_case(scheme->slug, search_term)) {
+                        include = 0;
+                    }
+                }
+                
+                if (include) {
+                    count++;
                 }
             }
-            
-            // Search filter
-            if (search_term && include) {
-                if (!contains_ignore_case(scheme->name, search_term) &&
-                    !contains_ignore_case(scheme->author, search_term) &&
-                    !contains_ignore_case(scheme->slug, search_term)) {
-                    include = 0;
-                }
-            }
-            
-            if (include) {
-                count++;
-            }
         }
+        
+        closedir(dir);
     }
-    
-    closedir(dir);
     
     // Sort schemes alphabetically by name
     qsort(schemes, count, sizeof(Base16Scheme), compare_schemes);
@@ -189,6 +224,11 @@ int schemes_list_all(const char *schemes_dir, const char *variant_filter, const 
             if (scheme->variant[0]) {
                 printf(" [%s]", scheme->variant);
             }
+            
+            if (scheme->is_base24) {
+                printf(" [Base24]");
+            }
+            
             printf("\n");
             
             if (scheme->author[0]) {

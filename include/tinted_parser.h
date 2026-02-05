@@ -34,6 +34,18 @@ typedef struct {
     char base0D[MAX_COLOR_VALUE];  // Functions, Methods
     char base0E[MAX_COLOR_VALUE];  // Keywords, Storage
     char base0F[MAX_COLOR_VALUE];  // Deprecated, Embedded
+    
+    // Base24 extended palette (optional, for Base24 schemes)
+    char base10[MAX_COLOR_VALUE];  // Base24 extended color
+    char base11[MAX_COLOR_VALUE];  // Base24 extended color
+    char base12[MAX_COLOR_VALUE];  // Base24 extended color
+    char base13[MAX_COLOR_VALUE];  // Base24 extended color
+    char base14[MAX_COLOR_VALUE];  // Base24 extended color
+    char base15[MAX_COLOR_VALUE];  // Base24 extended color
+    char base16[MAX_COLOR_VALUE];  // Base24 extended color
+    char base17[MAX_COLOR_VALUE];  // Base24 extended color
+    
+    int is_base24;  // Flag to indicate if this is a Base24 scheme
 } Base16Scheme;
 
 // Create a new Base16 scheme structure
