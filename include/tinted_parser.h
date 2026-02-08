@@ -58,6 +58,6 @@ void base16_scheme_free(Base16Scheme *scheme);
 int base16_scheme_load(Base16Scheme *scheme, const char *filepath);
 
 // Find and load a scheme by name from the schemes directory
-int base16_scheme_load_by_name(Base16Scheme *scheme, const char *scheme_name, const char *schemes_dir);
+int base16_scheme_load_by_name(Base16Scheme *scheme, const char *scheme_name, const char *schemes_dir, int prefer_base24);
 
 #endif //COAT_TINTED_PARSER_H

@@ -213,7 +213,7 @@ int base16_scheme_load(Base16Scheme *scheme, const char *filepath) {
 }
 
 // Find and load a scheme by name from the schemes directory
-int base16_scheme_load_by_name(Base16Scheme *scheme, const char *scheme_name, const char *schemes_dir) {
+int base16_scheme_load_by_name(Base16Scheme *scheme, const char *scheme_name, const char *schemes_dir, int prefer_base24) {
     if (!scheme || !scheme_name || !schemes_dir) {
         return -1;
     }
@@ -228,8 +228,24 @@ int base16_scheme_load_by_name(Base16Scheme *scheme, const char *scheme_name, co
         *base16_suffix = '\0';
     }
     
-    // Try base16 directory first
     char filepath[2048];
+    
+    // If prefer_base24 is set, try base24 first
+    if (prefer_base24) {
+        snprintf(filepath, sizeof(filepath), "%s/base24/%s.yaml", parent_dir, scheme_name);
+        if (base16_scheme_load(scheme, filepath) == 0) {
+            return 0;
+        }
+        // Fall back to base16
+        snprintf(filepath, sizeof(filepath), "%s/base16/%s.yaml", parent_dir, scheme_name);
+        int result = base16_scheme_load(scheme, filepath);
+        if (result != 0) {
+            fprintf(stderr, "Failed to load scheme '%s' (tried base24 and base16 directories)\n", scheme_name);
+        }
+        return result;
+    }
+    
+    // Default: Try base16 directory first
     snprintf(filepath, sizeof(filepath), "%s/base16/%s.yaml", parent_dir, scheme_name);
     if (base16_scheme_load(scheme, filepath) == 0) {
         return 0;

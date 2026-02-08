@@ -467,7 +467,7 @@ int main(int argc, char *argv[]) {
             }
             
             printf("Loading scheme: %s\n", config->scheme);
-            if (base16_scheme_load_by_name(scheme, config->scheme, schemes_path) != 0) {
+            if (base16_scheme_load_by_name(scheme, config->scheme, schemes_path, config->prefer_base24) != 0) {
                 fprintf(stderr, "Failed to load scheme: %s\n", config->scheme);
                 free(schemes_path);
                 base16_scheme_free(scheme);
@@ -597,7 +597,7 @@ int main(int argc, char *argv[]) {
         }
 
         printf("Loading scheme: %s\n", config->scheme);
-        if (base16_scheme_load_by_name(scheme, config->scheme, schemes_path) == 0) {
+        if (base16_scheme_load_by_name(scheme, config->scheme, schemes_path, config->prefer_base24) == 0) {
             printf("\nBase16 Color Scheme:\n");
             printf("====================\n");
             printf("System:      %s\n", scheme->system);

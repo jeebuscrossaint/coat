@@ -34,7 +34,7 @@ int zathura_generate_theme(const Base16Scheme *scheme, const char *output_path, 
     // Font configuration
     if (font && font->monospace[0]) {
         fprintf(f, "# Font configuration\n");
-        fprintf(f, "set font \"%s 10\"\n", font->monospace);
+        fprintf(f, "set font %s 10\n", font->monospace);
         fprintf(f, "\n");
     }
     

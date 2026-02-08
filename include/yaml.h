@@ -39,6 +39,7 @@ typedef struct {
     char **enabled;           // Array of enabled items
     int enabled_count;        // Number of enabled items
     char scheme[MAX_STRING_LEN];  // Color scheme name
+    bool prefer_base24;       // Prefer Base24 over Base16 when both exist
     FontConfig font;          // Font configuration
     OpacityConfig opacity;    // Opacity configuration
 } CoatConfig;
