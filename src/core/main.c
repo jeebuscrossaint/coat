@@ -23,6 +23,7 @@
 #include "i3.h"
 #include "kitty.h"
 #include "mangowc.h"
+#include "qt.h"
 #include "rofi.h"
 #include "sway.h"
 #include "swaylock.h"
@@ -77,6 +78,7 @@ static const AppModule app_modules[] = {
     {"i3", {NULL}, (void*)i3_apply_theme, 1, 0},
     {"kitty", {NULL}, (void*)kitty_apply_theme, 1, 1},
     {"mangowc", {NULL}, (void*)mangowc_apply_theme, 1, 0},
+    {"qt", {NULL}, (void*)qt_apply_theme, 1, 0},
     {"rofi", {NULL}, (void*)rofi_apply_theme, 1, 0},
     {"sway", {NULL}, (void*)sway_apply_theme, 1, 0},
     {"swaylock", {NULL}, (void*)swaylock_apply_theme, 0, 1},
@@ -299,6 +301,13 @@ int main(int argc, char *argv[]) {
                 printf("Theme is automatically merged.\n\n");
                 printf("To make permanent, add to ~/.xinitrc or ~/.xprofile:\n");
                 printf("  xrdb -merge ~/.Xresources\n");
+            } else if (strcmp(mod->name, "qt") == 0) {
+                printf("Qt5ct/Qt6ct color schemes created.\n\n");
+                printf("To enable, ensure QT_QPA_PLATFORMTHEME is set:\n\n");
+                printf("  export QT_QPA_PLATFORMTHEME=qt5ct  # For Qt5\n");
+                printf("  export QT_QPA_PLATFORMTHEME=qt6ct  # For Qt6\n\n");
+                printf("Add to ~/.profile, ~/.bash_profile, or ~/.config/fish/config.fish\n\n");
+                printf("Then launch qt5ct or qt6ct to verify the 'coat' color scheme.\n");
             } else {
                 printf("The %s theme has been applied.\n", mod->name);
                 printf("See USAGE.md for detailed information.\n");
