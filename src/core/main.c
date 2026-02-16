@@ -23,6 +23,7 @@
 #include "i3.h"
 #include "kitty.h"
 #include "mangowc.h"
+#include "niri.h"
 #include "qt.h"
 #include "rofi.h"
 #include "sway.h"
@@ -78,6 +79,7 @@ static const AppModule app_modules[] = {
     {"i3", {NULL}, (void*)i3_apply_theme, 1, 0},
     {"kitty", {NULL}, (void*)kitty_apply_theme, 1, 1},
     {"mangowc", {NULL}, (void*)mangowc_apply_theme, 1, 0},
+    {"niri", {NULL}, (void*)niri_apply_theme, 1, 0},
     {"qt", {NULL}, (void*)qt_apply_theme, 1, 0},
     {"rofi", {NULL}, (void*)rofi_apply_theme, 1, 0},
     {"sway", {NULL}, (void*)sway_apply_theme, 1, 0},
