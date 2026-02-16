@@ -94,41 +94,69 @@ int firefox_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
         scheme->base08, scheme->base09, scheme->base0A, scheme->base0B,
         scheme->base0C, scheme->base0D, scheme->base0E, scheme->base0F
     };
+    
+    // Write Base16 colors for reference
     for (int i = 0; i < 16; ++i) {
         fprintf(f, "  --base%02x: #%s;\n", i, strip_hash(base_colors[i]));
     }
+    fprintf(f, "\n");
+    
+    // Override Firefox's built-in color variables
+    fprintf(f, "  /* Toolbar colors */\n");
+    fprintf(f, "  --toolbar-bgcolor: var(--base00) !important;\n");
+    fprintf(f, "  --toolbar-color: var(--base05) !important;\n");
+    fprintf(f, "  --toolbar-field-background-color: var(--base01) !important;\n");
+    fprintf(f, "  --toolbar-field-color: var(--base05) !important;\n");
+    fprintf(f, "  --toolbar-field-border-color: var(--base03) !important;\n");
+    fprintf(f, "  --toolbar-field-focus-background-color: var(--base01) !important;\n");
+    fprintf(f, "  --toolbar-field-focus-color: var(--base05) !important;\n");
+    fprintf(f, "  --toolbar-field-focus-border-color: var(--base0d) !important;\n");
+    fprintf(f, "\n");
+    
+    fprintf(f, "  /* Tab colors */\n");
+    fprintf(f, "  --tab-selected-bgcolor: var(--base02) !important;\n");
+    fprintf(f, "  --tab-selected-textcolor: var(--base05) !important;\n");
+    fprintf(f, "  --tab-hover-bgcolor: var(--base02) !important;\n");
+    fprintf(f, "  --tab-hover-textcolor: var(--base05) !important;\n");
+    fprintf(f, "  --lwt-tab-text: var(--base04) !important;\n");
+    fprintf(f, "\n");
+    
+    fprintf(f, "  /* Sidebar colors */\n");
+    fprintf(f, "  --sidebar-background-color: var(--base00) !important;\n");
+    fprintf(f, "  --sidebar-text-color: var(--base05) !important;\n");
+    fprintf(f, "  --sidebar-border-color: var(--base02) !important;\n");
+    fprintf(f, "\n");
+    
+    fprintf(f, "  /* Popup/Arrowpanel colors */\n");
+    fprintf(f, "  --arrowpanel-background: var(--base01) !important;\n");
+    fprintf(f, "  --arrowpanel-color: var(--base05) !important;\n");
+    fprintf(f, "  --arrowpanel-border-color: var(--base03) !important;\n");
+    fprintf(f, "  --panel-background: var(--base01) !important;\n");
+    fprintf(f, "  --panel-color: var(--base05) !important;\n");
+    fprintf(f, "  --panel-border-color: var(--base03) !important;\n");
+    fprintf(f, "\n");
+    
+    fprintf(f, "  /* Button colors */\n");
+    fprintf(f, "  --button-bgcolor: var(--base02) !important;\n");
+    fprintf(f, "  --button-hover-bgcolor: var(--base03) !important;\n");
+    fprintf(f, "  --button-active-bgcolor: var(--base03) !important;\n");
+    fprintf(f, "  --button-color: var(--base05) !important;\n");
+    fprintf(f, "  --toolbarbutton-hover-background: var(--base02) !important;\n");
+    fprintf(f, "  --toolbarbutton-active-background: var(--base03) !important;\n");
+    fprintf(f, "\n");
+    
+    fprintf(f, "  /* Chrome background colors */\n");
+    fprintf(f, "  --chrome-content-separator-color: var(--base02) !important;\n");
+    fprintf(f, "  --lwt-accent-color: var(--base00) !important;\n");
+    fprintf(f, "  --lwt-text-color: var(--base05) !important;\n");
+    fprintf(f, "\n");
+    
+    fprintf(f, "  /* Autocomplete/URL dropdown */\n");
+    fprintf(f, "  --autocomplete-popup-background: var(--base01) !important;\n");
+    fprintf(f, "  --autocomplete-popup-color: var(--base05) !important;\n");
+    fprintf(f, "  --autocomplete-popup-highlight-background: var(--base0d) !important;\n");
+    fprintf(f, "  --autocomplete-popup-highlight-color: var(--base00) !important;\n");
     fprintf(f, "}\n\n");
-    
-    // Main browser background
-    fprintf(f, "/* Main browser chrome */\n");
-    fprintf(f, "#navigator-toolbox { background-color: var(--base00) !important; }\n");
-    fprintf(f, "#TabsToolbar, #nav-bar, toolbar { background-color: var(--base00) !important; }\n");
-    fprintf(f, "window, #main-window, #browser { background-color: var(--base00) !important; }\n\n");
-    
-    // Tabs
-    fprintf(f, "/* Tabs */\n");
-    fprintf(f, ".tabbrowser-tab { background-color: var(--base01) !important; color: var(--base04) !important; }\n");
-    fprintf(f, ".tabbrowser-tab[selected] { background-color: var(--base02) !important; color: var(--base05) !important; }\n");
-    fprintf(f, ".tabbrowser-tab:hover { background-color: var(--base02) !important; }\n\n");
-    
-    // URL bar
-    fprintf(f, "/* URL bar and search */\n");
-    fprintf(f, "#urlbar, #searchbar { background-color: var(--base01) !important; color: var(--base05) !important; border: 1px solid var(--base03) !important; }\n");
-    fprintf(f, "#urlbar:focus-within, #searchbar:focus-within { border-color: var(--base0d) !important; }\n\n");
-    
-    // Sidebar
-    fprintf(f, "/* Sidebar */\n");
-    fprintf(f, "#sidebar-box { background-color: var(--base00) !important; }\n");
-    fprintf(f, "#sidebar-header { background-color: var(--base01) !important; color: var(--base05) !important; }\n\n");
-    
-    // Context menus
-    fprintf(f, "/* Menus and popups */\n");
-    fprintf(f, "menupopup, popup, panel { background-color: var(--base01) !important; color: var(--base05) !important; border: 1px solid var(--base03) !important; }\n");
-    fprintf(f, "menuitem:hover, menu:hover { background-color: var(--base02) !important; }\n\n");
-    
-    // General text colors
-    fprintf(f, "/* General text */\n");
-    fprintf(f, "toolbar, toolbarbutton, tab, menuitem { color: var(--base05) !important; }\n\n");
     
     // Font configuration
     if (font && font->monospace[0]) {
