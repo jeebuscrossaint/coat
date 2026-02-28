@@ -69,7 +69,7 @@ coat update
 
 - **Terminals**: fish, kitty, tty
 - **Editors**: helix, vscode
-- **Window Managers**: i3, niri, sway, swaylock
+- **Window Managers**: hyprland, i3, niri, sway, swaylock
 - **Launchers**: rofi, bemenu
 - **Utilities**: bat, btop, cava, dunst, yazi, zathura
 - **System**: gtk, xresources, firefox, vesktop

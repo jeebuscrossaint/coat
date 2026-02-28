@@ -21,6 +21,7 @@
 #include "fish.h"
 #include "gtk.h"
 #include "helix.h"
+#include "hyprland.h"
 #include "i3.h"
 #include "kitty.h"
 #include "mangowc.h"
@@ -77,6 +78,7 @@ static const AppModule app_modules[] = {
     {"fish", {NULL}, (void*)fish_apply_theme, 0, 0},
     {"gtk", {NULL}, (void*)gtk_apply_theme, 1, 0},
     {"helix", {NULL}, (void*)helix_apply_theme, 0, 0},
+    {"hyprland", {"hypr", NULL}, (void*)hyprland_apply_theme, 1, 0},
     {"i3", {NULL}, (void*)i3_apply_theme, 1, 0},
     {"kitty", {NULL}, (void*)kitty_apply_theme, 1, 1},
     {"mangowc", {NULL}, (void*)mangowc_apply_theme, 1, 0},

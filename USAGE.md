@@ -103,6 +103,68 @@ theme = "coat"
 - Restart helix
 - Or use `:config-reload` command
 
+### Hyprland Compositor
+
+**Automatic color injection:**
+
+When you run `coat apply hyprland`, it automatically:
+- Backs up your existing config to `~/.config/hypr/hyprland.conf.coat.backup`
+- Injects Base16 color variables (`$base00` through `$base0F`) at the top of your config
+- Preserves all your existing Hyprland settings
+
+**Color variables injected:**
+```bash
+$base00 = rgb(...)  # Background
+$base01 = rgb(...)  # Lighter background
+$base02 = rgb(...)  # Selection background
+$base03 = rgb(...)  # Comments
+$base04 = rgb(...)  # Dark foreground
+$base05 = rgb(...)  # Default foreground
+$base06 = rgb(...)  # Light foreground
+$base07 = rgb(...)  # Light background
+$base08 = rgb(...)  # Red (variables)
+$base09 = rgb(...)  # Orange (integers)
+$base0A = rgb(...)  # Yellow (classes)
+$base0B = rgb(...)  # Green (strings)
+$base0C = rgb(...)  # Cyan (support)
+$base0D = rgb(...)  # Blue (functions)
+$base0E = rgb(...)  # Magenta (keywords)
+$base0F = rgb(...)  # Brown (deprecated)
+```
+
+**Using the colors in your config:**
+```bash
+general {
+    col.active_border = $base0D $base0C 45deg
+    col.inactive_border = $base01
+}
+
+decoration {
+    col.shadow = rgba(...)
+}
+
+group {
+    col.border_active = $base0D
+    col.border_inactive = $base01
+    
+    groupbar {
+        col.active = $base0D
+        col.inactive = $base03
+    }
+}
+```
+
+**Then reload:**
+```bash
+hyprctl reload
+```
+
+**What's themed:**
+- Border colors (active/inactive)
+- Shadow colors
+- Group colors
+- Any color using the injected variables
+
 ### GTK Applications
 
 GTK theming is applied automatically to `~/.config/gtk-3.0/gtk.css` and `~/.config/gtk-4.0/gtk.css`.
