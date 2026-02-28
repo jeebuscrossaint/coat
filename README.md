@@ -61,9 +61,36 @@ coat list --light
 # Apply current scheme to all configured apps
 coat apply
 
+# Extract colors from wallpaper and apply (one-time)
+coat wallpaper
+
 # Update schemes repository
 coat update
 ```
+
+## Configuration
+
+Edit `~/.config/coat/coat.yaml`:
+
+```yaml
+# Use a specific color scheme
+scheme: gruvbox-dark-hard
+
+# Or extract colors from your wallpaper automatically
+scheme: wallpaper
+
+# Enable Material You color transformation
+material_you: true
+
+# Apps to theme
+enabled:
+  - fish
+  - kitty
+  - hyprland
+  # ... etc
+```
+
+**Wallpaper extraction**: Set `scheme: wallpaper` to automatically extract colors from your current wallpaper (requires `swww`). When you run `coat apply`, it will query `swww` for your wallpaper, extract dominant colors using k-means clustering, generate a harmonious Base16 palette, and optionally apply Material You color transformations.
 
 ## Supported Applications
 

@@ -105,53 +105,9 @@ theme = "coat"
 
 ### Hyprland Compositor
 
-**Automatic color injection:**
-
-When you run `coat apply hyprland`, it automatically:
-- Backs up your existing config to `~/.config/hypr/hyprland.conf.coat.backup`
-- Injects Base16 color variables (`$base00` through `$base0F`) at the top of your config
-- Preserves all your existing Hyprland settings
-
-**Color variables injected:**
+**Permanent activation (add to `~/.config/hypr/hyprland.conf`):**
 ```bash
-$base00 = rgb(...)  # Background
-$base01 = rgb(...)  # Lighter background
-$base02 = rgb(...)  # Selection background
-$base03 = rgb(...)  # Comments
-$base04 = rgb(...)  # Dark foreground
-$base05 = rgb(...)  # Default foreground
-$base06 = rgb(...)  # Light foreground
-$base07 = rgb(...)  # Light background
-$base08 = rgb(...)  # Red (variables)
-$base09 = rgb(...)  # Orange (integers)
-$base0A = rgb(...)  # Yellow (classes)
-$base0B = rgb(...)  # Green (strings)
-$base0C = rgb(...)  # Cyan (support)
-$base0D = rgb(...)  # Blue (functions)
-$base0E = rgb(...)  # Magenta (keywords)
-$base0F = rgb(...)  # Brown (deprecated)
-```
-
-**Using the colors in your config:**
-```bash
-general {
-    col.active_border = $base0D $base0C 45deg
-    col.inactive_border = $base01
-}
-
-decoration {
-    col.shadow = rgba(...)
-}
-
-group {
-    col.border_active = $base0D
-    col.border_inactive = $base01
-    
-    groupbar {
-        col.active = $base0D
-        col.inactive = $base03
-    }
-}
+source = ~/.config/hypr/coat-theme.conf
 ```
 
 **Then reload:**
@@ -159,11 +115,68 @@ group {
 hyprctl reload
 ```
 
-**What's themed:**
-- Border colors (active/inactive)
-- Shadow colors
-- Group colors
-- Any color using the injected variables
+**What's provided:**
+- Base16 color variables (`$base00` through `$base0F`)
+- Example theme configurations as comments
+- Color reference guide
+
+**Color variables:**
+```bash
+$base00 = rgb(...)  # Default Background
+$base01 = rgb(...)  # Lighter Background
+$base02 = rgb(...)  # Selection Background
+$base03 = rgb(...)  # Comments, Invisibles
+$base04 = rgb(...)  # Dark Foreground
+$base05 = rgb(...)  # Default Foreground
+$base06 = rgb(...)  # Light Foreground
+$base07 = rgb(...)  # Light Background
+$base08 = rgb(...)  # Red
+$base09 = rgb(...)  # Orange
+$base0A = rgb(...)  # Yellow
+$base0B = rgb(...)  # Green
+$base0C = rgb(...)  # Cyan
+$base0D = rgb(...)  # Blue
+$base0E = rgb(...)  # Magenta
+$base0F = rgb(...)  # Brown
+```
+
+**Example usage in your config:**
+```bash
+general {
+    col.active_border = $base0D $base0C 45deg  # Blue to Cyan gradient
+    col.inactive_border = $base01  # Subtle dim border
+}
+
+decoration {
+    col.shadow = rgba(0b0d0daa)  # Dark shadow with alpha
+    # Or use: rgba($base00 aa) in newer Hyprland versions
+}
+
+group {
+    col.border_active = $base0D
+    col.border_inactive = $base01
+    col.border_locked_active = $base09
+    col.border_locked_inactive = $base03
+    
+    groupbar {
+        col.active = $base0D
+        col.inactive = $base03
+        text_color = $base07
+    }
+}
+
+misc {
+    background_color = $base00
+    col.splash = $base0E
+}
+```
+
+**Tips:**
+- Use `$base0D` (blue) for active/focused elements
+- Use `$base01`-`$base03` for subtle backgrounds and borders
+- Create gradients: `$base0D $base0C 45deg` (blue to cyan)
+- The theme file is regenerated each time you run `coat apply hyprland`
+- Your main config remains untouched - just source the theme file
 
 ### GTK Applications
 
@@ -275,11 +288,67 @@ killall dunst && dunst &
 
 ---
 
+## Wallpaper Color Extraction
+
+**Automatic theming from your wallpaper** - Extract colors from your current wallpaper and generate a custom theme automatically.
+
+### Setup
+
+Set `scheme: wallpaper` in `~/.config/coat/coat.yaml`:
+
+```yaml
+scheme: wallpaper           # Extract colors from wallpaper
+material_you: true          # Apply Material You color science (recommended)
+enabled:
+  - fish
+  - kitty
+  - hyprland
+  # ... other apps
+```
+
+### Requirements
+
+- **swww** wallpaper daemon must be running
+- Current wallpaper must be accessible
+
+### How It Works
+
+When you run `coat apply` with `scheme: wallpaper`:
+
+1. **Query wallpaper**: Runs `swww query` to get current wallpaper path
+2. **Load image**: Reads the wallpaper file (PNG, JPG, etc.)
+3. **Color extraction**: Uses k-means clustering to find 16 dominant colors
+4. **Color scoring**: Ranks colors by saturation, lightness, and frequency
+5. **Palette generation**: 
+   - **base00-07** (neutrals): Generated from darkest to lightest colors
+   - **base08-0F** (accents): Assigned to most vibrant/saturated colors
+6. **Material You**: Applies harmonization and color science (if enabled)
+7. **Apply themes**: Updates all enabled applications
+
+### One-Time Usage
+
+You can also extract wallpaper colors without changing your config:
+
+```bash
+coat wallpaper                    # Extract and apply with Material You
+coat wallpaper --no-material-you  # Extract without Material You
+```
+
+### Tips
+
+- **Material You recommended**: Ensures colors are vibrant and harmonious
+- **Automatic updates**: Re-run `coat apply` when you change your wallpaper
+- **Works with any wallpaper**: PNG, JPG, WebP, etc.
+- **Smart color selection**: Avoids dull/extreme colors, prefers mid-tones
+
+---
+
 ## Available Commands
 
 - `coat list` - List all available color schemes (with preview)
 - `coat list --dark` - Show only dark schemes
 - `coat list --light` - Show only light schemes
+- `coat wallpaper` - Extract colors from wallpaper and apply (one-time)
 - `coat search gruvbox` - Search for schemes
 - `coat apply` - Generate theme files for enabled applications
 - `coat update` - Update the schemes repository

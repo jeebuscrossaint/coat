@@ -9,6 +9,7 @@
 #include "tinted_parser.h"
 #include "schemes_list.h"
 #include "material_you.h"
+#include "wallpaper.h"
 
 // Application modules
 #include "avizo.h"
@@ -153,6 +154,8 @@ static void print_usage(const char *prog_name) {
     printf("  list [OPTIONS]      List available color schemes\n");
     printf("  search <term>       Search for schemes by name/author\n");
     printf("  apply [app]         Apply current scheme to all apps or specific app\n");
+    printf("  wallpaper [--no-material-you]\n");
+    printf("                      Extract colors from wallpaper and apply theme\n");
     printf("  docs <app>          Show setup instructions for specific app\n");
     printf("  help                Show this help message\n");
     printf("\n");
@@ -255,6 +258,12 @@ int main(int argc, char *argv[]) {
                 printf("IMPORTANT: Remove any 'bar { }' blocks!\n");
                 printf("The coat-theme includes a complete bar configuration.\n\n");
                 printf("Then reload: swaymsg reload\n");
+            } else if (strcmp(mod->name, "hyprland") == 0) {
+                printf("Add to ~/.config/hypr/hyprland.conf:\n\n");
+                printf("  source = ~/.config/hypr/coat-theme.conf\n\n");
+                printf("Then reload: hyprctl reload\n\n");
+                printf("The theme provides color variables $base00-$base0F.\n");
+                printf("Use them anywhere in your config for borders, shadows, etc.\n");
             } else if (strcmp(mod->name, "vscode") == 0) {
                 printf("The theme is automatically activated.\n\n");
                 printf("If it doesn't appear, reload VSCode:\n");
@@ -480,20 +489,34 @@ int main(int argc, char *argv[]) {
                 return 1;
             }
             
-            printf("Loading scheme: %s\n", config->scheme);
-            if (base16_scheme_load_by_name(scheme, config->scheme, schemes_path, config->prefer_base24) != 0) {
-                fprintf(stderr, "Failed to load scheme: %s\n", config->scheme);
-                free(schemes_path);
-                base16_scheme_free(scheme);
-                coat_config_free(config);
-                free(config_dir);
-                return 1;
-            }
-            
-            // Apply Material You transformation if enabled
-            if (config->material_you) {
-                printf("Applying Material You transformation...\n");
-                material_you_transform_default(scheme);
+            // Check if scheme is set to "wallpaper" for automatic extraction
+            if (strcmp(config->scheme, "wallpaper") == 0) {
+                printf("Extracting colors from wallpaper...\n");
+                if (wallpaper_extract_scheme(scheme, config->material_you) != 0) {
+                    fprintf(stderr, "Failed to extract colors from wallpaper\n");
+                    free(schemes_path);
+                    base16_scheme_free(scheme);
+                    coat_config_free(config);
+                    free(config_dir);
+                    return 1;
+                }
+            } else {
+                // Load scheme from repository
+                printf("Loading scheme: %s\n", config->scheme);
+                if (base16_scheme_load_by_name(scheme, config->scheme, schemes_path, config->prefer_base24) != 0) {
+                    fprintf(stderr, "Failed to load scheme: %s\n", config->scheme);
+                    free(schemes_path);
+                    base16_scheme_free(scheme);
+                    coat_config_free(config);
+                    free(config_dir);
+                    return 1;
+                }
+                
+                // Apply Material You transformation if enabled
+                if (config->material_you) {
+                    printf("Applying Material You transformation...\n");
+                    material_you_transform_default(scheme);
+                }
             }
             
             printf("Applying scheme: %s\n", scheme->name);
@@ -538,6 +561,77 @@ int main(int argc, char *argv[]) {
             
             free(schemes_path);
             base16_scheme_free(scheme);
+            coat_config_free(config);
+            free(config_dir);
+            return 0;
+        } else if (strcmp(argv[1], "wallpaper") == 0) {
+            // Extract colors from wallpaper and apply theme
+            int apply_material_you = 1;
+            
+            // Check for --no-material-you flag
+            for (int i = 2; i < argc; i++) {
+                if (strcmp(argv[i], "--no-material-you") == 0) {
+                    apply_material_you = 0;
+                }
+            }
+            
+            // Load config for enabled apps and fonts
+            CoatConfig *config = coat_config_new();
+            if (!config) {
+                fprintf(stderr, "Failed to allocate config\n");
+                free(config_dir);
+                return 1;
+            }
+            
+            if (coat_config_load_default(config) != 0) {
+                fprintf(stderr, "Failed to load config\n");
+                coat_config_free(config);
+                free(config_dir);
+                return 1;
+            }
+            
+            // Create scheme from wallpaper
+            Base16Scheme *scheme = malloc(sizeof(Base16Scheme));
+            if (!scheme) {
+                fprintf(stderr, "Memory allocation failed\n");
+                coat_config_free(config);
+                free(config_dir);
+                return 1;
+            }
+            
+            if (wallpaper_extract_scheme(scheme, apply_material_you) != 0) {
+                fprintf(stderr, "Failed to extract colors from wallpaper\n");
+                free(scheme);
+                coat_config_free(config);
+                free(config_dir);
+                return 1;
+            }
+            
+            printf("\nApplying wallpaper theme to all enabled apps...\n\n");
+            
+            // Apply to all enabled apps
+            int applied = 0;
+            for (int i = 0; i < config->enabled_count; i++) {
+                const AppModule *mod = find_app_module(config->enabled[i]);
+                if (mod) {
+                    printf("Applying to %s...\n", mod->name);
+                    if (apply_module(mod, scheme, &config->font, &config->opacity) == 0) {
+                        printf("  ✓ Success\n");
+                        applied++;
+                    } else {
+                        printf("  ✗ Failed\n");
+                    }
+                    printf("\n");
+                }
+            }
+            
+            if (applied > 0) {
+                printf("✓ Successfully applied wallpaper theme to %d application(s)!\n", applied);
+            } else {
+                printf("No applications were configured.\n");
+            }
+            
+            free(scheme);
             coat_config_free(config);
             free(config_dir);
             return 0;
@@ -616,13 +710,28 @@ int main(int argc, char *argv[]) {
             return 1;
         }
 
-        printf("Loading scheme: %s\n", config->scheme);
-        if (base16_scheme_load_by_name(scheme, config->scheme, schemes_path, config->prefer_base24) == 0) {
-            // Apply Material You transformation if enabled
-            if (config->material_you) {
-                printf("Applying Material You transformation...\n");
-                material_you_transform_default(scheme);
+        // Check if scheme is set to "wallpaper" for automatic extraction
+        int scheme_loaded = 0;
+        if (strcmp(config->scheme, "wallpaper") == 0) {
+            printf("Extracting colors from wallpaper...\n");
+            if (wallpaper_extract_scheme(scheme, config->material_you) == 0) {
+                scheme_loaded = 1;
+            } else {
+                fprintf(stderr, "Failed to extract colors from wallpaper\n");
             }
+        } else {
+            printf("Loading scheme: %s\n", config->scheme);
+            if (base16_scheme_load_by_name(scheme, config->scheme, schemes_path, config->prefer_base24) == 0) {
+                // Apply Material You transformation if enabled
+                if (config->material_you) {
+                    printf("Applying Material You transformation...\n");
+                    material_you_transform_default(scheme);
+                }
+                scheme_loaded = 1;
+            }
+        }
+        
+        if (scheme_loaded) {
             
             printf("\nBase16 Color Scheme:\n");
             printf("====================\n");
