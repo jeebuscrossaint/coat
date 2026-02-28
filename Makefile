@@ -3,7 +3,7 @@
 
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c11 -O2 -Iinclude
-LDFLAGS = $(shell pkg-config --libs yaml-0.1 json-c)
+LDFLAGS = $(shell pkg-config --libs yaml-0.1 json-c) -lm
 CFLAGS += $(shell pkg-config --cflags yaml-0.1 json-c)
 
 BUILD_DIR = build
@@ -13,7 +13,7 @@ INCLUDE_DIR = include
 
 # Core source files
 CORE_SRCS = $(SRC_DIR)/core/main.c $(SRC_DIR)/core/yaml.c $(SRC_DIR)/core/tinted_parser.c \
-            $(SRC_DIR)/core/schemes.c $(SRC_DIR)/core/schemes_list.c
+            $(SRC_DIR)/core/schemes.c $(SRC_DIR)/core/schemes_list.c $(SRC_DIR)/core/material_you.c
 
 # Application module source files (alphabetically ordered)
 APP_SRCS = $(SRC_DIR)/modules/avizo.c $(SRC_DIR)/modules/bat.c $(SRC_DIR)/modules/bemenu.c \

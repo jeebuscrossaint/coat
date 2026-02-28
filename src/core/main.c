@@ -8,6 +8,7 @@
 #include "schemes.h"
 #include "tinted_parser.h"
 #include "schemes_list.h"
+#include "material_you.h"
 
 // Application modules
 #include "avizo.h"
@@ -487,6 +488,12 @@ int main(int argc, char *argv[]) {
                 return 1;
             }
             
+            // Apply Material You transformation if enabled
+            if (config->material_you) {
+                printf("Applying Material You transformation...\n");
+                material_you_transform_default(scheme);
+            }
+            
             printf("Applying scheme: %s\n", scheme->name);
             
             // If specific app is provided, only apply to that app
@@ -609,6 +616,12 @@ int main(int argc, char *argv[]) {
 
         printf("Loading scheme: %s\n", config->scheme);
         if (base16_scheme_load_by_name(scheme, config->scheme, schemes_path, config->prefer_base24) == 0) {
+            // Apply Material You transformation if enabled
+            if (config->material_you) {
+                printf("Applying Material You transformation...\n");
+                material_you_transform_default(scheme);
+            }
+            
             printf("\nBase16 Color Scheme:\n");
             printf("====================\n");
             printf("System:      %s\n", scheme->system);

@@ -186,6 +186,8 @@ killall dunst && dunst &
 2. **Set your scheme and enabled apps:**
    ```yaml
    scheme: gruvbox-dark-hard
+   prefer_base24: false
+   material_you: false  # Enable Material You color transformation (optional)
    enabled:
      - fish
      - kitty
@@ -193,6 +195,14 @@ killall dunst && dunst &
    font:
      monospace: "JetBrains Mono"
    ```
+   
+   **Material You Transformation:**
+   - When `material_you: true`, colors are transformed to be more vibrant and harmonious
+   - Increases saturation by 25% for more vivid accent colors
+   - Enhances contrast by 15% for better readability
+   - Applies color harmonization to create a cohesive palette
+   - Neutrals (backgrounds/foregrounds) remain balanced
+   - Perfect for modern, colorful desktop environments
 
 3. **Apply the theme:**
    ```bash

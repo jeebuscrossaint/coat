@@ -2,6 +2,15 @@
 
 A C-based tool for applying Base16 color schemes across multiple applications.
 
+## Features
+
+- **26+ Application Support**: Unified theming for terminals, editors, window managers, and more
+- **Material You Transformation**: Optional color enhancement for more vibrant, harmonious palettes
+- **Base16/Base24 Support**: Compatible with the full tinted-theming ecosystem
+- **Interactive Browser**: Search and preview schemes with RGB color display
+- **Font Management**: Centralized font configuration across all applications
+- **Opacity Control**: Per-application transparency settings
+
 ## Project Structure
 
 ```
@@ -14,7 +23,8 @@ coat/
 │   │   ├── yaml.c
 │   │   ├── schemes.c
 │   │   ├── schemes_list.c
-│   │   └── tinted_parser.c
+│   │   ├── tinted_parser.c
+│   │   └── material_you.c
 │   └── modules/     # Application modules
 │       ├── fish.c
 │       ├── kitty.c

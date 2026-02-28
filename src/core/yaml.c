@@ -23,6 +23,7 @@ CoatConfig* coat_config_new(void) {
     config->enabled_count = 0;
     config->scheme[0] = '\0';
     config->prefer_base24 = false;  // Default to Base16
+    config->material_you = false;   // Default to no Material You transformation
     config->font.emoji[0] = '\0';
     config->font.monospace[0] = '\0';
     config->font.sansserif[0] = '\0';
@@ -79,6 +80,7 @@ int coat_config_load(CoatConfig *config, const char *filepath) {
         STATE_ENABLED,
         STATE_SCHEME,
         STATE_PREFER_BASE24,
+        STATE_MATERIAL_YOU,
         STATE_FONT,
         STATE_FONT_EMOJI,
         STATE_FONT_MONOSPACE,
@@ -160,6 +162,9 @@ int coat_config_load(CoatConfig *config, const char *filepath) {
                 } else if (state == STATE_PREFER_BASE24) {
                     config->prefer_base24 = (strcmp(value, "true") == 0 || strcmp(value, "1") == 0 || strcmp(value, "yes") == 0);
                     state = STATE_NONE;
+                } else if (state == STATE_MATERIAL_YOU) {
+                    config->material_you = (strcmp(value, "true") == 0 || strcmp(value, "1") == 0 || strcmp(value, "yes") == 0);
+                    state = STATE_NONE;
                 } else if (state == STATE_FONT_SIZES) {
                     // Handle font.sizes subsection
                     if (state == STATE_FONT_SIZE_TERMINAL) {
@@ -240,6 +245,8 @@ int coat_config_load(CoatConfig *config, const char *filepath) {
                         state = STATE_SCHEME;
                     } else if (strcmp(value, "prefer_base24") == 0 || strcmp(value, "prefer-base24") == 0) {
                         state = STATE_PREFER_BASE24;
+                    } else if (strcmp(value, "material_you") == 0 || strcmp(value, "material-you") == 0) {
+                        state = STATE_MATERIAL_YOU;
                     }
                 }
                 break;
