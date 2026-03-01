@@ -1,3 +1,4 @@
+#define _DEFAULT_SOURCE
 #include "waybar.h"
 #include "tinted_parser.h"
 #include <stdio.h>
@@ -284,9 +285,6 @@ int waybar_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
     }
     
     printf("  ✓ %s\n", theme_path);
-    
-    // Try to reload waybar
-    system("pkill -SIGUSR2 waybar 2>/dev/null");
     
     return 0;
 }
