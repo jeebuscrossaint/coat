@@ -34,6 +34,7 @@
 #include "tty.h"
 #include "vesktop.h"
 #include "vscode.h"
+#include "waybar.h"
 #include "xresources.h"
 #include "yazi.h"
 #include "zathura.h"
@@ -91,6 +92,7 @@ static const AppModule app_modules[] = {
     {"tty", {"console", NULL}, (void*)tty_apply_theme, 0, 0},
     {"vesktop", {"vencord", "discord", NULL}, (void*)vesktop_apply_theme, 1, 0},
     {"vscode", {NULL}, (void*)vscode_apply_theme, 1, 0},
+    {"waybar", {NULL}, (void*)waybar_apply_theme, 1, 0},
     {"xresources", {NULL}, (void*)xresources_apply_theme, 1, 0},
     {"yazi", {NULL}, (void*)yazi_apply_theme, 0, 0},
     {"zathura", {NULL}, (void*)zathura_apply_theme, 1, 0},
@@ -304,6 +306,11 @@ int main(int argc, char *argv[]) {
                 printf("Enable the theme in Discord/Vesktop:\n\n");
                 printf("  Settings → Vencord → Themes → coat.theme.css\n\n");
                 printf("Or restart if auto-loading is enabled.\n");
+            } else if (strcmp(mod->name, "waybar") == 0) {
+                printf("Add to the top of ~/.config/waybar/style.css:\n\n");
+                printf("  @import \"coat-theme.css\";\n\n");
+                printf("Or replace your entire style.css with coat-theme.css.\n\n");
+                printf("Then reload: pkill -SIGUSR2 waybar\n");
             } else if (strcmp(mod->name, "tty") == 0) {
                 printf("To make permanent, choose one:\n\n");
                 printf("1. Add to ~/.bashrc or ~/.zshrc:\n");

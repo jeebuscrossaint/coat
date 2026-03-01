@@ -24,8 +24,8 @@ APP_SRCS = $(SRC_DIR)/modules/avizo.c $(SRC_DIR)/modules/bat.c $(SRC_DIR)/module
            $(SRC_DIR)/modules/kitty.c $(SRC_DIR)/modules/mangowc.c $(SRC_DIR)/modules/niri.c \
            $(SRC_DIR)/modules/qt.c $(SRC_DIR)/modules/rofi.c $(SRC_DIR)/modules/sway.c \
            $(SRC_DIR)/modules/swaylock.c $(SRC_DIR)/modules/tty.c $(SRC_DIR)/modules/vesktop.c \
-           $(SRC_DIR)/modules/vscode.c $(SRC_DIR)/modules/xresources.c $(SRC_DIR)/modules/yazi.c \
-           $(SRC_DIR)/modules/zathura.c
+           $(SRC_DIR)/modules/vscode.c $(SRC_DIR)/modules/waybar.c $(SRC_DIR)/modules/xresources.c \
+           $(SRC_DIR)/modules/yazi.c $(SRC_DIR)/modules/zathura.c
 
 SRCS = $(CORE_SRCS) $(APP_SRCS)
 OBJS = $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SRCS))
