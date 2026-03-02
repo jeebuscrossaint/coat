@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 #include "wallpaper.h"
 #include "material_you.h"
+#include "hct.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -54,26 +55,55 @@ static HSL rgb_to_hsl_internal(unsigned char r, unsigned char g, unsigned char b
     return hsl;
 }
 
-// Score a color for theming (higher is better)
-// Prioritizes: colorfulness, moderate lightness, uniqueness
+// Score a color for Material You theming (higher is better)
+// Based on Material Color Utilities scoring:
+// - Prioritizes chroma (colorfulness) - colors with 48+ chroma preferred
+// - Valid tone range - colors should be usable (tone 30-90, ideally 40-80)
+// - Population/frequency - more common colors score higher
 static float score_color(Color *color) {
-    HSL hsl = rgb_to_hsl_internal(color->r, color->g, color->b);
+    RGB rgb = {color->r, color->g, color->b};
+    HCT hct = rgb_to_hct(rgb);
     
-    // Saturation score (prefer colorful, 0.3-1.0 saturation)
-    float sat_score = hsl.s;
-    if (hsl.s < 0.3f) sat_score *= 0.5f;  // Penalize dull colors
-    
-    // Lightness score (prefer mid-tones, 0.2-0.8 lightness)
-    float light_score = 1.0f;
-    if (hsl.l < 0.2f || hsl.l > 0.8f) {
-        light_score = 0.3f;  // Penalize very dark/light
+    // Chroma score: Material You requires minimum chroma 48 for vibrant accents
+    // Reject colors with chroma < 15 (too gray)
+    if (hct.c < 15.0) {
+        return 0.1f;  // Nearly zero score for gray colors
     }
     
-    // Frequency score (prefer common but not overwhelming)
-    float freq_score = sqrtf(color->count / 1000.0f);
-    if (freq_score > 1.0f) freq_score = 1.0f;
+    // Scale chroma: 15-48 moderate, 48+ excellent
+    float chroma_score = 0.0f;
+    if (hct.c >= 48.0) {
+        chroma_score = 1.0f + (hct.c - 48.0) / 72.0;  // 1.0 to 2.0 for chroma 48-120
+    } else {
+        chroma_score = (hct.c - 15.0) / 33.0;  // 0.0 to 1.0 for chroma 15-48
+    }
     
-    return sat_score * light_score * freq_score * 100.0f;
+    // Tone score: Prefer usable tones (30-90), heavily penalize extremes
+    // Material You accents are typically tone 40 (light mode) or tone 80 (dark mode)
+    float tone_score = 0.0f;
+    if (hct.t < 15.0 || hct.t > 95.0) {
+        return 0.1f;  // Nearly zero score for extreme tones (too dark/light)
+    } else if (hct.t >= 30.0 && hct.t <= 90.0) {
+        // Ideal range: tone 30-90
+        tone_score = 1.0f;
+        // Bonus for mid-tones (40-80) which work well in both light/dark themes
+        if (hct.t >= 40.0 && hct.t <= 80.0) {
+            tone_score = 1.2f;
+        }
+    } else {
+        // Marginal range: 15-30 or 90-95
+        tone_score = 0.4f;
+    }
+    
+    // Population score: More common colors are better (logarithmic to prevent dominance)
+    float pop_score = logf(1.0f + color->count) / 12.0f;
+    if (pop_score > 1.0f) pop_score = 1.0f;
+    
+    // Combined score:
+    // - Chroma is most important (60 points)
+    // - Tone validity is critical (30 points)
+    // - Population helps (10 points)
+    return chroma_score * 60.0f + tone_score * 30.0f + pop_score * 10.0f;
 }
 
 // Compare function for sorting colors by score
@@ -95,10 +125,17 @@ static Color* quantize_colors(unsigned char *pixels, int width, int height, int 
     Color *colors = calloc(k, sizeof(Color));
     if (!colors) return NULL;
     
-    // Initialize k-means centroids with random pixels
-    srand(42);  // Deterministic seed
+    // Initialize k-means centroids with evenly spaced pixels for deterministic results
     for (int i = 0; i < k; i++) {
-        int idx = (rand() % sample_size) * 16 * 3;  // Random sample
+        // Evenly distribute initial centroids across the image
+        int pixel_idx = (i * total_pixels / k);
+        int idx = pixel_idx * 3;
+        
+        // Ensure within bounds
+        if (idx + 2 >= total_pixels * 3) {
+            idx = (total_pixels - 1) * 3;
+        }
+        
         colors[i].r = pixels[idx];
         colors[i].g = pixels[idx + 1];
         colors[i].b = pixels[idx + 2];
@@ -164,6 +201,46 @@ static Color* quantize_colors(unsigned char *pixels, int width, int height, int 
     }
     
     qsort(colors, k, sizeof(Color), compare_colors);
+    
+    // Check if we have any viable colors (score > 1.0)
+    // If not, this is a low-chroma image - use relaxed scoring
+    if (colors[0].score < 1.0f) {
+        for (int i = 0; i < k; i++) {
+            RGB rgb = {colors[i].r, colors[i].g, colors[i].b};
+            HCT hct = rgb_to_hct(rgb);
+            
+            // Relaxed scoring for low-chroma images
+            // Still prefer some chroma, but accept lower values
+            float chroma_weight = hct.c / 20.0f;  // Normalize to ~20 max
+            if (chroma_weight > 2.0f) chroma_weight = 2.0f;
+            
+            // Tone weight: Strongly prefer usable tones (20-80)
+            // HEAVILY penalize extreme darks/lights
+            float tone_weight = 0.0f;
+            if (hct.t < 10.0) {
+                tone_weight = 0.1f;  // Nearly unusable (too dark)
+            } else if (hct.t >= 10.0 && hct.t < 20.0) {
+                tone_weight = 0.5f;  // Marginal
+            } else if (hct.t >= 20.0 && hct.t <= 80.0) {
+                tone_weight = 2.0f;  // Good range
+                // Bonus for ideal mid-range (40-70)
+                if (hct.t >= 40.0 && hct.t <= 70.0) {
+                    tone_weight = 2.5f;
+                }
+            } else if (hct.t > 80.0 && hct.t <= 90.0) {
+                tone_weight = 1.2f;  // Acceptable (light)
+            } else {
+                tone_weight = 0.3f;  // Too light (> 90)
+            }
+            
+            float pop_weight = logf(1.0f + colors[i].count) / 12.0f;
+            if (pop_weight > 1.0f) pop_weight = 1.0f;
+            
+            // For low-chroma images, tone validity is MORE important than chroma
+            colors[i].score = chroma_weight * 30.0f + tone_weight * 60.0f + pop_weight * 10.0f;
+        }
+        qsort(colors, k, sizeof(Color), compare_colors);
+    }
     
     *out_count = k;
     return colors;
