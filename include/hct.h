@@ -17,6 +17,12 @@ typedef struct {
 } XYZ;
 
 typedef struct {
+    double l;  // Lightness: 0-100
+    double a;  // Green-Red axis: -128 to 127
+    double b;  // Blue-Yellow axis: -128 to 127
+} LAB;
+
+typedef struct {
     int r;
     int g;
     int b;
@@ -37,6 +43,16 @@ typedef struct {
 // Main conversion functions
 HCT rgb_to_hct(RGB rgb);
 RGB hct_to_rgb(HCT hct);
+
+// XYZ conversion functions
+XYZ rgb_to_xyz(RGB rgb);
+RGB xyz_to_rgb(XYZ xyz);
+
+// LAB conversion functions (for Wsmeans)
+LAB xyz_to_lab(XYZ xyz);
+XYZ lab_to_xyz(LAB lab);
+LAB rgb_to_lab(RGB rgb);
+RGB lab_to_rgb(LAB lab);
 
 // Helper conversions
 XYZ rgb_to_xyz(RGB rgb);

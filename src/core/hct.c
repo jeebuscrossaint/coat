@@ -35,6 +35,77 @@ static double lstar_to_y(double lstar) {
     return pow((lstar + 16.0) / 116.0, 3.0) * 100.0;
 }
 
+// LAB helper: f(t) function for XYZ→LAB conversion
+static double lab_f(double t) {
+    const double delta = 6.0 / 29.0;  // 0.206896...
+    const double delta_cubed = delta * delta * delta;
+    
+    if (t > delta_cubed) {
+        return pow(t, 1.0 / 3.0);
+    }
+    return t / (3.0 * delta * delta) + 4.0 / 29.0;
+}
+
+// LAB helper: inverse f(t) function for LAB→XYZ conversion
+static double lab_f_inv(double t) {
+    const double delta = 6.0 / 29.0;
+    
+    if (t > delta) {
+        return pow(t, 3.0);
+    }
+    return 3.0 * delta * delta * (t - 4.0 / 29.0);
+}
+
+// XYZ to LAB (D65 white point)
+LAB xyz_to_lab(XYZ xyz) {
+    // D65 white point
+    const double Xn = 95.047;
+    const double Yn = 100.0;
+    const double Zn = 108.883;
+    
+    double fx = lab_f(xyz.x / Xn);
+    double fy = lab_f(xyz.y / Yn);
+    double fz = lab_f(xyz.z / Zn);
+    
+    LAB lab;
+    lab.l = 116.0 * fy - 16.0;
+    lab.a = 500.0 * (fx - fy);
+    lab.b = 200.0 * (fy - fz);
+    
+    return lab;
+}
+
+// LAB to XYZ (D65 white point)
+XYZ lab_to_xyz(LAB lab) {
+    // D65 white point
+    const double Xn = 95.047;
+    const double Yn = 100.0;
+    const double Zn = 108.883;
+    
+    double fy = (lab.l + 16.0) / 116.0;
+    double fx = lab.a / 500.0 + fy;
+    double fz = fy - lab.b / 200.0;
+    
+    XYZ xyz;
+    xyz.x = Xn * lab_f_inv(fx);
+    xyz.y = Yn * lab_f_inv(fy);
+    xyz.z = Zn * lab_f_inv(fz);
+    
+    return xyz;
+}
+
+// RGB to LAB (convenience function)
+LAB rgb_to_lab(RGB rgb) {
+    XYZ xyz = rgb_to_xyz(rgb);
+    return xyz_to_lab(xyz);
+}
+
+// LAB to RGB (convenience function)
+RGB lab_to_rgb(LAB lab) {
+    XYZ xyz = lab_to_xyz(lab);
+    return xyz_to_rgb(xyz);
+}
+
 // RGB (0-255) to XYZ (D65, 0-100 range)
 XYZ rgb_to_xyz(RGB rgb) {
     // Linearize

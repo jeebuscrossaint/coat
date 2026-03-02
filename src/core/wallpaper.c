@@ -2,6 +2,8 @@
 #include "wallpaper.h"
 #include "material_you.h"
 #include "hct.h"
+#include "quantize_celebi.h"
+#include "score.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -304,9 +306,10 @@ int wallpaper_extract_scheme(Base16Scheme *scheme, int apply_material_you) {
     
     printf("Image loaded: %dx%d\n", width, height);
     
-    // Extract 16 dominant colors using k-means
+    // Extract dominant colors (k-means + Material You scoring)
+    // Note: matugen uses Wu quantization + Wsmeans, but k-means gives similar results
     int color_count;
-    Color *colors = quantize_colors(pixels, width, height, 16, &color_count);
+    Color *colors = quantize_colors(pixels, width, height, 32, &color_count);
     
     stbi_image_free(pixels);
     free(wallpaper_path);
@@ -316,81 +319,94 @@ int wallpaper_extract_scheme(Base16Scheme *scheme, int apply_material_you) {
         return -1;
     }
     
-    // Generate Base16 scheme from extracted colors
-    // Strategy:
-    // - base00-07: Generate neutral tones from darkest/lightest colors
-    // - base08-0F: Use most vibrant colors for accents
-    
-    // Find darkest and lightest colors for neutrals
-    Color *darkest = &colors[0];
-    Color *lightest = &colors[0];
+    // Convert to RGB array and populations for scoring
+    RGB *rgb_colors = malloc(color_count * sizeof(RGB));
+    int *populations = malloc(color_count * sizeof(int));
     
     for (int i = 0; i < color_count; i++) {
-        HSL hsl = rgb_to_hsl_internal(colors[i].r, colors[i].g, colors[i].b);
-        HSL dark_hsl = rgb_to_hsl_internal(darkest->r, darkest->g, darkest->b);
-        HSL light_hsl = rgb_to_hsl_internal(lightest->r, lightest->g, lightest->b);
-        
-        if (hsl.l < dark_hsl.l) darkest = &colors[i];
-        if (hsl.l > light_hsl.l) lightest = &colors[i];
+        rgb_colors[i].r = colors[i].r;
+        rgb_colors[i].g = colors[i].g;
+        rgb_colors[i].b = colors[i].b;
+        populations[i] = colors[i].count;
     }
     
-    // Generate neutrals (base00-07) as a grayscale ramp from darkest to lightest
-    sprintf(scheme->base00, "#%02x%02x%02x", darkest->r, darkest->g, darkest->b);
+    free(colors);
     
-    // Interpolate between darkest and lightest for neutral tones
-    for (int i = 1; i < 8; i++) {
-        float t = i / 7.0f;
-        int r = darkest->r + (lightest->r - darkest->r) * t;
-        int g = darkest->g + (lightest->g - darkest->g) * t;
-        int b = darkest->b + (lightest->b - darkest->b) * t;
-        
-        char *target = NULL;
-        switch(i) {
-            case 1: target = scheme->base01; break;
-            case 2: target = scheme->base02; break;
-            case 3: target = scheme->base03; break;
-            case 4: target = scheme->base04; break;
-            case 5: target = scheme->base05; break;
-            case 6: target = scheme->base06; break;
-            case 7: target = scheme->base07; break;
-        }
-        if (target) sprintf(target, "#%02x%02x%02x", r, g, b);
+    // Create quantize result for scoring
+    QuantizeResult quant_result;
+    quant_result.colors = rgb_colors;
+    quant_result.populations = populations;
+    quant_result.count = color_count;
+    
+    printf("Extracted %d colors, scoring...\n", quant_result.count);
+    
+    // Score colors using Material You algorithm
+    int scored_count;
+    ScoredColor *scored = score_colors(&quant_result, 16, &scored_count);
+    
+    // Free quantize result
+    free(rgb_colors);
+    free(populations);
+    
+    if (!scored || scored_count == 0) {
+        fprintf(stderr, "Color scoring failed\n");
+        return -1;
     }
     
-    // Assign top 8 vibrant colors to accents (base08-0F)
-    // Skip colors that are too similar to neutrals
-    int accent_idx = 0;
+    printf("✓ Selected %d theme colors\n", scored_count);
+    
+    // Generate Base16 scheme
+    // Use the highest-scored color as primary
+    RGB primary = scored[0].color;
+    HCT primary_hct = rgb_to_hct(primary);
+    
+    // Strategy: Don't use extracted colors directly for neutrals
+    // Instead, generate neutrals from primary color (like Material You does)
+    // This ensures consistency and proper contrast
+    
+    // For accents, use the scored colors
     char *accent_targets[] = {
         scheme->base08, scheme->base09, scheme->base0A, scheme->base0B,
         scheme->base0C, scheme->base0D, scheme->base0E, scheme->base0F
     };
     
-    for (int i = 0; i < color_count && accent_idx < 8; i++) {
-        HSL hsl = rgb_to_hsl_internal(colors[i].r, colors[i].g, colors[i].b);
-        
-        // Only use colorful colors for accents (saturation > 0.2)
-        if (hsl.s > 0.2f) {
-            sprintf(accent_targets[accent_idx], "#%02x%02x%02x", 
-                    colors[i].r, colors[i].g, colors[i].b);
-            accent_idx++;
-        }
+    for (int i = 0; i < 8 && i < scored_count; i++) {
+        RGB color = scored[i].color;
+        sprintf(accent_targets[i], "#%02x%02x%02x", color.r, color.g, color.b);
     }
     
-    // Fill remaining accents with variations if needed
-    while (accent_idx < 8) {
-        sprintf(accent_targets[accent_idx], "%s", accent_targets[accent_idx % accent_idx]);
-        accent_idx++;
+    // Fill remaining accents if needed
+    for (int i = scored_count; i < 8; i++) {
+        sprintf(accent_targets[i], "%s", accent_targets[i % scored_count]);
     }
+    
+    // Generate neutrals: Create from primary hue with low chroma
+    // Dark theme: tones 10, 17, 25, 35, 60, 75, 82, 90
+    double neutral_tones[] = {10, 17, 25, 35, 60, 75, 82, 90};
+    char *neutral_targets[] = {
+        scheme->base00, scheme->base01, scheme->base02, scheme->base03,
+        scheme->base04, scheme->base05, scheme->base06, scheme->base07
+    };
+    
+    for (int i = 0; i < 8; i++) {
+        HCT neutral_hct;
+        neutral_hct.h = primary_hct.h;
+        neutral_hct.c = 6.0;  // Low chroma for neutrals
+        neutral_hct.t = neutral_tones[i];
+        
+        RGB neutral = hct_to_rgb(neutral_hct);
+        sprintf(neutral_targets[i], "#%02x%02x%02x", neutral.r, neutral.g, neutral.b);
+    }
+    
+    score_colors_free(scored);
     
     // Set scheme metadata
     strncpy(scheme->name, "Wallpaper", sizeof(scheme->name) - 1);
-    strncpy(scheme->author, "coat (extracted)", sizeof(scheme->author) - 1);
+    strncpy(scheme->author, "coat (Material You)", sizeof(scheme->author) - 1);
     strncpy(scheme->variant, "dark", sizeof(scheme->variant) - 1);
     scheme->is_base24 = 0;
     
-    free(colors);
-    
-    printf("✓ Extracted %d colors and generated Base16 scheme\n", color_count);
+    printf("✓ Generated Base16 scheme with Material You colors\n");
     
     // Apply Material You transformation if requested
     if (apply_material_you) {

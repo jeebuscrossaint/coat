@@ -14,7 +14,8 @@ INCLUDE_DIR = include
 # Core source files
 CORE_SRCS = $(SRC_DIR)/core/main.c $(SRC_DIR)/core/yaml.c $(SRC_DIR)/core/tinted_parser.c \
             $(SRC_DIR)/core/schemes.c $(SRC_DIR)/core/schemes_list.c $(SRC_DIR)/core/material_you.c \
-            $(SRC_DIR)/core/wallpaper.c $(SRC_DIR)/core/hct.c
+            $(SRC_DIR)/core/wallpaper.c $(SRC_DIR)/core/hct.c $(SRC_DIR)/core/quantize_celebi.c \
+            $(SRC_DIR)/core/score.c
 
 # Application module source files (alphabetically ordered)
 APP_SRCS = $(SRC_DIR)/modules/avizo.c $(SRC_DIR)/modules/bat.c $(SRC_DIR)/modules/bemenu.c \
