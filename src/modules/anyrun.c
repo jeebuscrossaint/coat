@@ -22,49 +22,24 @@ static int anyrun_write_css(const Base16Scheme *scheme, const char *path, const 
     fprintf(f, "/* coat anyrun theme: %s */\n", scheme->name);
     fprintf(f, "/* %s */\n\n", scheme->author);
 
-    /* Outer window — transparent so the main box floats */
-    fprintf(f, "#window {\n");
-    fprintf(f, "    background: transparent;\n");
-    fprintf(f, "}\n\n");
+    /* Colors only — let anyrun's defaults handle layout/sizing */
 
-    /* Main container box */
     fprintf(f, "box#main {\n");
     fprintf(f, "    background: #%s;\n", strip_hash(scheme->base00));
-    fprintf(f, "    border: 1px solid #%s;\n", strip_hash(scheme->base02));
-    fprintf(f, "    border-radius: 12px;\n");
-    fprintf(f, "    padding: 8px;\n");
-    fprintf(f, "    min-width: 420px;\n");
+    fprintf(f, "    border-color: #%s;\n", strip_hash(scheme->base02));
     fprintf(f, "}\n\n");
 
-    /* Search entry */
     fprintf(f, "entry {\n");
     if (font && font->monospace[0]) {
         fprintf(f, "    font-family: \"%s\";\n", font->monospace);
-        fprintf(f, "    font-size: %dpx;\n", font->sizes.desktop);
-    } else {
-        fprintf(f, "    font-family: monospace;\n");
-        fprintf(f, "    font-size: 14px;\n");
     }
     fprintf(f, "    color: #%s;\n", strip_hash(scheme->base07));
     fprintf(f, "    background: #%s;\n", strip_hash(scheme->base01));
-    fprintf(f, "    border: none;\n");
-    fprintf(f, "    border-radius: 8px;\n");
-    fprintf(f, "    padding: 8px 12px;\n");
-    fprintf(f, "    margin-bottom: 6px;\n");
     fprintf(f, "    caret-color: #%s;\n", strip_hash(scheme->base0D));
     fprintf(f, "}\n\n");
 
-    /* Result rows */
     fprintf(f, "row {\n");
-    if (font && font->monospace[0]) {
-        fprintf(f, "    font-family: \"%s\";\n", font->monospace);
-        fprintf(f, "    font-size: %dpx;\n", font->sizes.desktop);
-    }
     fprintf(f, "    color: #%s;\n", strip_hash(scheme->base07));
-    fprintf(f, "    background: transparent;\n");
-    fprintf(f, "    border-radius: 6px;\n");
-    fprintf(f, "    padding: 4px 8px;\n");
-    fprintf(f, "    transition: 150ms;\n");
     fprintf(f, "}\n\n");
 
     fprintf(f, "row:selected {\n");
@@ -76,14 +51,10 @@ static int anyrun_write_css(const Base16Scheme *scheme, const char *path, const 
     fprintf(f, "    background: #%s;\n", strip_hash(scheme->base01));
     fprintf(f, "}\n\n");
 
-    /* Plugin label */
     fprintf(f, "label#plugin {\n");
     fprintf(f, "    color: #%s;\n", strip_hash(scheme->base03));
-    fprintf(f, "    font-size: 10px;\n");
-    fprintf(f, "    padding: 0 4px;\n");
     fprintf(f, "}\n\n");
 
-    /* Match highlight */
     fprintf(f, "label#match {\n");
     fprintf(f, "    color: #%s;\n", strip_hash(scheme->base0D));
     fprintf(f, "}\n");
