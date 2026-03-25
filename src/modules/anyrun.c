@@ -13,6 +13,8 @@ static const char* strip_hash(const char *color) {
 }
 
 static int anyrun_write_css(const Base16Scheme *scheme, const char *path, const FontConfig *font) {
+    (void)font; /* anyrun handles font via its own config */
+
     FILE *f = fopen(path, "w");
     if (!f) {
         fprintf(stderr, "Failed to create anyrun CSS: %s\n", path);
@@ -22,42 +24,11 @@ static int anyrun_write_css(const Base16Scheme *scheme, const char *path, const 
     fprintf(f, "/* coat anyrun theme: %s */\n", scheme->name);
     fprintf(f, "/* %s */\n\n", scheme->author);
 
-    /* Colors only — let anyrun's defaults handle layout/sizing */
-
-    fprintf(f, "box#main {\n");
-    fprintf(f, "    background: #%s;\n", strip_hash(scheme->base00));
-    fprintf(f, "    border-color: #%s;\n", strip_hash(scheme->base02));
-    fprintf(f, "}\n\n");
-
-    fprintf(f, "entry {\n");
-    if (font && font->monospace[0]) {
-        fprintf(f, "    font-family: \"%s\";\n", font->monospace);
-    }
-    fprintf(f, "    color: #%s;\n", strip_hash(scheme->base07));
-    fprintf(f, "    background: #%s;\n", strip_hash(scheme->base01));
-    fprintf(f, "    caret-color: #%s;\n", strip_hash(scheme->base0D));
-    fprintf(f, "}\n\n");
-
-    fprintf(f, "row {\n");
-    fprintf(f, "    color: #%s;\n", strip_hash(scheme->base07));
-    fprintf(f, "}\n\n");
-
-    fprintf(f, "row:selected {\n");
-    fprintf(f, "    background: #%s;\n", strip_hash(scheme->base0D));
-    fprintf(f, "    color: #%s;\n", strip_hash(scheme->base00));
-    fprintf(f, "}\n\n");
-
-    fprintf(f, "row:hover:not(:selected) {\n");
-    fprintf(f, "    background: #%s;\n", strip_hash(scheme->base01));
-    fprintf(f, "}\n\n");
-
-    fprintf(f, "label#plugin {\n");
-    fprintf(f, "    color: #%s;\n", strip_hash(scheme->base03));
-    fprintf(f, "}\n\n");
-
-    fprintf(f, "label#match {\n");
-    fprintf(f, "    color: #%s;\n", strip_hash(scheme->base0D));
-    fprintf(f, "}\n");
+    /* Override the 4 color variables anyrun's default CSS uses — nothing else needed */
+    fprintf(f, "@define-color accent #%s;\n", strip_hash(scheme->base0D));
+    fprintf(f, "@define-color bg-color #%s;\n", strip_hash(scheme->base00));
+    fprintf(f, "@define-color fg-color #%s;\n", strip_hash(scheme->base07));
+    fprintf(f, "@define-color desc-color #%s;\n", strip_hash(scheme->base04));
 
     fclose(f);
     return 0;
