@@ -24,11 +24,69 @@ static int anyrun_write_css(const Base16Scheme *scheme, const char *path, const 
     fprintf(f, "/* coat anyrun theme: %s */\n", scheme->name);
     fprintf(f, "/* %s */\n\n", scheme->author);
 
-    /* Override the 4 color variables anyrun's default CSS uses — nothing else needed */
+    /* Color variables — used throughout the rules below */
     fprintf(f, "@define-color accent #%s;\n", strip_hash(scheme->base0D));
     fprintf(f, "@define-color bg-color #%s;\n", strip_hash(scheme->base00));
     fprintf(f, "@define-color fg-color #%s;\n", strip_hash(scheme->base07));
-    fprintf(f, "@define-color desc-color #%s;\n", strip_hash(scheme->base04));
+    fprintf(f, "@define-color desc-color #%s;\n\n", strip_hash(scheme->base04));
+
+    /* Full default ruleset — user CSS replaces the default entirely, so we must
+     * include all rules here (sourced from /etc/xdg/anyrun/style.css). */
+    fprintf(f,
+        "window {\n"
+        "  background: transparent;\n"
+        "}\n\n"
+        "box.main {\n"
+        "  padding: 5px;\n"
+        "  margin: 10px;\n"
+        "  border-radius: 10px;\n"
+        "  border: 2px solid @accent;\n"
+        "  background-color: @bg-color;\n"
+        "  box-shadow: 0 0 5px black;\n"
+        "}\n\n"
+        "text {\n"
+        "  min-height: 30px;\n"
+        "  padding: 5px;\n"
+        "  border-radius: 5px;\n"
+        "  color: @fg-color;\n"
+        "}\n\n"
+        ".matches {\n"
+        "  background-color: rgba(0, 0, 0, 0);\n"
+        "  border-radius: 10px;\n"
+        "}\n\n"
+        "box.plugin:first-child {\n"
+        "  margin-top: 5px;\n"
+        "}\n\n"
+        "box.plugin.info {\n"
+        "  min-width: 200px;\n"
+        "}\n\n"
+        "list.plugin {\n"
+        "  background-color: rgba(0, 0, 0, 0);\n"
+        "}\n\n"
+        "label.match {\n"
+        "  color: @fg-color;\n"
+        "}\n\n"
+        "label.match.description {\n"
+        "  font-size: 10px;\n"
+        "  color: @desc-color;\n"
+        "}\n\n"
+        "label.plugin.info {\n"
+        "  font-size: 14px;\n"
+        "  color: @fg-color;\n"
+        "}\n\n"
+        ".match {\n"
+        "  background: transparent;\n"
+        "}\n\n"
+        ".match:selected {\n"
+        "  border-left: 4px solid @accent;\n"
+        "  background: transparent;\n"
+        "  animation: fade 0.1s linear;\n"
+        "}\n\n"
+        "@keyframes fade {\n"
+        "  0%% { opacity: 0; }\n"
+        "  100%% { opacity: 1; }\n"
+        "}\n"
+    );
 
     fclose(f);
     return 0;
