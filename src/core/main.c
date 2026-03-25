@@ -12,6 +12,7 @@
 #include "wallpaper.h"
 
 // Application modules
+#include "anyrun.h"
 #include "avizo.h"
 #include "bat.h"
 #include "bemenu.h"
@@ -25,6 +26,7 @@
 #include "hyprland.h"
 #include "i3.h"
 #include "kitty.h"
+#include "mako.h"
 #include "mangowc.h"
 #include "niri.h"
 #include "qt.h"
@@ -70,6 +72,7 @@ static int apply_font_opacity(Base16Scheme *s, FontConfig *f, OpacityConfig *o, 
 
 // Application modules table
 static const AppModule app_modules[] = {
+    {"anyrun", {NULL}, (void*)anyrun_apply_theme, 1, 0},
     {"avizo", {NULL}, (void*)avizo_apply_theme, 0, 0},
     {"bat", {NULL}, (void*)bat_apply_theme, 0, 0},
     {"bemenu", {NULL}, (void*)bemenu_apply_theme, 0, 0},
@@ -83,6 +86,7 @@ static const AppModule app_modules[] = {
     {"hyprland", {"hypr", NULL}, (void*)hyprland_apply_theme, 1, 0},
     {"i3", {NULL}, (void*)i3_apply_theme, 1, 0},
     {"kitty", {NULL}, (void*)kitty_apply_theme, 1, 1},
+    {"mako", {NULL}, (void*)mako_apply_theme, 1, 0},
     {"mangowc", {NULL}, (void*)mangowc_apply_theme, 1, 0},
     {"niri", {NULL}, (void*)niri_apply_theme, 1, 0},
     {"qt", {NULL}, (void*)qt_apply_theme, 1, 0},

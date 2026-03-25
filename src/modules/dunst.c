@@ -51,19 +51,20 @@ static int dunst_generate_config(const Base16Scheme *scheme, const char *output_
     
     fprintf(f, "    # Progress bar\n");
     fprintf(f, "    progress_bar = true\n");
-    fprintf(f, "    progress_bar_height = 10\n");
-    fprintf(f, "    progress_bar_frame_width = 1\n");
+    fprintf(f, "    progress_bar_height = 4\n");
+    fprintf(f, "    progress_bar_frame_width = 0\n");
     fprintf(f, "    progress_bar_min_width = 150\n");
     fprintf(f, "    progress_bar_max_width = 300\n");
+    fprintf(f, "    progress_bar_corner_radius = 2\n");
     fprintf(f, "\n");
-    
+
     fprintf(f, "    # Text\n");
-    if (font && font->sansserif[0]) {
-        fprintf(f, "    font = %s %d\n", font->sansserif, font->sizes.popups);
+    if (font && font->monospace[0]) {
+        fprintf(f, "    font = %s %d\n", font->monospace, font->sizes.popups ? font->sizes.popups : 11);
     } else {
-        fprintf(f, "    font = sans %d\n", font ? font->sizes.popups : 10);
+        fprintf(f, "    font = monospace 11\n");
     }
-    fprintf(f, "    line_height = 0\n");
+    fprintf(f, "    line_height = 2\n");
     fprintf(f, "    markup = full\n");
     fprintf(f, "    format = \"<b>%%s</b>\\n%%b\"\n");
     fprintf(f, "    alignment = left\n");
@@ -74,64 +75,64 @@ static int dunst_generate_config(const Base16Scheme *scheme, const char *output_
     fprintf(f, "    stack_duplicates = true\n");
     fprintf(f, "    hide_duplicate_count = false\n");
     fprintf(f, "    show_indicators = yes\n");
+    fprintf(f, "    word_wrap = yes\n");
     fprintf(f, "\n");
-    
+
     fprintf(f, "    # Icons\n");
-    fprintf(f, "    enable_posix_regex = true\n");
-    fprintf(f, "    icon_position = off\n");
-    fprintf(f, "    min_icon_size = 0\n");
-    fprintf(f, "    max_icon_size = 0\n");
+    fprintf(f, "    enable_recursive_icon_lookup = true\n");
+    fprintf(f, "    icon_theme = Papirus-Dark,Adwaita\n");
+    fprintf(f, "    icon_position = left\n");
+    fprintf(f, "    min_icon_size = 32\n");
+    fprintf(f, "    max_icon_size = 48\n");
     fprintf(f, "\n");
-    
+
     fprintf(f, "    # History\n");
     fprintf(f, "    sticky_history = yes\n");
     fprintf(f, "    history_length = 20\n");
     fprintf(f, "\n");
-    
+
     fprintf(f, "    # Misc/Advanced\n");
+    fprintf(f, "    dmenu = /usr/bin/rofi -dmenu -p dunst\n");
     fprintf(f, "    browser = /usr/bin/xdg-open\n");
     fprintf(f, "    always_run_script = true\n");
     fprintf(f, "    title = Dunst\n");
     fprintf(f, "    class = Dunst\n");
-    fprintf(f, "    corner_radius = 8\n");
+    fprintf(f, "    corner_radius = 10\n");
+    fprintf(f, "    corners = all\n");
     fprintf(f, "    ignore_dbusclose = false\n");
-    fprintf(f, "    force_xinerama = false\n");
     fprintf(f, "    mouse_left_click = close_current\n");
     fprintf(f, "    mouse_middle_click = do_action, close_current\n");
     fprintf(f, "    mouse_right_click = close_all\n");
     fprintf(f, "\n");
-    
+
     fprintf(f, "    # Frame\n");
-    fprintf(f, "    frame_width = 2\n");
-    fprintf(f, "    frame_color = \"#%s\"\n", strip_hash(scheme->base0D));
+    fprintf(f, "    frame_width = 1\n");
+    fprintf(f, "    frame_color = \"#%s\"\n", strip_hash(scheme->base02));
     fprintf(f, "    separator_color = frame\n");
-    fprintf(f, "    separator_height = 2\n");
-    fprintf(f, "    padding = 8\n");
-    fprintf(f, "    horizontal_padding = 8\n");
-    fprintf(f, "    text_icon_padding = 0\n");
-    fprintf(f, "    gap_size = 4\n");
+    fprintf(f, "    separator_height = 1\n");
+    fprintf(f, "    padding = 12\n");
+    fprintf(f, "    horizontal_padding = 14\n");
+    fprintf(f, "    text_icon_padding = 10\n");
+    fprintf(f, "    gap_size = 6\n");
     fprintf(f, "\n");
     
-    // Urgency low (info notifications)
     fprintf(f, "[urgency_low]\n");
-    fprintf(f, "    background = \"#%s\"\n", strip_hash(scheme->base01));
-    fprintf(f, "    foreground = \"#%s\"\n", strip_hash(scheme->base05));
-    fprintf(f, "    frame_color = \"#%s\"\n", strip_hash(scheme->base0C));
-    fprintf(f, "    timeout = 5\n");
+    fprintf(f, "    background = \"#%s\"\n", strip_hash(scheme->base00));
+    fprintf(f, "    foreground = \"#%s\"\n", strip_hash(scheme->base04));
+    fprintf(f, "    frame_color = \"#%s\"\n", strip_hash(scheme->base03));
+    fprintf(f, "    timeout = 4\n");
     fprintf(f, "\n");
-    
-    // Urgency normal (standard notifications)
+
     fprintf(f, "[urgency_normal]\n");
-    fprintf(f, "    background = \"#%s\"\n", strip_hash(scheme->base01));
-    fprintf(f, "    foreground = \"#%s\"\n", strip_hash(scheme->base05));
-    fprintf(f, "    frame_color = \"#%s\"\n", strip_hash(scheme->base0D));
-    fprintf(f, "    timeout = 10\n");
+    fprintf(f, "    background = \"#%s\"\n", strip_hash(scheme->base00));
+    fprintf(f, "    foreground = \"#%s\"\n", strip_hash(scheme->base07));
+    fprintf(f, "    frame_color = \"#%s\"\n", strip_hash(scheme->base02));
+    fprintf(f, "    timeout = 6\n");
     fprintf(f, "\n");
-    
-    // Urgency critical (important/error notifications)
+
     fprintf(f, "[urgency_critical]\n");
-    fprintf(f, "    background = \"#%s\"\n", strip_hash(scheme->base08));
-    fprintf(f, "    foreground = \"#%s\"\n", strip_hash(scheme->base00));
+    fprintf(f, "    background = \"#%s\"\n", strip_hash(scheme->base00));
+    fprintf(f, "    foreground = \"#%s\"\n", strip_hash(scheme->base08));
     fprintf(f, "    frame_color = \"#%s\"\n", strip_hash(scheme->base08));
     fprintf(f, "    timeout = 0\n");
     fprintf(f, "\n");
