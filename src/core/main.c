@@ -14,6 +14,7 @@
 // Application modules
 #include "anyrun.h"
 #include "avizo.h"
+#include "conky.h"
 #include "bat.h"
 #include "bemenu.h"
 #include "btop.h"
@@ -74,6 +75,7 @@ static int apply_font_opacity(Base16Scheme *s, FontConfig *f, OpacityConfig *o, 
 static const AppModule app_modules[] = {
     {"anyrun", {NULL}, (void*)anyrun_apply_theme, 1, 0},
     {"avizo", {NULL}, (void*)avizo_apply_theme, 0, 0},
+    {"conky", {NULL}, (void*)conky_apply_theme, 1, 0},
     {"bat", {NULL}, (void*)bat_apply_theme, 0, 0},
     {"bemenu", {NULL}, (void*)bemenu_apply_theme, 0, 0},
     {"btop", {NULL}, (void*)btop_apply_theme, 0, 0},
