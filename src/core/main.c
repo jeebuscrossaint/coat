@@ -27,6 +27,7 @@
 #include "hyprland.h"
 #include "i3.h"
 #include "kitty.h"
+#include "labwc.h"
 #include "mako.h"
 #include "mangowc.h"
 #include "niri.h"
@@ -88,6 +89,7 @@ static const AppModule app_modules[] = {
     {"hyprland", {"hypr", NULL}, (void*)hyprland_apply_theme, 1, 0},
     {"i3", {NULL}, (void*)i3_apply_theme, 1, 0},
     {"kitty", {NULL}, (void*)kitty_apply_theme, 1, 1},
+    {"labwc", {NULL}, (void*)labwc_apply_theme, 1, 0},
     {"mako", {NULL}, (void*)mako_apply_theme, 1, 0},
     {"mangowc", {NULL}, (void*)mangowc_apply_theme, 1, 0},
     {"niri", {NULL}, (void*)niri_apply_theme, 1, 0},
