@@ -1,10 +1,20 @@
 # Makefile for coat - Configuration Tool
 # Created by amarnath on 1/19/26
 
-CC = gcc
+# Auto-detect compiler: prefer cc (system default), fall back to gcc then clang
+CC ?= $(shell command -v cc 2>/dev/null || command -v gcc 2>/dev/null || command -v clang 2>/dev/null || echo gcc)
+
 CFLAGS = -Wall -Wextra -std=c11 -O2 -Iinclude
-LDFLAGS = $(shell pkg-config --libs yaml-0.1 json-c) -lm
-CFLAGS += $(shell pkg-config --cflags yaml-0.1 json-c)
+
+# pkg-config for yaml and json-c, with /usr/local fallback for OpenBSD
+PKG_CONFIG ?= pkg-config
+YAML_CFLAGS  := $(shell $(PKG_CONFIG) --cflags yaml-0.1 2>/dev/null || echo -I/usr/local/include)
+YAML_LIBS    := $(shell $(PKG_CONFIG) --libs   yaml-0.1 2>/dev/null || echo -L/usr/local/lib -lyaml)
+JSONC_CFLAGS := $(shell $(PKG_CONFIG) --cflags json-c   2>/dev/null || echo -I/usr/local/include)
+JSONC_LIBS   := $(shell $(PKG_CONFIG) --libs   json-c   2>/dev/null || echo -L/usr/local/lib -ljson-c)
+
+CFLAGS  += $(YAML_CFLAGS) $(JSONC_CFLAGS)
+LDFLAGS  = $(YAML_LIBS) $(JSONC_LIBS) -lm
 
 BUILD_DIR = build
 TARGET = coat
