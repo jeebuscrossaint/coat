@@ -6,7 +6,7 @@
 #define ROFI_H
 
 #include "tinted_parser.h"
-#include "yaml.h"
+#include "coat_yaml.h"
 
 // Apply rofi theme
 int rofi_apply_theme(const Base16Scheme *scheme, const FontConfig *font);

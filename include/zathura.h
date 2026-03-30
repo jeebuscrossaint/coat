@@ -6,7 +6,7 @@
 #define COAT_ZATHURA_H
 
 #include "tinted_parser.h"
-#include "yaml.h"
+#include "coat_yaml.h"
 
 // Generate a zathura PDF viewer theme file from a Base16 scheme
 int zathura_generate_theme(const Base16Scheme *scheme, const char *output_path, const FontConfig *font);

@@ -2,7 +2,7 @@
 #define CONKY_H
 
 #include "tinted_parser.h"
-#include "yaml.h"
+#include "coat_yaml.h"
 
 int conky_apply_theme(const Base16Scheme *scheme, const FontConfig *font);
 

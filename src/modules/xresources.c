@@ -1,6 +1,6 @@
 #include "xresources.h"
 #include "tinted_parser.h"
-#include "yaml.h"
+#include "coat_yaml.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

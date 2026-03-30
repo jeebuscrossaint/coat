@@ -6,7 +6,7 @@
 #define COAT_SWAYLOCK_H
 
 #include "tinted_parser.h"
-#include "yaml.h"
+#include "coat_yaml.h"
 
 // Generate a swaylock config from a Base16 scheme
 int swaylock_generate_config(const Base16Scheme *scheme, const char *output_path, const OpacityConfig *opacity);

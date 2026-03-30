@@ -1,6 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
-#include "/usr/include/yaml.h"
-#include  "yaml.h"
+#include <yaml.h>
+#include  "coat_yaml.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

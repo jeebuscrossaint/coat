@@ -6,7 +6,7 @@
 #define XRESOURCES_H
 
 #include "tinted_parser.h"
-#include "yaml.h"
+#include "coat_yaml.h"
 
 int xresources_apply_theme(const Base16Scheme *scheme, const FontConfig *font);
 

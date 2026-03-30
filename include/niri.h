@@ -6,7 +6,7 @@
 #define COAT_NIRI_H
 
 #include "tinted_parser.h"
-#include "yaml.h"
+#include "coat_yaml.h"
 
 // Generate a niri compositor theme file from a Base16 scheme
 int niri_generate_theme(const Base16Scheme *scheme, const char *output_path, const FontConfig *font);

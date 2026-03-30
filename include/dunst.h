@@ -6,7 +6,7 @@
 #define DUNST_H
 
 #include "tinted_parser.h"
-#include "yaml.h"
+#include "coat_yaml.h"
 
 // Apply dunst theme
 int dunst_apply_theme(const Base16Scheme *scheme, const FontConfig *font);

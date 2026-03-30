@@ -6,7 +6,7 @@
 #define COAT_I3_H
 
 #include "tinted_parser.h"
-#include "yaml.h"
+#include "coat_yaml.h"
 
 // Generate an i3 window manager theme file from a Base16 scheme
 int i3_generate_theme(const Base16Scheme *scheme, const char *output_path, const FontConfig *font);

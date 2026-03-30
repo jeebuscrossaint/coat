@@ -6,7 +6,7 @@
 #define GTK_H
 
 #include "tinted_parser.h"
-#include "yaml.h"
+#include "coat_yaml.h"
 
 // Apply GTK theme
 int gtk_apply_theme(const Base16Scheme *scheme, const FontConfig *font);

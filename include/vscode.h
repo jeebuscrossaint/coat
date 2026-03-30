@@ -6,7 +6,7 @@
 #define COAT_VSCODE_H
 
 #include "tinted_parser.h"
-#include "yaml.h"
+#include "coat_yaml.h"
 
 // Apply VSCode theme to current VSCode configuration
 int vscode_apply_theme(const Base16Scheme *scheme, const FontConfig *font);

@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <pwd.h>
 
-#include "yaml.h"
+#include "coat_yaml.h"
 #include "schemes.h"
 #include "tinted_parser.h"
 #include "schemes_list.h"

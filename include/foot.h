@@ -2,7 +2,7 @@
 #define COAT_FOOT_H
 
 #include "tinted_parser.h"
-#include "yaml.h"
+#include "coat_yaml.h"
 
 int foot_apply_theme(const Base16Scheme *scheme, const FontConfig *font, const OpacityConfig *opacity);
 
