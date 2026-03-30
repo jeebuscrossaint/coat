@@ -41,15 +41,17 @@ int foot_apply_theme(const Base16Scheme *scheme, const FontConfig *font, const O
     }
 
     // Colors — foot uses bare hex, no # prefix
-    fprintf(f, "[colors]\n");
+    // Use [colors-dark] as [colors] is deprecated in foot 1.19+
+    fprintf(f, "[colors-dark]\n");
 
     if (opacity) {
         fprintf(f, "alpha=%.2f\n", opacity->terminal);
     }
 
-    fprintf(f, "foreground=%s\n", strip_hash(scheme->base05));
-    fprintf(f, "background=%s\n", strip_hash(scheme->base00));
-    fprintf(f, "cursor=%s\n",     strip_hash(scheme->base05));
+    // cursor requires 8-char rrggbbaa format
+    fprintf(f, "foreground=%s\n",           strip_hash(scheme->base05));
+    fprintf(f, "background=%s\n",           strip_hash(scheme->base00));
+    fprintf(f, "cursor=%sff\n",             strip_hash(scheme->base05));
     fprintf(f, "selection-foreground=%s\n", strip_hash(scheme->base00));
     fprintf(f, "selection-background=%s\n", strip_hash(scheme->base05));
     fprintf(f, "\n");
