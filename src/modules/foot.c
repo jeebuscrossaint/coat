@@ -51,6 +51,7 @@ int foot_apply_theme(const Base16Scheme *scheme, const FontConfig *font, const O
     // cursor requires 8-char rrggbbaa format
     fprintf(f, "foreground=%s\n",           strip_hash(scheme->base05));
     fprintf(f, "background=%s\n",           strip_hash(scheme->base00));
+    fprintf(f, "cursor=%s %s\n",            strip_hash(scheme->base00), strip_hash(scheme->base05));
     fprintf(f, "selection-foreground=%s\n", strip_hash(scheme->base00));
     fprintf(f, "selection-background=%s\n", strip_hash(scheme->base05));
     fprintf(f, "\n");
@@ -73,9 +74,6 @@ int foot_apply_theme(const Base16Scheme *scheme, const FontConfig *font, const O
     fprintf(f, "bright5=%s\n", strip_hash(scheme->base0E));
     fprintf(f, "bright6=%s\n", strip_hash(scheme->base0C));
     fprintf(f, "bright7=%s\n", strip_hash(scheme->base07));
-
-    fprintf(f, "\n[cursor]\n");
-    fprintf(f, "color=%s %s\n", strip_hash(scheme->base00), strip_hash(scheme->base05));
 
     fclose(f);
     printf("  ✓ %s\n", theme_path);
