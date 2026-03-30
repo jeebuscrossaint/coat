@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include "/usr/include/yaml.h"
+#include <yaml.h>
 
 // Helper function to slugify a string (convert to lowercase, replace spaces with dashes)
 static void slugify(const char *input, char *output, size_t output_size) {
