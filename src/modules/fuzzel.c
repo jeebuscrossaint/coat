@@ -33,7 +33,7 @@ int fuzzel_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
 
     fprintf(f, "[main]\n");
     if (font && font->monospace[0])
-        fprintf(f, "font=%s:size=%d\n", font->monospace, font->sizes.terminal);
+        fprintf(f, "font=%s:size=%d\n", font->monospace, font->sizes.popups);
     fprintf(f, "terminal=footclient\n");
     fprintf(f, "layer=overlay\n");
     fprintf(f, "width=30\n");
