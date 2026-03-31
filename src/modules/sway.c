@@ -64,33 +64,6 @@ int sway_generate_theme(const Base16Scheme *scheme, const char *output_path, con
     fprintf(f, "client.background       $base07\n");
     fprintf(f, "\n");
     
-    // Complete bar configuration with swayrbar
-    fprintf(f, "# Complete bar configuration with swayrbar\n");
-    fprintf(f, "bar {\n");
-    fprintf(f, "    swaybar_command swaybar\n");
-    fprintf(f, "    status_command swayrbar\n");
-    fprintf(f, "    position bottom\n");
-    
-    // Add font if available
-    if (font && font->sansserif[0]) {
-        fprintf(f, "    font pango:%s %d\n", font->sansserif, font->sizes.desktop);
-    }
-    
-    fprintf(f, "\n");
-    fprintf(f, "    colors {\n");
-    fprintf(f, "        background $base00\n");
-    fprintf(f, "        separator  $base01\n");
-    fprintf(f, "        statusline $base04\n");
-    fprintf(f, "\n");
-    fprintf(f, "        # State             Border  BG      Text\n");
-    fprintf(f, "        focused_workspace   $base0D $base0D $base00\n");
-    fprintf(f, "        active_workspace    $base03 $base03 $base00\n");
-    fprintf(f, "        inactive_workspace  $base01 $base01 $base05\n");
-    fprintf(f, "        urgent_workspace    $base08 $base08 $base00\n");
-    fprintf(f, "        binding_mode        $base0A $base0A $base00\n");
-    fprintf(f, "    }\n");
-    fprintf(f, "}\n");
-    fprintf(f, "\n");
     
     fclose(f);
     return 0;
