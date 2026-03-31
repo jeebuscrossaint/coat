@@ -36,24 +36,25 @@ int fuzzel_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
         fprintf(f, "font=%s:size=%d\n", font->monospace, font->sizes.terminal);
     fprintf(f, "terminal=footclient\n");
     fprintf(f, "layer=overlay\n");
-    fprintf(f, "width=35\n");
-    fprintf(f, "lines=10\n");
+    fprintf(f, "width=30\n");
+    fprintf(f, "lines=7\n");
     fprintf(f, "border-width=1\n");
     fprintf(f, "border-radius=0\n");
-    fprintf(f, "prompt=> \n");
+    fprintf(f, "prompt=  \n");
     fprintf(f, "icons-enabled=no\n");
+    fprintf(f, "show-actions=no\n");
+    fprintf(f, "counter=no\n");
     fprintf(f, "\n");
 
-    // fuzzel colors use rrggbbaa format
+    // fuzzel colors use rrggbbaa format — border matches background (invisible)
     fprintf(f, "[colors]\n");
     fprintf(f, "background=%sff\n",       strip_hash(scheme->base00));
     fprintf(f, "text=%sff\n",             strip_hash(scheme->base05));
     fprintf(f, "match=%sff\n",            strip_hash(scheme->base0D));
-    fprintf(f, "selection=%sff\n",        strip_hash(scheme->base02));
+    fprintf(f, "selection=%sff\n",        strip_hash(scheme->base01));
     fprintf(f, "selection-text=%sff\n",   strip_hash(scheme->base05));
     fprintf(f, "selection-match=%sff\n",  strip_hash(scheme->base0D));
-    fprintf(f, "counter=%sff\n",          strip_hash(scheme->base03));
-    fprintf(f, "border=%sff\n",           strip_hash(scheme->base02));
+    fprintf(f, "border=%sff\n",           strip_hash(scheme->base01));
 
     fclose(f);
     printf("  ✓ %s\n", path);
