@@ -29,7 +29,7 @@ CORE_SRCS = $(SRC_DIR)/core/main.c $(SRC_DIR)/core/yaml.c $(SRC_DIR)/core/tinted
 
 # Application module source files (alphabetically ordered)
 APP_SRCS = $(SRC_DIR)/modules/bat.c $(SRC_DIR)/modules/btop.c $(SRC_DIR)/modules/conky.c \
-           $(SRC_DIR)/modules/dunst.c $(SRC_DIR)/modules/fish.c $(SRC_DIR)/modules/foot.c $(SRC_DIR)/modules/gtk.c \
+           $(SRC_DIR)/modules/dunst.c $(SRC_DIR)/modules/fish.c $(SRC_DIR)/modules/foot.c $(SRC_DIR)/modules/fuzzel.c $(SRC_DIR)/modules/gtk.c \
            $(SRC_DIR)/modules/helix.c $(SRC_DIR)/modules/hyprland.c $(SRC_DIR)/modules/i3.c \
            $(SRC_DIR)/modules/kitty.c $(SRC_DIR)/modules/labwc.c $(SRC_DIR)/modules/mako.c \
            $(SRC_DIR)/modules/mangowc.c $(SRC_DIR)/modules/niri.c $(SRC_DIR)/modules/qt.c \

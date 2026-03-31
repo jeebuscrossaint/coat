@@ -18,6 +18,7 @@
 #include "dunst.h"
 #include "fish.h"
 #include "foot.h"
+#include "fuzzel.h"
 #include "gtk.h"
 #include "helix.h"
 #include "hyprland.h"
@@ -76,6 +77,7 @@ static const AppModule app_modules[] = {
     {"dunst", {NULL}, (void*)dunst_apply_theme, 1, 0},
     {"fish", {NULL}, (void*)fish_apply_theme, 0, 0},
     {"foot", {NULL}, (void*)foot_apply_theme, 1, 1},
+    {"fuzzel", {NULL}, (void*)fuzzel_apply_theme, 1, 0},
     {"gtk", {NULL}, (void*)gtk_apply_theme, 1, 0},
     {"helix", {NULL}, (void*)helix_apply_theme, 0, 0},
     {"hyprland", {"hypr", NULL}, (void*)hyprland_apply_theme, 1, 0},
