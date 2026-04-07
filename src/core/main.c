@@ -29,6 +29,7 @@
 #include "mangowc.h"
 #include "niri.h"
 #include "qt.h"
+#include "ranger.h"
 #include "rofi.h"
 #include "sway.h"
 #include "swaylock.h"
@@ -88,6 +89,7 @@ static const AppModule app_modules[] = {
     {"mangowc", {NULL}, (void*)mangowc_apply_theme, 1, 0},
     {"niri", {NULL}, (void*)niri_apply_theme, 1, 0},
     {"qt", {NULL}, (void*)qt_apply_theme, 1, 0},
+    {"ranger", {NULL}, (void*)ranger_apply_theme, 1, 0},
     {"rofi", {NULL}, (void*)rofi_apply_theme, 1, 0},
     {"sway", {NULL}, (void*)sway_apply_theme, 1, 0},
     {"swaylock", {NULL}, (void*)swaylock_apply_theme, 0, 1},

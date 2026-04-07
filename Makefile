@@ -33,7 +33,7 @@ APP_SRCS = $(SRC_DIR)/modules/bat.c $(SRC_DIR)/modules/btop.c $(SRC_DIR)/modules
            $(SRC_DIR)/modules/helix.c $(SRC_DIR)/modules/hyprland.c $(SRC_DIR)/modules/i3.c \
            $(SRC_DIR)/modules/kitty.c $(SRC_DIR)/modules/labwc.c $(SRC_DIR)/modules/mako.c \
            $(SRC_DIR)/modules/mangowc.c $(SRC_DIR)/modules/niri.c $(SRC_DIR)/modules/qt.c \
-           $(SRC_DIR)/modules/rofi.c $(SRC_DIR)/modules/sway.c $(SRC_DIR)/modules/swaylock.c \
+           $(SRC_DIR)/modules/ranger.c $(SRC_DIR)/modules/rofi.c $(SRC_DIR)/modules/sway.c $(SRC_DIR)/modules/swaylock.c \
            $(SRC_DIR)/modules/tty.c $(SRC_DIR)/modules/vesktop.c $(SRC_DIR)/modules/vscode.c \
            $(SRC_DIR)/modules/waybar.c $(SRC_DIR)/modules/xresources.c $(SRC_DIR)/modules/yazi.c \
            $(SRC_DIR)/modules/zathura.c
