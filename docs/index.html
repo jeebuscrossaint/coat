@@ -76,18 +76,21 @@
   <div class="quick-start">
     <h3>Quick start</h3>
     <pre><code><span class="cm"># 1. Build and install</span>
-make &amp;&amp; sudo make install
+cargo build --release
+sudo cp target/release/coat /usr/local/bin/
 
 <span class="cm"># 2. Clone the scheme library (~700 schemes)</span>
 coat clone
 
-<span class="cm"># 3. Browse available schemes</span>
-coat list --dark
+<span class="cm"># 3. Find a scheme you like</span>
+coat search catppuccin
+coat list --dark --no-preview
 
-<span class="cm"># 4. Edit your config</span>
+<span class="cm"># 4. Switch scheme and apply everywhere in one shot</span>
+coat set catppuccin-mocha
+
+<span class="cm"># 5. Fine-tune: edit coat.yaml, then re-apply</span>
 $EDITOR ~/.config/coat/coat.yaml
-
-<span class="cm"># 5. Apply to all enabled apps</span>
 coat apply</code></pre>
   </div>
 
