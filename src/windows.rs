@@ -19,33 +19,38 @@ fn shade(r: u8, g: u8, b: u8, toward_white: bool, t: f32) -> (u8, u8, u8) {
 }
 
 /// Build the 8-shade AccentPalette (RGBA × 8 = 32 bytes) from a base color.
-/// Byte order per the Windows registry: [R, G, B, alpha] where alpha is ignored.
-/// Slot semantics (from AveYo's research):
-///   0 = Links in action center / apps
-///   1 = Taskbar icon underline
-///   2 = Start button hover
-///   3 = Settings icons and links  ← the accent color itself
-///   4 = Start menu bg / active taskbar button (when transparency off)
-///   5 = Taskbar front / start list folder bg
-///   6 = Taskbar bg (when transparency on)
-///   7 = Unused
-fn build_accent_palette(r: u8, g: u8, b: u8) -> [u8; 32] {
-    let shades: [(u8, u8, u8); 8] = [
-        shade(r, g, b, true,  0.60),  // 0 lightest
-        shade(r, g, b, true,  0.45),  // 1
-        shade(r, g, b, true,  0.30),  // 2
-        (r, g, b),                     // 3 — the accent itself
-        shade(r, g, b, false, 0.20),  // 4
-        shade(r, g, b, false, 0.40),  // 5
-        shade(r, g, b, false, 0.55),  // 6
-        shade(r, g, b, false, 0.70),  // 7 darkest
+/// Build the 8-slot AccentPalette.
+/// Byte order: [R, G, B, alpha] where alpha is ignored by Windows.
+///
+/// Slot semantics (AveYo's research):
+///   0 = Links in action center / apps          ← accent
+///   1 = Taskbar icon underline                 ← accent
+///   2 = Start button hover                     ← accent
+///   3 = Settings icons and links               ← accent (the main one)
+///   4 = Start menu bg / active taskbar button  ← bg (base01 for slight contrast)
+///   5 = Taskbar front / start list folder bg   ← bg (base00)
+///   6 = Taskbar background                     ← bg (base00)
+///   7 = Unused                                 ← bg (base00)
+fn build_accent_palette(
+    ar: u8, ag: u8, ab: u8,   // accent color  (base0D)
+    br: u8, bg: u8, bb: u8,   // background    (base00)
+    b1r: u8, b1g: u8, b1b: u8, // lighter bg   (base01)
+) -> [u8; 32] {
+    let slots: [(u8, u8, u8); 8] = [
+        (ar,  ag,  ab),   // 0 accent — links / action center
+        (ar,  ag,  ab),   // 1 accent — taskbar icon underline
+        (ar,  ag,  ab),   // 2 accent — Start button hover
+        (ar,  ag,  ab),   // 3 accent — settings icons (the main accent slot)
+        (b1r, b1g, b1b),  // 4 base01 — active taskbar button / Start bg
+        (br,  bg,  bb),   // 5 base00 — taskbar front
+        (br,  bg,  bb),   // 6 base00 — taskbar background
+        (br,  bg,  bb),   // 7 base00 — unused
     ];
     let mut out = [0u8; 32];
-    for (i, (sr, sg, sb)) in shades.iter().enumerate() {
-        // [R, G, B, alpha] — alpha byte is ignored by Windows
-        out[i * 4]     = *sr;
-        out[i * 4 + 1] = *sg;
-        out[i * 4 + 2] = *sb;
+    for (i, (r, g, b)) in slots.iter().enumerate() {
+        out[i * 4]     = *r;
+        out[i * 4 + 1] = *g;
+        out[i * 4 + 2] = *b;
         out[i * 4 + 3] = 0xFF;
     }
     out
@@ -58,14 +63,16 @@ fn set_accent_color(scheme: &Scheme) -> Result<()> {
     use winreg::enums::*;
     use winreg::RegKey;
 
-    let (r, g, b)    = Scheme::hex_to_rgb(&scheme.base0d);
-    let (r1, g1, b1) = Scheme::hex_to_rgb(&scheme.base01); // for inactive/start
+    let (r,   g,   b)   = Scheme::hex_to_rgb(&scheme.base0d); // accent
+    let (r0,  g0,  b0)  = Scheme::hex_to_rgb(&scheme.base00); // background
+    let (r1,  g1,  b1)  = Scheme::hex_to_rgb(&scheme.base01); // lighter bg
 
     // AccentColorMenu / AccentColor DWORDs are ABGR (0xAA_BB_GG_RR in memory).
     let abgr:          u32 = 0xFF000000 | ((b  as u32) << 16) | ((g  as u32) << 8) | (r  as u32);
+    let abgr_bg:       u32 = 0xFF000000 | ((b0 as u32) << 16) | ((g0 as u32) << 8) | (r0 as u32);
     let abgr_inactive: u32 = 0xFF000000 | ((b1 as u32) << 16) | ((g1 as u32) << 8) | (r1 as u32);
 
-    let palette = build_accent_palette(r, g, b);
+    let palette = build_accent_palette(r, g, b, r0, g0, b0, r1, g1, b1);
 
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
 
@@ -78,7 +85,7 @@ fn set_accent_color(scheme: &Scheme) -> Result<()> {
         bytes: palette.to_vec(),
         vtype: winreg::enums::REG_BINARY,
     })?;
-    acc.set_value("StartColorMenu", &abgr_inactive)?; // UWP modal bg
+    acc.set_value("StartColorMenu", &abgr_bg)?; // UWP modal bg = scheme background
 
     // DWM — window borders
     let (dwm, _) = hkcu.create_subkey(r"SOFTWARE\Microsoft\Windows\DWM")?;
@@ -350,11 +357,13 @@ fn try_set_elevated(scheme: &Scheme, dark: bool) {
     use winreg::enums::*;
     use winreg::RegKey;
 
-    let (r, g, b)    = Scheme::hex_to_rgb(&scheme.base0d);
+    let (r,  g,  b)  = Scheme::hex_to_rgb(&scheme.base0d);
+    let (r0, g0, b0) = Scheme::hex_to_rgb(&scheme.base00);
     let (r1, g1, b1) = Scheme::hex_to_rgb(&scheme.base01);
     let abgr:          u32 = 0xFF000000 | ((b  as u32) << 16) | ((g  as u32) << 8) | (r  as u32);
+    let abgr_bg:       u32 = 0xFF000000 | ((b0 as u32) << 16) | ((g0 as u32) << 8) | (r0 as u32);
     let abgr_inactive: u32 = 0xFF000000 | ((b1 as u32) << 16) | ((g1 as u32) << 8) | (r1 as u32);
-    let palette = build_accent_palette(r, g, b);
+    let palette = build_accent_palette(r, g, b, r0, g0, b0, r1, g1, b1);
     let light: u32 = if dark { 0 } else { 1 };
     let mut any_failed = false;
 
@@ -369,7 +378,7 @@ fn try_set_elevated(scheme: &Scheme, dark: bool) {
             bytes: palette.to_vec(),
             vtype: winreg::enums::REG_BINARY,
         })?;
-        acc.set_value("StartColorMenu", &abgr_inactive)?;
+        acc.set_value("StartColorMenu", &abgr_bg)?;
         let (dwm, _) = hku.create_subkey(r".DEFAULT\SOFTWARE\Microsoft\Windows\DWM")?;
         dwm.set_value("AccentColor", &abgr)?;
         dwm.set_value("AccentColorInactive", &abgr_inactive)?;
