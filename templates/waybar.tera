@@ -19,7 +19,7 @@
 @define-color base0F #{{ base0F }};
 
 * {
-    font-family: {{ font_monospace | default(value="monospace") }};
+    font-family: "{{ font_monospace | default(value='monospace') }}";
     font-size: {{ font_size_desktop }}px;
     border: none;
     border-radius: 0;
