@@ -22,7 +22,6 @@
       <li class="nav-section">Reference</li>
       <li><a href="commands.html">Commands</a></li>
       <li><a href="modules.html">Modules</a></li>
-      <li><a href="wallpaper.html">Wallpaper &amp; Material You</a></li>
     </ul>
   </nav>
   <div class="sidebar-footer">
@@ -68,20 +67,6 @@
     <li>
       <span class="feat-icon">→</span>
       <div class="feat-text">
-        <strong>Wallpaper color extraction</strong>
-        <span>Automatically pull a palette from your wallpaper using k-means color quantization.</span>
-      </div>
-    </li>
-    <li>
-      <span class="feat-icon">→</span>
-      <div class="feat-text">
-        <strong>Material You color science</strong>
-        <span>Optional HCT color space transformations for vibrant, harmonious palettes.</span>
-      </div>
-    </li>
-    <li>
-      <span class="feat-icon">→</span>
-      <div class="feat-text">
         <strong>Centralized font &amp; opacity control</strong>
         <span>Set your fonts and per-category transparency once in <code>coat.yaml</code>.</span>
       </div>
@@ -108,8 +93,6 @@ coat apply</code></pre>
 
   <h2>Example config</h2>
   <pre><code><span class="kw">scheme</span>: gruvbox-dark-hard
-<span class="kw">material_you</span>: <span class="nm">true</span>
-
 <span class="kw">enabled</span>:
   - fish
   - foot
@@ -138,12 +121,6 @@ coat apply</code></pre>
     file to the application's config directory. Most modules also trigger a live reload
     so changes take effect immediately.
   </p>
-  <p>
-    For wallpaper mode, coat extracts dominant colors using Wu's Celebi quantization algorithm,
-    scores them in HCT color space to find the most vibrant candidates, and synthesizes a
-    full 16-color Base16 palette before applying.
-  </p>
-
   <p>See <a href="installation.html">Installation</a> to build from source, or jump straight
   to the <a href="configuration.html">Configuration</a> reference.</p>
 </main>

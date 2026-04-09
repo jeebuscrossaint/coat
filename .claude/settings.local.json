@@ -9,7 +9,11 @@
       "Bash(make)",
       "Bash(where gcc:*)",
       "Bash(where clang:*)",
-      "Bash(where cc:*)"
+      "Bash(where cc:*)",
+      "Bash(grep:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git push:*)"
     ]
   }
 }

@@ -22,7 +22,6 @@
       <li class="nav-section">Reference</li>
       <li><a href="commands.html" class="active">Commands</a></li>
       <li><a href="modules.html">Modules</a></li>
-      <li><a href="wallpaper.html">Wallpaper &amp; Material You</a></li>
     </ul>
   </nav>
   <div class="sidebar-footer">
@@ -77,42 +76,22 @@ coat search morhetz   <span class="cm"># search by author</span></code></pre>
   <h2>coat apply</h2>
   <p>
     The main command. Reads <code>~/.config/coat/coat.yaml</code>, loads the configured scheme,
-    optionally applies Material You transformation, and calls each enabled module's apply
-    function in sequence.
+    and calls each enabled module's apply function in sequence.
   </p>
   <pre><code>coat apply              <span class="cm"># all enabled apps</span>
 coat apply kitty        <span class="cm"># single app only</span>
-coat apply hyprland
+coat apply sway
 coat apply waybar</code></pre>
 
   <p>
     When targeting a single app, coat still reads the full config (for font/opacity settings)
     but only calls that one module.
   </p>
-  <div class="note">
-    If <code>scheme: wallpaper</code> is set in your config, <code>coat apply</code> runs
-    the full wallpaper extraction pipeline first.
-  </div>
-
-  <h2>coat wallpaper</h2>
-  <p>
-    One-shot wallpaper color extraction. Queries <code>swww</code> for the current wallpaper,
-    extracts dominant colors, generates a Base16 palette, and applies it to all enabled apps —
-    without changing <code>coat.yaml</code>.
-  </p>
-  <pre><code>coat wallpaper                   <span class="cm"># extract + apply</span>
-coat wallpaper --no-material-you <span class="cm"># skip Material You transformation</span></code></pre>
-
-  <p>
-    To make wallpaper extraction permanent, set <code>scheme: wallpaper</code> in
-    <code>coat.yaml</code> and use <code>coat apply</code> normally.
-    See <a href="wallpaper.html">Wallpaper &amp; Material You</a> for how extraction works.
-  </p>
 
   <h2>coat docs</h2>
   <p>Prints activation instructions for a specific module to stdout.</p>
   <pre><code>coat docs kitty
-coat docs hyprland
+coat docs sway
 coat docs waybar</code></pre>
 
   <h2>coat help</h2>
@@ -132,9 +111,6 @@ coat apply
 
 <span class="cm"># Try a different scheme without editing the file</span>
 coat apply  <span class="cm"># (after editing coat.yaml)</span>
-
-<span class="cm"># Switch to wallpaper mode</span>
-coat wallpaper
 
 <span class="cm"># Update scheme library later</span>
 coat update</code></pre>

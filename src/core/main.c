@@ -8,8 +8,6 @@
 #include "schemes.h"
 #include "tinted_parser.h"
 #include "schemes_list.h"
-#include "material_you.h"
-#include "wallpaper.h"
 
 // Application modules
 #include "bat.h"
@@ -130,12 +128,12 @@ static char* get_config_dir(void) {
             return NULL;
         }
     }
-    
+
     char *config_dir = malloc(1024);
     if (!config_dir) {
         return NULL;
     }
-    
+
     snprintf(config_dir, 1024, "%s/.config/coat", home);
     return config_dir;
 }
@@ -148,8 +146,6 @@ static void print_usage(const char *prog_name) {
     printf("  list [OPTIONS]      List available color schemes\n");
     printf("  search <term>       Search for schemes by name/author\n");
     printf("  apply [app]         Apply current scheme to all apps or specific app\n");
-    printf("  wallpaper [--no-material-you]\n");
-    printf("                      Extract colors from wallpaper and apply theme\n");
     printf("  docs <app>          Show setup instructions for specific app\n");
     printf("  help                Show this help message\n");
     printf("\n");
@@ -168,12 +164,12 @@ static void print_usage(const char *prog_name) {
 
 int main(int argc, char *argv[]) {
     printf("coat - Configuration Tool\n\n");
-    
+
     char *config_dir = get_config_dir();
     if (!config_dir) {
         return 1;
     }
-    
+
     // Handle command-line arguments
     if (argc > 1) {
         if (strcmp(argv[1], "update") == 0) {
@@ -194,10 +190,10 @@ int main(int argc, char *argv[]) {
                 free(config_dir);
                 return 1;
             }
-            
+
             const char *app = argv[2];
             const AppModule *mod = find_app_module(app);
-            
+
             if (!mod) {
                 fprintf(stderr, "Error: No module found for '%s'\n\n", app);
                 fprintf(stderr, "Available modules:\n");
@@ -216,10 +212,10 @@ int main(int argc, char *argv[]) {
                 free(config_dir);
                 return 1;
             }
-            
+
             // Show documentation for the app
             printf("=== %s Setup Instructions ===\n\n", mod->name);
-            
+
             // App-specific documentation
             if (strcmp(mod->name, "fish") == 0) {
                 printf("To activate the fish theme:\n\n");
@@ -308,7 +304,7 @@ int main(int argc, char *argv[]) {
                 printf("The %s theme has been applied.\n", mod->name);
                 printf("See USAGE.md for detailed information.\n");
             }
-            
+
             printf("\n");
             free(config_dir);
             return 0;
@@ -322,11 +318,11 @@ int main(int argc, char *argv[]) {
                 }
                 printf("\n");
             }
-            
+
             // Parse list options
             const char *variant_filter = NULL;
             int show_preview = 1;
-            
+
             for (int i = 2; i < argc; i++) {
                 if (strcmp(argv[i], "--dark") == 0) {
                     variant_filter = "dark";
@@ -336,16 +332,16 @@ int main(int argc, char *argv[]) {
                     show_preview = 0;
                 }
             }
-            
+
             char *schemes_path = schemes_get_path(config_dir);
             if (!schemes_path) {
                 fprintf(stderr, "Failed to get schemes path\n");
                 free(config_dir);
                 return 1;
             }
-            
+
             int result = schemes_list_all(schemes_path, variant_filter, NULL, show_preview);
-            
+
             free(schemes_path);
             free(config_dir);
             return result == 0 ? 0 : 1;
@@ -356,7 +352,7 @@ int main(int argc, char *argv[]) {
                 free(config_dir);
                 return 1;
             }
-            
+
             // Ensure schemes exist
             if (!schemes_exists(config_dir)) {
                 printf("Schemes repository not found. Cloning...\n");
@@ -366,12 +362,12 @@ int main(int argc, char *argv[]) {
                 }
                 printf("\n");
             }
-            
+
             // Parse search options
             const char *search_term = argv[2];
             const char *variant_filter = NULL;
             int show_preview = 1;
-            
+
             for (int i = 3; i < argc; i++) {
                 if (strcmp(argv[i], "--dark") == 0) {
                     variant_filter = "dark";
@@ -381,23 +377,23 @@ int main(int argc, char *argv[]) {
                     show_preview = 0;
                 }
             }
-            
+
             char *schemes_path = schemes_get_path(config_dir);
             if (!schemes_path) {
                 fprintf(stderr, "Failed to get schemes path\n");
                 free(config_dir);
                 return 1;
             }
-            
+
             int result = schemes_list_all(schemes_path, variant_filter, search_term, show_preview);
-            
+
             free(schemes_path);
             free(config_dir);
             return result == 0 ? 0 : 1;
         } else if (strcmp(argv[1], "apply") == 0) {
             // Check if specific app was provided
             const char *specific_app = (argc > 2) ? argv[2] : NULL;
-            
+
             // If specific app provided, validate it exists first
             if (specific_app) {
                 const AppModule *test_mod = find_app_module(specific_app);
@@ -420,7 +416,7 @@ int main(int argc, char *argv[]) {
                     return 1;
                 }
             }
-            
+
             // Ensure schemes exist
             if (!schemes_exists(config_dir)) {
                 printf("Schemes repository not found. Cloning...\n");
@@ -430,7 +426,7 @@ int main(int argc, char *argv[]) {
                 }
                 printf("\n");
             }
-            
+
             // Load config to get scheme and enabled apps
             CoatConfig *config = coat_config_new();
             if (!config) {
@@ -438,21 +434,21 @@ int main(int argc, char *argv[]) {
                 free(config_dir);
                 return 1;
             }
-            
+
             if (coat_config_load_default(config) != 0) {
                 fprintf(stderr, "Failed to load config file\n");
                 coat_config_free(config);
                 free(config_dir);
                 return 1;
             }
-            
+
             if (!config->scheme[0]) {
                 fprintf(stderr, "No scheme specified in config file\n");
                 coat_config_free(config);
                 free(config_dir);
                 return 1;
             }
-            
+
             // Load the scheme
             Base16Scheme *scheme = base16_scheme_new();
             if (!scheme) {
@@ -461,7 +457,7 @@ int main(int argc, char *argv[]) {
                 free(config_dir);
                 return 1;
             }
-            
+
             char *schemes_path = schemes_get_path(config_dir);
             if (!schemes_path) {
                 fprintf(stderr, "Failed to get schemes path\n");
@@ -470,44 +466,24 @@ int main(int argc, char *argv[]) {
                 free(config_dir);
                 return 1;
             }
-            
-            // Check if scheme is set to "wallpaper" for automatic extraction
-            if (strcmp(config->scheme, "wallpaper") == 0) {
-                printf("Extracting colors from wallpaper...\n");
-                if (wallpaper_extract_scheme(scheme, config->material_you) != 0) {
-                    fprintf(stderr, "Failed to extract colors from wallpaper\n");
-                    free(schemes_path);
-                    base16_scheme_free(scheme);
-                    coat_config_free(config);
-                    free(config_dir);
-                    return 1;
-                }
-            } else {
-                // Load scheme from repository
-                printf("Loading scheme: %s\n", config->scheme);
-                if (base16_scheme_load_by_name(scheme, config->scheme, schemes_path, config->prefer_base24) != 0) {
-                    fprintf(stderr, "Failed to load scheme: %s\n", config->scheme);
-                    free(schemes_path);
-                    base16_scheme_free(scheme);
-                    coat_config_free(config);
-                    free(config_dir);
-                    return 1;
-                }
-                
-                // Apply Material You transformation if enabled
-                if (config->material_you) {
-                    printf("Applying Material You transformation...\n");
-                    material_you_transform_default(scheme);
-                }
+
+            printf("Loading scheme: %s\n", config->scheme);
+            if (base16_scheme_load_by_name(scheme, config->scheme, schemes_path, config->prefer_base24) != 0) {
+                fprintf(stderr, "Failed to load scheme: %s\n", config->scheme);
+                free(schemes_path);
+                base16_scheme_free(scheme);
+                coat_config_free(config);
+                free(config_dir);
+                return 1;
             }
-            
+
             printf("Applying scheme: %s\n", scheme->name);
-            
+
             // If specific app is provided, only apply to that app
             if (specific_app) {
                 printf("Target: %s only\n\n", specific_app);
                 const AppModule *mod = find_app_module(specific_app);
-                
+
                 printf("Applying to %s...\n", mod->name);
                 if (apply_module(mod, scheme, &config->font, &config->opacity) == 0) {
                     printf("\n✓ Successfully applied scheme to %s!\n", mod->name);
@@ -521,7 +497,7 @@ int main(int argc, char *argv[]) {
                 for (int i = 0; i < config->enabled_count; i++) {
                     const char *app = config->enabled[i];
                     const AppModule *mod = find_app_module(app);
-                    
+
                     if (mod) {
                         printf("Applying to %s...\n", mod->name);
                         if (apply_module(mod, scheme, &config->font, &config->opacity) == 0) {
@@ -532,88 +508,17 @@ int main(int argc, char *argv[]) {
                         printf("Warning: No module for '%s'\n\n", app);
                     }
                 }
-                
+
                 if (applied > 0) {
-                    printf("Successfully applied scheme to %d application%s!\n", 
+                    printf("Successfully applied scheme to %d application%s!\n",
                            applied, applied == 1 ? "" : "s");
                 } else {
                     printf("No applications were configured.\n");
                 }
             }
-            
+
             free(schemes_path);
             base16_scheme_free(scheme);
-            coat_config_free(config);
-            free(config_dir);
-            return 0;
-        } else if (strcmp(argv[1], "wallpaper") == 0) {
-            // Extract colors from wallpaper and apply theme
-            int apply_material_you = 1;
-            
-            // Check for --no-material-you flag
-            for (int i = 2; i < argc; i++) {
-                if (strcmp(argv[i], "--no-material-you") == 0) {
-                    apply_material_you = 0;
-                }
-            }
-            
-            // Load config for enabled apps and fonts
-            CoatConfig *config = coat_config_new();
-            if (!config) {
-                fprintf(stderr, "Failed to allocate config\n");
-                free(config_dir);
-                return 1;
-            }
-            
-            if (coat_config_load_default(config) != 0) {
-                fprintf(stderr, "Failed to load config\n");
-                coat_config_free(config);
-                free(config_dir);
-                return 1;
-            }
-            
-            // Create scheme from wallpaper
-            Base16Scheme *scheme = malloc(sizeof(Base16Scheme));
-            if (!scheme) {
-                fprintf(stderr, "Memory allocation failed\n");
-                coat_config_free(config);
-                free(config_dir);
-                return 1;
-            }
-            
-            if (wallpaper_extract_scheme(scheme, apply_material_you) != 0) {
-                fprintf(stderr, "Failed to extract colors from wallpaper\n");
-                free(scheme);
-                coat_config_free(config);
-                free(config_dir);
-                return 1;
-            }
-            
-            printf("\nApplying wallpaper theme to all enabled apps...\n\n");
-            
-            // Apply to all enabled apps
-            int applied = 0;
-            for (int i = 0; i < config->enabled_count; i++) {
-                const AppModule *mod = find_app_module(config->enabled[i]);
-                if (mod) {
-                    printf("Applying to %s...\n", mod->name);
-                    if (apply_module(mod, scheme, &config->font, &config->opacity) == 0) {
-                        printf("  ✓ Success\n");
-                        applied++;
-                    } else {
-                        printf("  ✗ Failed\n");
-                    }
-                    printf("\n");
-                }
-            }
-            
-            if (applied > 0) {
-                printf("✓ Successfully applied wallpaper theme to %d application(s)!\n", applied);
-            } else {
-                printf("No applications were configured.\n");
-            }
-            
-            free(scheme);
             coat_config_free(config);
             free(config_dir);
             return 0;
@@ -628,7 +533,7 @@ int main(int argc, char *argv[]) {
             return 1;
         }
     }
-    
+
     // Check if schemes repository exists, if not, clone it
     if (!schemes_exists(config_dir)) {
         printf("Schemes repository not found.\n");
@@ -692,29 +597,8 @@ int main(int argc, char *argv[]) {
             return 1;
         }
 
-        // Check if scheme is set to "wallpaper" for automatic extraction
-        int scheme_loaded = 0;
-        if (strcmp(config->scheme, "wallpaper") == 0) {
-            printf("Extracting colors from wallpaper...\n");
-            if (wallpaper_extract_scheme(scheme, config->material_you) == 0) {
-                scheme_loaded = 1;
-            } else {
-                fprintf(stderr, "Failed to extract colors from wallpaper\n");
-            }
-        } else {
-            printf("Loading scheme: %s\n", config->scheme);
-            if (base16_scheme_load_by_name(scheme, config->scheme, schemes_path, config->prefer_base24) == 0) {
-                // Apply Material You transformation if enabled
-                if (config->material_you) {
-                    printf("Applying Material You transformation...\n");
-                    material_you_transform_default(scheme);
-                }
-                scheme_loaded = 1;
-            }
-        }
-        
-        if (scheme_loaded) {
-            
+        printf("Loading scheme: %s\n", config->scheme);
+        if (base16_scheme_load_by_name(scheme, config->scheme, schemes_path, config->prefer_base24) == 0) {
             printf("\nBase16 Color Scheme:\n");
             printf("====================\n");
             printf("System:      %s\n", scheme->system);
