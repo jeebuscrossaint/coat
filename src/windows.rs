@@ -256,6 +256,48 @@ fn apply_windows_terminal_to(path: &std::path::Path, scheme: &Scheme) -> Result<
     Ok(())
 }
 
+// ── Discord on Windows ────────────────────────────────────────────────────
+
+fn discord_theme_paths() -> Vec<std::path::PathBuf> {
+    let mut paths = Vec::new();
+    if let Ok(appdata) = std::env::var("APPDATA") {
+        let base = PathBuf::from(appdata);
+        // Vencord standalone
+        let vencord = base.join(r"Vencord\themes");
+        if vencord.parent().map(|p| p.is_dir()).unwrap_or(false) {
+            paths.push(vencord);
+        }
+        // BetterDiscord
+        let bd = base.join(r"BetterDiscord\themes");
+        if bd.parent().map(|p| p.is_dir()).unwrap_or(false) {
+            paths.push(bd);
+        }
+        // Vesktop (Windows build)
+        let vesktop = base.join(r"vesktop\themes");
+        if vesktop.parent().map(|p| p.is_dir()).unwrap_or(false) {
+            paths.push(vesktop);
+        }
+    }
+    paths
+}
+
+pub fn apply_discord(scheme: &Scheme) -> Result<()> {
+    let paths = discord_theme_paths();
+    if paths.is_empty() {
+        println!("  (no Discord mod found — skipping)");
+        println!("  Supported: Vencord, BetterDiscord, Vesktop");
+        return Ok(());
+    }
+    for dir in &paths {
+        fs::create_dir_all(dir)
+            .with_context(|| format!("Failed to create {}", dir.display()))?;
+        let dest = dir.join("coat.theme.css");
+        crate::modules::apply_vesktop_shared(scheme, &dest)?;
+    }
+    println!("  Enable the 'coat' theme in your Discord mod's theme settings.");
+    Ok(())
+}
+
 // ── VSCode on Windows ──────────────────────────────────────────────────────
 
 fn vscode_settings_path_windows() -> Option<PathBuf> {
@@ -384,6 +426,10 @@ pub fn apply_all(scheme: &Scheme) -> Result<()> {
 
     println!("Applying VSCode colors...");
     apply_vscode(scheme)?;
+    println!();
+
+    println!("Applying Discord theme (Vencord/BetterDiscord)...");
+    apply_discord(scheme)?;
     println!();
 
     println!("Restarting Explorer (taskbar will flicker briefly)...");

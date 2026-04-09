@@ -361,6 +361,32 @@ fn apply_swaylock(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig
     render_to(tera, "swaylock", ctx, &dest)
 }
 
+/// Render the vesktop CSS theme to any path — used by both the Linux module
+/// and the Windows `apply_discord` function in windows.rs.
+pub fn apply_vesktop_shared(scheme: &Scheme, path: &Path) -> Result<()> {
+    let tera = make_tera()?;
+    let mut ctx = tera::Context::new();
+    ctx.insert("base00", &scheme.base00);
+    ctx.insert("base01", &scheme.base01);
+    ctx.insert("base02", &scheme.base02);
+    ctx.insert("base03", &scheme.base03);
+    ctx.insert("base04", &scheme.base04);
+    ctx.insert("base05", &scheme.base05);
+    ctx.insert("base06", &scheme.base06);
+    ctx.insert("base07", &scheme.base07);
+    ctx.insert("base08", &scheme.base08);
+    ctx.insert("base09", &scheme.base09);
+    ctx.insert("base0A", &scheme.base0a);
+    ctx.insert("base0B", &scheme.base0b);
+    ctx.insert("base0C", &scheme.base0c);
+    ctx.insert("base0D", &scheme.base0d);
+    ctx.insert("base0E", &scheme.base0e);
+    ctx.insert("base0F", &scheme.base0f);
+    ctx.insert("scheme_name",   &scheme.name);
+    ctx.insert("scheme_author", &scheme.author);
+    render_to(&tera, "vesktop", &ctx, path)
+}
+
 fn apply_vesktop(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
     let paths = [
