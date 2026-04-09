@@ -129,6 +129,24 @@ fn set_dark_mode(_dark: bool) -> Result<()> {
     Ok(())
 }
 
+/// Restart explorer.exe so the taskbar re-reads AccentPalette from the registry.
+/// The desktop/taskbar will disappear for ~1 second while it restarts.
+fn restart_explorer() {
+    #[cfg(windows)]
+    {
+        print!("  Restarting Explorer... ");
+        // Kill the running instance
+        let _ = std::process::Command::new("taskkill")
+            .args(["/f", "/im", "explorer.exe"])
+            .output();
+        // Give it a moment to fully exit
+        std::thread::sleep(std::time::Duration::from_millis(600));
+        // Restart — Windows may auto-restart it, but be explicit to be safe
+        let _ = std::process::Command::new("explorer.exe").spawn();
+        println!("✓");
+    }
+}
+
 /// Broadcast WM_SETTINGCHANGE so Explorer/taskbar refresh live.
 fn broadcast_settings_change() {
     #[cfg(windows)]
@@ -368,6 +386,10 @@ pub fn apply_all(scheme: &Scheme) -> Result<()> {
     apply_vscode(scheme)?;
     println!();
 
-    println!("✓ Done! Some changes (accent color) may require signing out and back in.");
+    println!("Restarting Explorer (taskbar will flicker briefly)...");
+    restart_explorer();
+    println!();
+
+    println!("✓ Done!");
     Ok(())
 }
