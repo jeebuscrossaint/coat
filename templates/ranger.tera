@@ -1,0 +1,100 @@
+# coat colorscheme: {{ scheme_name }}
+# {{ scheme_author }}
+
+from ranger.gui.colorscheme import ColorScheme
+from ranger.gui.color import *
+
+class Coat(ColorScheme):
+    progress_bar_color = 4  # base0D (blue)
+
+    def use(self, context):
+        fg, bg, attr = default_colors
+
+        if context.reset:
+            return default_colors
+
+        elif context.in_browser:
+            if context.selected:
+                attr = reverse
+            if context.empty or context.error:
+                fg = 1   # base08 red
+            if context.directory:
+                fg = 4; attr = bold  # base0D blue
+            elif context.executable and not any((
+                    context.media, context.container,
+                    context.fifo, context.socket)):
+                fg = 2; attr = bold  # base0B green
+            if context.socket:
+                fg = 5; attr = bold  # base0E magenta
+            if context.fifo or context.device:
+                fg = 3; attr = bold  # base0A yellow
+            if context.link:
+                fg = 6 if context.good else 1  # base0C cyan / base08 red
+            if context.media:
+                fg = 3  # base0A yellow
+            if context.container:
+                fg = 1; attr = bold  # base08 red
+            if context.tag_marker and not context.selected:
+                attr = bold
+                fg = 1 if not context.multiple_selection else 3
+            if not context.selected and (context.cut or context.copied):
+                fg = 8; attr = bold  # base03 bright black
+            if context.main_column:
+                if context.selected: attr = bold
+                if context.marked: attr = bold | reverse
+            if context.badinfo:
+                fg = 5 if attr & reverse else 5
+
+        elif context.in_titlebar:
+            if context.hostname:
+                fg = 1 if context.bad else 2  # red / green
+            elif context.directory:
+                fg = 4  # base0D blue
+            elif context.tab:
+                if context.good: bg = 2
+            elif context.link:
+                fg = 6  # base0C cyan
+
+        elif context.in_statusbar:
+            if context.permissions:
+                fg = 6 if context.good else 5  # cyan / magenta
+            if context.marked:
+                attr = bold | reverse; fg = 3
+            if context.message:
+                if context.bad: attr = bold; fg = 1
+            if context.loaded:
+                bg = self.progress_bar_color
+            if context.vcsinfo: fg = 4; attr = normal
+            if context.vcscommit: fg = 3; attr = normal
+            if context.vcsdate: fg = 6; attr = normal
+
+        if context.text and context.highlight:
+            attr = reverse
+
+        if context.in_taskview:
+            if context.title: fg = 4
+            if context.selected: attr = reverse
+            if context.loaded:
+                fg = self.progress_bar_color if context.selected \
+                    else default
+                bg = self.progress_bar_color if not context.selected \
+                    else default
+
+        if context.vcsfile and not context.selected:
+            attr = normal
+            if context.vcsconflict: fg = 5; attr = bold
+            elif context.vcschanged: fg = 1
+            elif context.vcsunknown: fg = 1
+            elif context.vcsstaged: fg = 2
+            elif context.vcssync: fg = 2
+            elif context.vcsignored: fg = default
+
+        elif context.vcsremote and not context.selected:
+            attr = normal
+            if context.vcssync or context.vcsnone: fg = 2
+            elif context.vcsbehind: fg = 1
+            elif context.vcsahead: fg = 4
+            elif context.vcsdiverged: fg = 5
+            elif context.vcsunknown: fg = 1
+
+        return fg, bg, attr

@@ -1,0 +1,134 @@
+# coat lf colorscheme: {{ scheme_name }}
+# {{ scheme_author }}
+
+# File types
+di=1;38;2;{{ base0D | r }};{{ base0D | g }};{{ base0D | b }}
+ln=38;2;{{ base0C | r }};{{ base0C | g }};{{ base0C | b }}
+mi=1;38;2;{{ base08 | r }};{{ base08 | g }};{{ base08 | b }}
+ex=1;38;2;{{ base0B | r }};{{ base0B | g }};{{ base0B | b }}
+fi=38;2;{{ base05 | r }};{{ base05 | g }};{{ base05 | b }}
+pi=38;2;{{ base0A | r }};{{ base0A | g }};{{ base0A | b }}
+so=38;2;{{ base0E | r }};{{ base0E | g }};{{ base0E | b }}
+bd=1;38;2;{{ base09 | r }};{{ base09 | g }};{{ base09 | b }}
+cd=38;2;{{ base09 | r }};{{ base09 | g }};{{ base09 | b }}
+su=1;38;2;{{ base08 | r }};{{ base08 | g }};{{ base08 | b }}
+sg=1;38;2;{{ base0A | r }};{{ base0A | g }};{{ base0A | b }}
+tw=1;38;2;{{ base0B | r }};{{ base0B | g }};{{ base0B | b }}
+ow=38;2;{{ base0B | r }};{{ base0B | g }};{{ base0B | b }}
+
+# Archives
+*.tar=38;2;{{ base08 | r }};{{ base08 | g }};{{ base08 | b }}
+*.tgz=38;2;{{ base08 | r }};{{ base08 | g }};{{ base08 | b }}
+*.tbz2=38;2;{{ base08 | r }};{{ base08 | g }};{{ base08 | b }}
+*.txz=38;2;{{ base08 | r }};{{ base08 | g }};{{ base08 | b }}
+*.gz=38;2;{{ base08 | r }};{{ base08 | g }};{{ base08 | b }}
+*.bz2=38;2;{{ base08 | r }};{{ base08 | g }};{{ base08 | b }}
+*.xz=38;2;{{ base08 | r }};{{ base08 | g }};{{ base08 | b }}
+*.zst=38;2;{{ base08 | r }};{{ base08 | g }};{{ base08 | b }}
+*.zip=38;2;{{ base08 | r }};{{ base08 | g }};{{ base08 | b }}
+*.rar=38;2;{{ base08 | r }};{{ base08 | g }};{{ base08 | b }}
+*.7z=38;2;{{ base08 | r }};{{ base08 | g }};{{ base08 | b }}
+*.deb=38;2;{{ base08 | r }};{{ base08 | g }};{{ base08 | b }}
+*.rpm=38;2;{{ base08 | r }};{{ base08 | g }};{{ base08 | b }}
+*.pkg=38;2;{{ base08 | r }};{{ base08 | g }};{{ base08 | b }}
+*.dmg=38;2;{{ base08 | r }};{{ base08 | g }};{{ base08 | b }}
+
+# Images
+*.png=38;2;{{ base0C | r }};{{ base0C | g }};{{ base0C | b }}
+*.jpg=38;2;{{ base0C | r }};{{ base0C | g }};{{ base0C | b }}
+*.jpeg=38;2;{{ base0C | r }};{{ base0C | g }};{{ base0C | b }}
+*.gif=38;2;{{ base0C | r }};{{ base0C | g }};{{ base0C | b }}
+*.bmp=38;2;{{ base0C | r }};{{ base0C | g }};{{ base0C | b }}
+*.webp=38;2;{{ base0C | r }};{{ base0C | g }};{{ base0C | b }}
+*.svg=38;2;{{ base0C | r }};{{ base0C | g }};{{ base0C | b }}
+*.ico=38;2;{{ base0C | r }};{{ base0C | g }};{{ base0C | b }}
+*.tiff=38;2;{{ base0C | r }};{{ base0C | g }};{{ base0C | b }}
+*.avif=38;2;{{ base0C | r }};{{ base0C | g }};{{ base0C | b }}
+*.heic=38;2;{{ base0C | r }};{{ base0C | g }};{{ base0C | b }}
+
+# Video
+*.mp4=38;2;{{ base0E | r }};{{ base0E | g }};{{ base0E | b }}
+*.mkv=38;2;{{ base0E | r }};{{ base0E | g }};{{ base0E | b }}
+*.avi=38;2;{{ base0E | r }};{{ base0E | g }};{{ base0E | b }}
+*.mov=38;2;{{ base0E | r }};{{ base0E | g }};{{ base0E | b }}
+*.webm=38;2;{{ base0E | r }};{{ base0E | g }};{{ base0E | b }}
+*.flv=38;2;{{ base0E | r }};{{ base0E | g }};{{ base0E | b }}
+*.wmv=38;2;{{ base0E | r }};{{ base0E | g }};{{ base0E | b }}
+*.m4v=38;2;{{ base0E | r }};{{ base0E | g }};{{ base0E | b }}
+*.mpg=38;2;{{ base0E | r }};{{ base0E | g }};{{ base0E | b }}
+*.mpeg=38;2;{{ base0E | r }};{{ base0E | g }};{{ base0E | b }}
+
+# Audio
+*.mp3=38;2;{{ base0D | r }};{{ base0D | g }};{{ base0D | b }}
+*.flac=38;2;{{ base0D | r }};{{ base0D | g }};{{ base0D | b }}
+*.ogg=38;2;{{ base0D | r }};{{ base0D | g }};{{ base0D | b }}
+*.wav=38;2;{{ base0D | r }};{{ base0D | g }};{{ base0D | b }}
+*.aac=38;2;{{ base0D | r }};{{ base0D | g }};{{ base0D | b }}
+*.m4a=38;2;{{ base0D | r }};{{ base0D | g }};{{ base0D | b }}
+*.opus=38;2;{{ base0D | r }};{{ base0D | g }};{{ base0D | b }}
+*.wma=38;2;{{ base0D | r }};{{ base0D | g }};{{ base0D | b }}
+*.aiff=38;2;{{ base0D | r }};{{ base0D | g }};{{ base0D | b }}
+
+# Documents
+*.pdf=38;2;{{ base0A | r }};{{ base0A | g }};{{ base0A | b }}
+*.doc=38;2;{{ base0A | r }};{{ base0A | g }};{{ base0A | b }}
+*.docx=38;2;{{ base0A | r }};{{ base0A | g }};{{ base0A | b }}
+*.odt=38;2;{{ base0A | r }};{{ base0A | g }};{{ base0A | b }}
+*.xls=38;2;{{ base0A | r }};{{ base0A | g }};{{ base0A | b }}
+*.xlsx=38;2;{{ base0A | r }};{{ base0A | g }};{{ base0A | b }}
+*.ods=38;2;{{ base0A | r }};{{ base0A | g }};{{ base0A | b }}
+*.ppt=38;2;{{ base0A | r }};{{ base0A | g }};{{ base0A | b }}
+*.pptx=38;2;{{ base0A | r }};{{ base0A | g }};{{ base0A | b }}
+*.epub=38;2;{{ base0A | r }};{{ base0A | g }};{{ base0A | b }}
+
+# Config & markup
+*.yaml=38;2;{{ base09 | r }};{{ base09 | g }};{{ base09 | b }}
+*.yml=38;2;{{ base09 | r }};{{ base09 | g }};{{ base09 | b }}
+*.toml=38;2;{{ base09 | r }};{{ base09 | g }};{{ base09 | b }}
+*.json=38;2;{{ base09 | r }};{{ base09 | g }};{{ base09 | b }}
+*.json5=38;2;{{ base09 | r }};{{ base09 | g }};{{ base09 | b }}
+*.ini=38;2;{{ base09 | r }};{{ base09 | g }};{{ base09 | b }}
+*.conf=38;2;{{ base09 | r }};{{ base09 | g }};{{ base09 | b }}
+*.cfg=38;2;{{ base09 | r }};{{ base09 | g }};{{ base09 | b }}
+*.env=38;2;{{ base09 | r }};{{ base09 | g }};{{ base09 | b }}
+*.xml=38;2;{{ base09 | r }};{{ base09 | g }};{{ base09 | b }}
+*.html=38;2;{{ base09 | r }};{{ base09 | g }};{{ base09 | b }}
+*.htm=38;2;{{ base09 | r }};{{ base09 | g }};{{ base09 | b }}
+*.css=38;2;{{ base09 | r }};{{ base09 | g }};{{ base09 | b }}
+*.scss=38;2;{{ base09 | r }};{{ base09 | g }};{{ base09 | b }}
+*.sass=38;2;{{ base09 | r }};{{ base09 | g }};{{ base09 | b }}
+
+# Source code
+*.c=38;2;{{ base0B | r }};{{ base0B | g }};{{ base0B | b }}
+*.h=38;2;{{ base0B | r }};{{ base0B | g }};{{ base0B | b }}
+*.cpp=38;2;{{ base0B | r }};{{ base0B | g }};{{ base0B | b }}
+*.cc=38;2;{{ base0B | r }};{{ base0B | g }};{{ base0B | b }}
+*.cxx=38;2;{{ base0B | r }};{{ base0B | g }};{{ base0B | b }}
+*.hpp=38;2;{{ base0B | r }};{{ base0B | g }};{{ base0B | b }}
+*.rs=38;2;{{ base0B | r }};{{ base0B | g }};{{ base0B | b }}
+*.go=38;2;{{ base0B | r }};{{ base0B | g }};{{ base0B | b }}
+*.py=38;2;{{ base0B | r }};{{ base0B | g }};{{ base0B | b }}
+*.rb=38;2;{{ base0B | r }};{{ base0B | g }};{{ base0B | b }}
+*.java=38;2;{{ base0B | r }};{{ base0B | g }};{{ base0B | b }}
+*.kt=38;2;{{ base0B | r }};{{ base0B | g }};{{ base0B | b }}
+*.swift=38;2;{{ base0B | r }};{{ base0B | g }};{{ base0B | b }}
+*.js=38;2;{{ base0B | r }};{{ base0B | g }};{{ base0B | b }}
+*.ts=38;2;{{ base0B | r }};{{ base0B | g }};{{ base0B | b }}
+*.jsx=38;2;{{ base0B | r }};{{ base0B | g }};{{ base0B | b }}
+*.tsx=38;2;{{ base0B | r }};{{ base0B | g }};{{ base0B | b }}
+*.vue=38;2;{{ base0B | r }};{{ base0B | g }};{{ base0B | b }}
+*.lua=38;2;{{ base0B | r }};{{ base0B | g }};{{ base0B | b }}
+*.sh=38;2;{{ base0B | r }};{{ base0B | g }};{{ base0B | b }}
+*.bash=38;2;{{ base0B | r }};{{ base0B | g }};{{ base0B | b }}
+*.zsh=38;2;{{ base0B | r }};{{ base0B | g }};{{ base0B | b }}
+*.fish=38;2;{{ base0B | r }};{{ base0B | g }};{{ base0B | b }}
+*.pl=38;2;{{ base0B | r }};{{ base0B | g }};{{ base0B | b }}
+*.zig=38;2;{{ base0B | r }};{{ base0B | g }};{{ base0B | b }}
+*.nim=38;2;{{ base0B | r }};{{ base0B | g }};{{ base0B | b }}
+
+# Text
+*.md=38;2;{{ base04 | r }};{{ base04 | g }};{{ base04 | b }}
+*.rst=38;2;{{ base04 | r }};{{ base04 | g }};{{ base04 | b }}
+*.txt=38;2;{{ base04 | r }};{{ base04 | g }};{{ base04 | b }}
+*.log=38;2;{{ base04 | r }};{{ base04 | g }};{{ base04 | b }}
+*.csv=38;2;{{ base04 | r }};{{ base04 | g }};{{ base04 | b }}

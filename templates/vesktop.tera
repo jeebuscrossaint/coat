@@ -1,0 +1,126 @@
+/**
+ * @name coat
+ * @description Base16 color theme for Vesktop/Vencord
+ * @author coat ({{ scheme_name }} — {{ scheme_author }})
+ */
+
+:root {
+    --base00: #{{ base00 }};
+    --base01: #{{ base01 }};
+    --base02: #{{ base02 }};
+    --base03: #{{ base03 }};
+    --base04: #{{ base04 }};
+    --base05: #{{ base05 }};
+    --base06: #{{ base06 }};
+    --base07: #{{ base07 }};
+    --base08: #{{ base08 }};
+    --base09: #{{ base09 }};
+    --base0A: #{{ base0A }};
+    --base0B: #{{ base0B }};
+    --base0C: #{{ base0C }};
+    --base0D: #{{ base0D }};
+    --base0E: #{{ base0E }};
+    --base0F: #{{ base0F }};
+}
+
+.theme-dark,
+.theme-light,
+.theme-darker,
+.theme-midnight,
+.visual-refresh {
+    /* Backgrounds */
+    --background-primary: #{{ base00 }} !important;
+    --background-secondary: #{{ base01 }} !important;
+    --background-secondary-alt: #{{ base01 }} !important;
+    --background-tertiary: #{{ base00 }} !important;
+    --background-accent: #{{ base02 }} !important;
+    --background-floating: #{{ base01 }} !important;
+    --background-mobile-primary: #{{ base00 }} !important;
+    --background-mobile-secondary: #{{ base01 }} !important;
+    --background-modifier-hover: #{{ base01 }}80 !important;
+    --background-modifier-active: #{{ base02 }} !important;
+    --background-modifier-selected: #{{ base02 }} !important;
+    --background-modifier-accent: #{{ base02 }}40 !important;
+
+    /* Text */
+    --text-normal: #{{ base05 }} !important;
+    --text-muted: #{{ base03 }} !important;
+    --text-link: #{{ base0D }} !important;
+    --text-positive: #{{ base0B }} !important;
+    --text-warning: #{{ base09 }} !important;
+    --text-danger: #{{ base08 }} !important;
+    --text-brand: #{{ base0D }} !important;
+    --header-primary: #{{ base07 }} !important;
+    --header-secondary: #{{ base05 }} !important;
+    --interactive-normal: #{{ base04 }} !important;
+    --interactive-hover: #{{ base05 }} !important;
+    --interactive-active: #{{ base07 }} !important;
+    --interactive-muted: #{{ base03 }} !important;
+
+    /* Channels */
+    --channel-icon: #{{ base03 }} !important;
+    --channel-text-area-placeholder: #{{ base03 }} !important;
+    --channels-default: #{{ base04 }} !important;
+
+    /* Brand / accent */
+    --brand-experiment: #{{ base0D }} !important;
+    --brand-experiment-100: #{{ base0D }}1a !important;
+    --brand-experiment-130: #{{ base0D }}21 !important;
+    --brand-experiment-160: #{{ base0D }}29 !important;
+    --brand-experiment-200: #{{ base0D }}33 !important;
+    --brand-experiment-230: #{{ base0D }}3b !important;
+    --brand-experiment-260: #{{ base0D }}42 !important;
+    --brand-experiment-300: #{{ base0D }}4d !important;
+    --brand-experiment-330: #{{ base0D }}54 !important;
+    --brand-experiment-360: #{{ base0D }}5c !important;
+    --brand-experiment-400: #{{ base0D }}66 !important;
+    --brand-experiment-430: #{{ base0D }}6e !important;
+    --brand-experiment-460: #{{ base0D }}75 !important;
+    --brand-experiment-500: #{{ base0D }} !important;
+    --brand-experiment-530: #{{ base0D }} !important;
+    --brand-experiment-560: #{{ base0D }} !important;
+    --brand-experiment-600: #{{ base0D }} !important;
+
+    /* Status colors */
+    --status-positive-background: #{{ base0B }}33 !important;
+    --status-positive-text: #{{ base0B }} !important;
+    --status-warning-background: #{{ base09 }}33 !important;
+    --status-warning-text: #{{ base09 }} !important;
+    --status-danger-background: #{{ base08 }}33 !important;
+    --status-danger-text: #{{ base08 }} !important;
+    --status-online: #{{ base0B }} !important;
+    --status-idle: #{{ base0A }} !important;
+    --status-dnd: #{{ base08 }} !important;
+    --status-offline: #{{ base03 }} !important;
+    --status-invisible: #{{ base03 }} !important;
+    --status-streaming: #{{ base0E }} !important;
+
+    /* Controls */
+    --control-brand-foreground: #{{ base0D }} !important;
+    --control-brand-foreground-new: #{{ base0D }} !important;
+
+    /* Input */
+    --input-background: #{{ base01 }} !important;
+    --input-placeholder-text: #{{ base03 }} !important;
+    --input-prefix-color: #{{ base03 }} !important;
+    --input-border: #{{ base02 }} !important;
+
+    /* Scrollbar */
+    --scrollbar-thin-thumb: #{{ base02 }} !important;
+    --scrollbar-thin-track: transparent !important;
+    --scrollbar-auto-thumb: #{{ base03 }} !important;
+    --scrollbar-auto-track: #{{ base01 }} !important;
+
+    /* Elevation / borders */
+    --elevation-low: 0 1px 0 0 #{{ base00 }}, 0 0 0 1px #{{ base00 }}, 0 2px 0 0 #{{ base01 }} !important;
+    --elevation-medium: 0 0 0 1px #{{ base00 }}, 0 2px 10px 0 #{{ base00 }} !important;
+    --elevation-high: 0 0 0 1px #{{ base00 }}, 0 8px 16px 0 #{{ base00 }} !important;
+
+    /* Mentions */
+    --mention-foreground: #{{ base0D }} !important;
+    --mention-background: #{{ base0D }}1a !important;
+
+    /* Reactions */
+    --background-message-hover: #{{ base01 }}40 !important;
+    --background-message-automod: #{{ base08 }}1a !important;
+}

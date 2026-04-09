@@ -1,117 +1,124 @@
-# coat - Color Scheme Configuration Tool
+# coat — color scheme configurator
 
-A C-based tool for applying Base16 color schemes across multiple applications.
+A Rust CLI that applies Base16/Base24 color schemes across 22 Linux applications — and themes Windows system colors — from a single config file.
 
 ## Features
 
-- **26+ Application Support**: Unified theming for terminals, editors, window managers, and more
-- **Material You Transformation**: Optional color enhancement for more vibrant, harmonious palettes
-- **Base16/Base24 Support**: Compatible with the full tinted-theming ecosystem
-- **Interactive Browser**: Search and preview schemes with RGB color display
-- **Font Management**: Centralized font configuration across all applications
-- **Opacity Control**: Per-application transparency settings
+- **22 application modules** — terminals, editors, window managers, bars, launchers, and more
+- **Windows support** — accent color, dark/light mode, Windows Terminal, and VSCode via `coat set`
+- **Base16 & Base24** — compatible with the full [tinted-theming](https://github.com/tinted-theming/home) ecosystem (~700 schemes)
+- **Scheme browser** — search and preview with live RGB color swatches in the terminal
+- **Font & opacity** — centralized font and transparency settings across all modules
 
-## Project Structure
+## Project structure
 
 ```
 coat/
-├── include/          # Header files
-│   ├── *.h          # All module and core headers
-├── src/             # Source files
-│   ├── core/        # Core functionality
-│   │   ├── main.c
-│   │   ├── yaml.c
-│   │   ├── schemes.c
-│   │   ├── schemes_list.c
-│   │   ├── tinted_parser.c
-│   │   └── material_you.c
-│   └── modules/     # Application modules
-│       ├── fish.c
-│       ├── kitty.c
-│       ├── helix.c
-│       └── ... (22 modules total)
-├── build/           # Build artifacts (generated)
-│   ├── core/
-│   └── modules/
-├── Makefile
+├── src/
+│   ├── main.rs       # CLI dispatch
+│   ├── config.rs     # coat.yaml deserialization
+│   ├── scheme.rs     # scheme loading, search, list
+│   ├── modules.rs    # all 22 module apply functions
+│   └── windows.rs    # Windows-specific theming (registry, WT, VSCode)
+├── templates/        # Tera templates for each module
+├── docs/             # documentation site
+├── Cargo.toml
 └── USAGE.md
 ```
 
 ## Building
 
 ```bash
-make            # Build the project
-make clean      # Clean build artifacts
-make install    # Install to /usr/local/bin
+cargo build --release
 ```
+
+The binary appears at `target/release/coat` (or `coat.exe` on Windows). No external dependencies — all scheme parsing, JSON/YAML handling, and templating are compiled in.
 
 ## Usage
 
-See [USAGE.md](USAGE.md) for detailed usage instructions.
-
 ```bash
-# Clone color schemes repository
+# First time: clone the scheme library
 coat clone
 
-# List available schemes
-coat list
+# Browse schemes
 coat list --dark
-coat list --light
+coat search gruvbox
 
-# Apply current scheme to all configured apps
+# Switch scheme and apply everywhere in one shot
+coat set catppuccin-mocha
+
+# Apply current scheme from coat.yaml to all enabled apps
 coat apply
 
-# Extract colors from wallpaper and apply (one-time)
-coat wallpaper
-
-# Update schemes repository
-coat update
+# Apply to a single app
+coat apply kitty
 ```
 
 ## Configuration
 
-Edit `~/.config/coat/coat.yaml`:
+Create `~/.config/coat/coat.yaml`:
 
 ```yaml
-# Use a specific color scheme
 scheme: gruvbox-dark-hard
+prefer_base24: false
 
-# Or extract colors from your wallpaper automatically
-scheme: wallpaper
-
-# Enable Material You color transformation
-material_you: true
-
-# Apps to theme
 enabled:
   - fish
   - kitty
-  - hyprland
-  # ... etc
+  - helix
+  - sway
+  - waybar
+  - fuzzel
+  - dunst
+  - gtk
+  - vesktop
+
+font:
+  monospace: "JetBrains Mono"
+  sansserif: "Ubuntu"
+  sizes:
+    terminal: 12
+    desktop: 10
+    popups: 10
+
+opacity:
+  terminal: 0.95
+  popups: 0.95
 ```
 
-**Wallpaper extraction**: Set `scheme: wallpaper` to automatically extract colors from your current wallpaper (requires `swww`). When you run `coat apply`, it will query `swww` for your wallpaper, extract dominant colors using k-means clustering, generate a harmonious Base16 palette, and optionally apply Material You color transformations.
+## Windows
 
-## Supported Applications
+On Windows, `coat set <scheme>` themes the OS directly — no config file required:
 
-- **Terminals**: fish, foot, kitty, tty
-- **Editors**: helix, vscode
-- **Window Managers**: hyprland, i3, labwc, niri, sway
-- **Launchers**: bemenu, fuzzel, rofi
-- **Bars**: waybar, swaybar (via sway module)
-- **Screen locker**: swaylock
-- **Notifications**: dunst, mako
-- **System**: avizo, gtk, qt, xresources
-- **Utilities**: bat, btop, cava, ranger, yazi, zathura
-- **Other**: conky, mangowc, vesktop (Discord)
+- System accent color (registry, AccentPalette, taskbar/Start)
+- Dark/light mode
+- Windows Terminal color scheme
+- VSCode color customizations
 
-## Adding New Modules
+```powershell
+coat set nord
+coat set gruvbox-dark-hard
+```
 
-1. Create `src/modules/myapp.c` and `include/myapp.h`
-2. Implement `myapp_apply_theme()` function
-3. Add to the `app_modules` table in `src/core/main.c`
-4. Update `Makefile` APP_SRCS list
+If run as administrator, also themes the logon screen.
+
+## Supported modules
+
+| Category | Modules |
+|---|---|
+| Terminals | fish, foot, kitty |
+| Editors | helix, vscode |
+| WM / Compositors | i3, sway, labwc |
+| Bars | waybar |
+| Screen locker | swaylock |
+| Launchers | fuzzel, rofi |
+| Notifications | dunst |
+| System | gtk, qt, xresources |
+| Utilities | bat, btop, ranger, lf, zathura |
+| Other | vesktop |
+
+See [USAGE.md](USAGE.md) for per-application activation steps, or run `coat docs <app>`.
 
 ## License
 
-See [LICENSE](LICENSE) file.
+See [LICENSE](LICENSE).

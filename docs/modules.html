@@ -440,11 +440,12 @@ export QT_QPA_PLATFORMTHEME=qt5ct   <span class="cm"># or qt6ct</span></code></p
   <hr>
   <h2>Adding a new module</h2>
   <ol>
-    <li>Create <code>src/modules/myapp.c</code> and <code>include/myapp.h</code></li>
-    <li>Implement <code>myapp_apply_theme(const Base16Scheme*, const FontConfig*, const OpacityConfig*)</code></li>
-    <li>Add an entry to the <code>app_modules[]</code> table in <code>src/core/main.c</code></li>
-    <li>Add <code>src/modules/myapp.c</code> to <code>APP_SRCS</code> in the <code>Makefile</code></li>
-    <li>Rebuild: <code>make clean &amp;&amp; make</code></li>
+    <li>Create <code>templates/myapp.tera</code> with your app's config format. Use <code>{{ base00 }}</code>–<code>{{ base0f }}</code> for colors, <code>{{ font_monospace }}</code> for font, etc.</li>
+    <li>In <code>src/modules.rs</code>, add <code>tpl!("myapp", "myapp.tera")</code> to the <code>TEMPLATES</code> array.</li>
+    <li>Add a match arm in <code>apply_module()</code> that calls <code>apply_template()</code> with the output path.</li>
+    <li>Add <code>"myapp"</code> to the <code>ALL_MODULES</code> constant.</li>
+    <li>Add a <code>"myapp" =&gt; { ... }</code> block to <code>module_docs()</code>.</li>
+    <li>Rebuild: <code>cargo build --release</code></li>
   </ol>
 </main>
 

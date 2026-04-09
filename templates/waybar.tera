@@ -1,0 +1,214 @@
+/* coat waybar theme: {{ scheme_name }} — {{ scheme_author }} */
+
+/* Base16 color definitions */
+@define-color base00 #{{ base00 }};
+@define-color base01 #{{ base01 }};
+@define-color base02 #{{ base02 }};
+@define-color base03 #{{ base03 }};
+@define-color base04 #{{ base04 }};
+@define-color base05 #{{ base05 }};
+@define-color base06 #{{ base06 }};
+@define-color base07 #{{ base07 }};
+@define-color base08 #{{ base08 }};
+@define-color base09 #{{ base09 }};
+@define-color base0A #{{ base0A }};
+@define-color base0B #{{ base0B }};
+@define-color base0C #{{ base0C }};
+@define-color base0D #{{ base0D }};
+@define-color base0E #{{ base0E }};
+@define-color base0F #{{ base0F }};
+
+* {
+    font-family: {{ font_monospace | default(value="monospace") }};
+    font-size: {{ font_size_desktop }}px;
+    border: none;
+    border-radius: 0;
+    min-height: 0;
+}
+
+window#waybar {
+    background-color: @base00;
+    color: @base05;
+    transition-property: background-color;
+    transition-duration: .5s;
+}
+
+window#waybar.hidden {
+    opacity: 0.2;
+}
+
+#workspaces button {
+    padding: 0 5px;
+    background-color: transparent;
+    color: @base04;
+    border-bottom: 2px solid transparent;
+}
+
+#workspaces button:hover {
+    background: @base01;
+    color: @base05;
+}
+
+#workspaces button.focused {
+    color: @base0D;
+    border-bottom: 2px solid @base0D;
+}
+
+#workspaces button.urgent {
+    color: @base08;
+    border-bottom: 2px solid @base08;
+}
+
+#workspaces button.active {
+    color: @base0D;
+    border-bottom: 2px solid @base0D;
+}
+
+#mode {
+    background-color: @base0A;
+    color: @base00;
+    padding: 0 8px;
+}
+
+#clock,
+#battery,
+#cpu,
+#memory,
+#disk,
+#temperature,
+#backlight,
+#network,
+#pulseaudio,
+#wireplumber,
+#custom-media,
+#tray,
+#mode,
+#idle_inhibitor,
+#scratchpad,
+#mpd,
+#language,
+#keyboard-state {
+    padding: 0 10px;
+    color: @base05;
+}
+
+#battery {
+    color: @base0B;
+}
+
+#battery.charging, #battery.plugged {
+    color: @base0B;
+}
+
+#battery.critical:not(.charging) {
+    color: @base08;
+    animation-name: blink;
+    animation-duration: 0.5s;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    animation-direction: alternate;
+}
+
+@keyframes blink {
+    to {
+        color: @base07;
+        background-color: @base08;
+    }
+}
+
+#cpu {
+    color: @base0D;
+}
+
+#memory {
+    color: @base0E;
+}
+
+#disk {
+    color: @base0A;
+}
+
+#backlight {
+    color: @base0A;
+}
+
+#network {
+    color: @base0C;
+}
+
+#network.disconnected {
+    color: @base08;
+}
+
+#pulseaudio {
+    color: @base0C;
+}
+
+#pulseaudio.muted {
+    color: @base03;
+}
+
+#wireplumber {
+    color: @base0C;
+}
+
+#wireplumber.error {
+    color: @base08;
+}
+
+#temperature {
+    color: @base0B;
+}
+
+#temperature.critical {
+    color: @base08;
+}
+
+#tray {
+    color: @base05;
+}
+
+#tray > .passive {
+    -gtk-icon-effect: dim;
+}
+
+#tray > .needs-attention {
+    -gtk-icon-effect: highlight;
+    background-color: @base09;
+}
+
+#idle_inhibitor {
+    color: @base04;
+}
+
+#idle_inhibitor.activated {
+    color: @base0B;
+}
+
+#language {
+    color: @base0E;
+}
+
+#scratchpad {
+    color: @base0A;
+}
+
+#scratchpad.empty {
+    background-color: transparent;
+}
+
+#mpd {
+    color: @base0D;
+}
+
+#mpd.disconnected {
+    color: @base08;
+}
+
+#mpd.stopped {
+    color: @base04;
+}
+
+#mpd.paused {
+    color: @base0A;
+}

@@ -46,54 +46,43 @@
   <p class="page-subtitle">Build coat from source and set up the scheme library.</p>
 
   <h2>Dependencies</h2>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>Library</th><th>Purpose</th></tr></thead>
-      <tbody>
-        <tr><td><code>libyaml</code></td><td>Parsing <code>coat.yaml</code> and scheme files</td></tr>
-        <tr><td><code>libjson-c</code></td><td>JSON generation for some modules (VSCode, chromium)</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <h3>Arch Linux</h3>
-  <pre><code>sudo pacman -S libyaml json-c</code></pre>
-
-  <h3>Debian / Ubuntu</h3>
-  <pre><code>sudo apt install libyaml-dev libjson-c-dev</code></pre>
-
-  <h3>Fedora</h3>
-  <pre><code>sudo dnf install libyaml-devel json-c-devel</code></pre>
+  <p>
+    coat is written in Rust. The only build dependency is the Rust toolchain —
+    all library dependencies (<code>serde</code>, <code>tera</code>, <code>serde_yaml</code>,
+    <code>serde_json</code>, <code>walkdir</code>, <code>dirs</code>, <code>anyhow</code>)
+    are downloaded and compiled automatically by Cargo.
+  </p>
+  <p>Install Rust if you don't have it:</p>
+  <pre><code>curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh</code></pre>
 
   <h2>Building</h2>
   <pre><code>git clone https://github.com/jeebuscrossaint/coat.git
 cd coat
-make</code></pre>
+cargo build --release</code></pre>
 
-  <p>
-    The Makefile auto-detects your C compiler (<code>cc</code>, then <code>gcc</code>, then <code>clang</code>).
-    Object files go into <code>build/core/</code> and <code>build/modules/</code>.
-    Compile flags: <code>-Wall -Wextra -std=c11 -O2</code>.
-  </p>
+  <p>The binary is at <code>target/release/coat</code> (or <code>coat.exe</code> on Windows).</p>
 
   <h2>Installing</h2>
-  <pre><code><span class="cm"># Install to /usr/local/bin/coat</span>
-sudo make install
+  <pre><code><span class="cm"># Copy to a directory in your PATH</span>
+sudo cp target/release/coat /usr/local/bin/
 
-<span class="cm"># Remove</span>
-sudo make uninstall</code></pre>
+<span class="cm"># Or install via cargo directly</span>
+cargo install --path .</code></pre>
 
   <h2>First-time setup</h2>
   <p>
-    After installing, clone the tinted-theming scheme library. This downloads ~700
-    Base16/Base24 YAML schemes to <code>~/.config/coat/schemes/</code>.
+    Clone the tinted-theming scheme library. This downloads ~700 Base16/Base24
+    YAML schemes to <code>~/.config/coat/schemes/</code>.
   </p>
   <pre><code>coat clone</code></pre>
 
   <p>To update the scheme library later:</p>
   <pre><code>coat update</code></pre>
 
-  <p>Then create your config:</p>
+  <p>
+    On Linux, create a config file. On Windows you can skip this and use
+    <code>coat set &lt;scheme&gt;</code> directly.
+  </p>
   <pre><code>mkdir -p ~/.config/coat
 $EDITOR ~/.config/coat/coat.yaml</code></pre>
 
@@ -102,8 +91,7 @@ $EDITOR ~/.config/coat/coat.yaml</code></pre>
 
   <h2>Runtime dependencies (per module)</h2>
   <p>
-    These are only needed if you enable the corresponding module. coat will skip modules
-    whose target application doesn't appear to be installed.
+    These are only needed if you enable the corresponding module.
   </p>
   <div class="table-wrap">
     <table>

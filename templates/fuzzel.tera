@@ -1,0 +1,24 @@
+# coat theme: {{ scheme_name }}
+# {{ scheme_author }}
+
+[main]
+{% if font_monospace %}font={{ font_monospace }}:size={{ font_size_popups }}
+{% endif %}terminal=footclient
+layer=overlay
+width=30
+lines=7
+border-width=1
+border-radius=0
+prompt=
+icons-enabled=no
+show-actions=no
+counter=no
+
+[colors]
+background={{ base00 }}ff
+text={{ base05 }}ff
+match={{ base0D }}ff
+selection={{ base01 }}ff
+selection-text={{ base05 }}ff
+selection-match={{ base0D }}ff
+border={{ base01 }}ff

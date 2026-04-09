@@ -1,0 +1,36 @@
+# coat labwc theme: {{ scheme_name }}
+# {{ scheme_author }}
+
+border.width: 2
+
+# Active window
+window.active.title.bg.color: #{{ base01 }}
+window.active.label.text.color: #{{ base07 }}
+window.active.button.unpressed.image.color: #{{ base07 }}
+window.active.button.hover.image.color: #{{ base0D }}
+window.active.border.color: #{{ base0D }}
+
+# Inactive window
+window.inactive.title.bg.color: #{{ base00 }}
+window.inactive.label.text.color: #{{ base03 }}
+window.inactive.button.unpressed.image.color: #{{ base03 }}
+window.inactive.button.hover.image.color: #{{ base03 }}
+window.inactive.border.color: #{{ base02 }}
+
+# Padding
+padding.height: 2
+padding.width: 4
+
+# Menu
+menu.items.bg.color: #{{ base01 }}
+menu.items.text.color: #{{ base05 }}
+menu.items.active.bg.color: #{{ base0D }}
+menu.items.active.text.color: #{{ base00 }}
+menu.border.width: 1
+menu.border.color: #{{ base02 }}
+
+# OSD
+osd.bg.color: #{{ base01 }}
+osd.border.color: #{{ base0D }}
+osd.border.width: 1
+osd.label.text.color: #{{ base05 }}

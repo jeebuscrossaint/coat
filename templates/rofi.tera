@@ -1,0 +1,144 @@
+/**
+ * coat theme: {{ scheme_name }}
+ * {{ scheme_author }}{% if scheme_variant %}
+ * variant: {{ scheme_variant }}{% endif %}
+ */
+
+* {
+    base00: #{{ base00 }};
+    base01: #{{ base01 }};
+    base02: #{{ base02 }};
+    base03: #{{ base03 }};
+    base04: #{{ base04 }};
+    base05: #{{ base05 }};
+    base06: #{{ base06 }};
+    base07: #{{ base07 }};
+    base08: #{{ base08 }};
+    base09: #{{ base09 }};
+    base0A: #{{ base0A }};
+    base0B: #{{ base0B }};
+    base0C: #{{ base0C }};
+    base0D: #{{ base0D }};
+    base0E: #{{ base0E }};
+    base0F: #{{ base0F }};
+
+    background:     @base00;
+    background-alt: @base01;
+    foreground:     @base05;
+    selected:       @base0D;
+    active:         @base0B;
+    urgent:         @base08;
+}
+
+configuration {
+    display-drun: "Applications:";
+    display-window: "Windows:";
+    drun-display-format: "{name}";
+    font: "{{ font_monospace | default(value="monospace") }} {{ font_size_popups }}";
+    modi: "window,run,drun";
+}
+
+window {
+    transparency: "real";
+    background-color: @background;
+    text-color: @foreground;
+    border: 2px;
+    border-color: @selected;
+    border-radius: 0px;
+    width: 30%;
+    location: center;
+    anchor: center;
+}
+
+prompt {
+    enabled: true;
+    padding: 8px;
+    background-color: @background-alt;
+    text-color: @foreground;
+}
+
+entry {
+    background-color: @background-alt;
+    text-color: @foreground;
+    placeholder-color: @base03;
+    expand: true;
+    horizontal-align: 0;
+    placeholder: "Search...";
+    blink: true;
+    padding: 8px;
+}
+
+inputbar {
+    children: [ prompt, entry ];
+    background-color: @background-alt;
+    text-color: @foreground;
+    expand: false;
+    border: 0 0 1px 0;
+    border-color: @selected;
+    margin: 0;
+    padding: 0;
+}
+
+listview {
+    background-color: @background;
+    columns: 1;
+    lines: 8;
+    spacing: 4px;
+    cycle: false;
+    dynamic: true;
+    layout: vertical;
+}
+
+element {
+    background-color: @background;
+    text-color: @foreground;
+    orientation: horizontal;
+    border-radius: 0;
+    padding: 8px;
+}
+
+element-icon {
+    background-color: inherit;
+    text-color: inherit;
+    size: 24px;
+    border: 0;
+}
+
+element-text {
+    background-color: inherit;
+    text-color: inherit;
+    expand: true;
+    horizontal-align: 0;
+    vertical-align: 0.5;
+    margin: 0 0 0 4px;
+}
+
+element normal.urgent,
+element alternate.urgent {
+    background-color: @urgent;
+    text-color: @background;
+    border-radius: 0;
+}
+
+element normal.active,
+element alternate.active {
+    background-color: @active;
+    text-color: @background;
+}
+
+element selected {
+    background-color: @selected;
+    text-color: @background;
+    border: 0;
+    border-radius: 0;
+}
+
+element selected.urgent {
+    background-color: @urgent;
+    text-color: @background;
+}
+
+element selected.active {
+    background-color: @active;
+    text-color: @background;
+}

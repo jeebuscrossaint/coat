@@ -13,7 +13,14 @@
       "Bash(grep:*)",
       "Bash(git add:*)",
       "Bash(git commit -m ':*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(wc -l src/core/*.c src/modules/*.c include/*.h)",
+      "Bash(cargo build:*)",
+      "Bash(./target/debug/coat help:*)",
+      "Bash(./target/debug/coat docs:*)",
+      "Bash(./target/debug/coat.exe:*)",
+      "Bash(./target/release/coat.exe search:*)",
+      "Bash(./target/release/coat.exe help:*)"
     ]
   }
 }

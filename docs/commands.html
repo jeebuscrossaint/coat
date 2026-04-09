@@ -73,9 +73,25 @@ coat search nord
 coat search "one dark"
 coat search morhetz   <span class="cm"># search by author</span></code></pre>
 
+  <h2>coat set</h2>
+  <p>
+    Switches to a new scheme and applies it everywhere in one shot. This is the fastest
+    way to change your theme without editing any files.
+  </p>
+  <pre><code>coat set catppuccin-mocha
+coat set nord
+coat set gruvbox-dark-hard</code></pre>
+  <p>What it does:</p>
+  <ul>
+    <li>Validates the scheme exists in the library</li>
+    <li>Updates (or creates) <code>~/.config/coat/coat.yaml</code> with the new scheme name</li>
+    <li><strong>Linux:</strong> applies to all enabled modules from <code>coat.yaml</code></li>
+    <li><strong>Windows:</strong> themes the system accent color, dark/light mode, Windows Terminal, and VSCode via the registry — no config file required</li>
+  </ul>
+
   <h2>coat apply</h2>
   <p>
-    The main command. Reads <code>~/.config/coat/coat.yaml</code>, loads the configured scheme,
+    Reads <code>~/.config/coat/coat.yaml</code>, loads the configured scheme,
     and calls each enabled module's apply function in sequence.
   </p>
   <pre><code>coat apply              <span class="cm"># all enabled apps</span>
@@ -106,11 +122,11 @@ coat clone
 coat list --dark
 coat search catppuccin
 
-<span class="cm"># Set it in your config, then apply</span>
-coat apply
+<span class="cm"># Switch and apply in one command</span>
+coat set catppuccin-mocha
 
-<span class="cm"># Try a different scheme without editing the file</span>
-coat apply  <span class="cm"># (after editing coat.yaml)</span>
+<span class="cm"># Apply current scheme to a single app</span>
+coat apply kitty
 
 <span class="cm"># Update scheme library later</span>
 coat update</code></pre>

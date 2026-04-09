@@ -1,0 +1,41 @@
+# coat theme: {{ scheme_name }}
+# {{ scheme_author }}
+{% if scheme_variant %}# variant: {{ scheme_variant }}{% endif %}
+
+{% if font_monospace %}# Font configuration
+set font "{{ font_monospace }} 10"
+
+{% endif %}# Base16 colors
+set notification-error-bg       "#{{ base08 }}" # base08 - red
+set notification-error-fg       "#{{ base00 }}" # base00
+set notification-warning-bg     "#{{ base09 }}" # base09 - orange
+set notification-warning-fg     "#{{ base00 }}" # base00
+set notification-bg             "#{{ base0B }}" # base0B - green
+set notification-fg             "#{{ base00 }}" # base00
+
+set completion-group-bg         "#{{ base01 }}" # base01
+set completion-group-fg         "#{{ base0D }}" # base0D - blue
+set completion-bg               "#{{ base00 }}" # base00
+set completion-fg               "#{{ base05 }}" # base05
+set completion-highlight-bg     "#{{ base0D }}" # base0D - blue
+set completion-highlight-fg     "#{{ base00 }}" # base00
+
+set inputbar-bg                 "#{{ base01 }}" # base01
+set inputbar-fg                 "#{{ base05 }}" # base05
+
+set statusbar-bg                "#{{ base01 }}" # base01
+set statusbar-fg                "#{{ base05 }}" # base05
+
+set highlight-color             "#{{ base0A }}" # base0A - yellow
+set highlight-active-color      "#{{ base0D }}" # base0D - blue
+
+set default-bg                  "#{{ base00 }}" # base00
+set default-fg                  "#{{ base05 }}" # base05
+set render-loading              true
+set render-loading-bg           "#{{ base00 }}" # base00
+set render-loading-fg           "#{{ base05 }}" # base05
+
+# Recoloring mode settings
+# <C-r> to switch modes
+set recolor-lightcolor          "#{{ base00 }}" # base00
+set recolor-darkcolor           "#{{ base05 }}" # base05

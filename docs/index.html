@@ -116,10 +116,9 @@ coat apply</code></pre>
   <h2>How it works</h2>
   <p>
     coat reads <code>~/.config/coat/coat.yaml</code>, loads the selected Base16 scheme from
-    <code>~/.config/coat/schemes/</code>, optionally transforms it through Material You color
-    science, then calls each enabled module's apply function. Each module writes a theme
-    file to the application's config directory. Most modules also trigger a live reload
-    so changes take effect immediately.
+    <code>~/.config/coat/schemes/</code>, then calls each enabled module's apply function.
+    Each module writes a theme file to the application's config directory.
+    Most modules also trigger a live reload so changes take effect immediately.
   </p>
   <p>See <a href="installation.html">Installation</a> to build from source, or jump straight
   to the <a href="configuration.html">Configuration</a> reference.</p>

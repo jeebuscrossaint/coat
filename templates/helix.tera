@@ -1,0 +1,166 @@
+# coat theme: {{ scheme_name }}
+# {{ scheme_author }}
+
+# ── UI ────────────────────────────────────────────────────────────────────
+
+"ui.background"             = { bg = "base00" }
+"ui.background.separator"   = "base03"
+"ui.text"                   = "base05"
+"ui.text.focus"             = { fg = "base05", bg = "base01", modifiers = ["bold"] }
+"ui.text.inactive"          = "base03"
+"ui.cursor"                 = { fg = "base00", bg = "base05" }
+"ui.cursor.match"           = { fg = "base05", bg = "base02" }
+"ui.cursor.insert"          = { fg = "base00", bg = "base0C" }
+"ui.cursor.select"          = { fg = "base00", bg = "base0B" }
+"ui.cursor.primary"         = { fg = "base00", bg = "base05" }
+"ui.cursor.primary.insert"  = { fg = "base00", bg = "base0C" }
+"ui.cursor.primary.select"  = { fg = "base00", bg = "base0B" }
+"ui.selection"              = { bg = "base02" }
+"ui.selection.primary"      = { bg = "base02" }
+"ui.linenr"                 = { fg = "base03" }
+"ui.linenr.selected"        = { fg = "base04", modifiers = ["bold"] }
+"ui.statusline"             = { fg = "base04", bg = "base01" }
+"ui.statusline.inactive"    = { fg = "base03", bg = "base01" }
+"ui.statusline.insert"      = { fg = "base00", bg = "base0B" }
+"ui.statusline.select"      = { fg = "base00", bg = "base09" }
+"ui.statusline.separator"   = { fg = "base03" }
+"ui.popup"                  = { bg = "base01" }
+"ui.popup.info"             = { bg = "base01" }
+"ui.window"                 = { fg = "base03" }
+"ui.help"                   = { fg = "base05", bg = "base01" }
+"ui.menu"                   = { fg = "base05", bg = "base01" }
+"ui.menu.selected"          = { fg = "base00", bg = "base0D" }
+"ui.menu.scroll"            = { fg = "base03", bg = "base01" }
+"ui.gutter"                 = { bg = "base00" }
+"ui.gutter.selected"        = { bg = "base01" }
+"ui.highlight"              = { bg = "base01" }
+"ui.highlight.frameline"    = { bg = "base01" }
+"ui.debug"                  = "base09"
+"ui.debug.breakpoint"       = "base08"
+"ui.virtual.ruler"          = { bg = "base01" }
+"ui.virtual.whitespace"     = "base02"
+"ui.virtual.indent-guide"   = "base02"
+"ui.virtual.inlay-hint"     = { fg = "base03", bg = "base00" }
+"ui.bufferline"             = { fg = "base03", bg = "base01" }
+"ui.bufferline.active"      = { fg = "base05", bg = "base00", modifiers = ["bold"] }
+"ui.bufferline.background"  = { bg = "base01" }
+
+# ── Diagnostics ───────────────────────────────────────────────────────────
+
+"diagnostic.hint"        = { underline = { color = "base0C", style = "curl" } }
+"diagnostic.info"        = { underline = { color = "base0D", style = "curl" } }
+"diagnostic.warning"     = { underline = { color = "base09", style = "curl" } }
+"diagnostic.error"       = { underline = { color = "base08", style = "curl" } }
+"diagnostic.unnecessary" = { modifiers = ["dim"] }
+"diagnostic.deprecated"  = { modifiers = ["crossed_out"] }
+"hint"                   = "base0C"
+"info"                   = "base0D"
+"warning"                = "base09"
+"error"                  = "base08"
+
+# ── Syntax ────────────────────────────────────────────────────────────────
+
+"variable"                  = "base08"
+"variable.builtin"          = "base0E"
+"variable.parameter"        = "base08"
+"variable.other.member"     = "base08"
+"constant"                  = "base09"
+"constant.builtin"          = "base09"
+"constant.character"        = "base0C"
+"constant.character.escape" = "base0C"
+"string"                    = "base0B"
+"string.regexp"             = "base0C"
+"string.special"            = "base0C"
+"string.special.symbol"     = "base0B"
+"comment"                   = { fg = "base03", modifiers = ["italic"] }
+"comment.block.documentation" = { fg = "base03", modifiers = ["italic"] }
+"attribute"                 = "base09"
+"type"                      = "base0A"
+"type.builtin"              = "base0A"
+"type.parameter"            = "base0A"
+"type.enum.variant"         = "base09"
+"constructor"               = "base0A"
+"function"                  = "base0D"
+"function.builtin"          = "base0D"
+"function.method"           = "base0D"
+"function.method.private"   = "base0D"
+"function.macro"            = "base0E"
+"function.special"          = "base0E"
+"tag"                       = "base08"
+"tag.builtin"               = "base08"
+"namespace"                 = "base0E"
+"special"                   = "base0D"
+"keyword"                   = "base0E"
+"keyword.control"           = "base0E"
+"keyword.control.conditional" = "base0E"
+"keyword.control.repeat"    = "base0E"
+"keyword.control.import"    = "base0E"
+"keyword.control.return"    = "base0E"
+"keyword.control.exception" = "base0E"
+"keyword.operator"          = "base0C"
+"keyword.directive"         = "base0E"
+"keyword.function"          = "base0E"
+"operator"                  = "base0C"
+"punctuation"               = "base05"
+"punctuation.delimiter"     = "base05"
+"punctuation.special"       = "base0C"
+"punctuation.bracket"       = "base05"
+"label"                     = "base09"
+
+# ── Markup ────────────────────────────────────────────────────────────────
+
+"markup.heading"            = { fg = "base0D", modifiers = ["bold"] }
+"markup.heading.marker"     = "base0D"
+"markup.heading.1"          = { fg = "base0D", modifiers = ["bold"] }
+"markup.heading.2"          = { fg = "base0E", modifiers = ["bold"] }
+"markup.heading.3"          = { fg = "base0A", modifiers = ["bold"] }
+"markup.heading.4"          = "base0B"
+"markup.heading.5"          = "base0C"
+"markup.heading.6"          = "base09"
+"markup.list"               = "base08"
+"markup.list.unnumbered"    = "base08"
+"markup.list.numbered"      = "base08"
+"markup.list.checked"       = "base0B"
+"markup.list.unchecked"     = "base03"
+"markup.bold"               = { modifiers = ["bold"] }
+"markup.italic"             = { modifiers = ["italic"] }
+"markup.strikethrough"      = { modifiers = ["crossed_out"] }
+"markup.link"               = "base0C"
+"markup.link.url"           = { fg = "base0C", modifiers = ["underlined"] }
+"markup.link.label"         = "base0E"
+"markup.link.text"          = "base0E"
+"markup.quote"              = "base0B"
+"markup.raw"                = "base0B"
+"markup.raw.inline"         = "base0B"
+"markup.raw.block"          = "base0B"
+
+# ── Diff ─────────────────────────────────────────────────────────────────
+
+"diff.plus"         = "base0B"
+"diff.plus.gutter"  = "base0B"
+"diff.minus"        = "base08"
+"diff.minus.gutter" = "base08"
+"diff.delta"        = "base09"
+"diff.delta.moved"  = "base0E"
+"diff.delta.conflict" = "base08"
+"diff.delta.gutter" = "base09"
+
+# ── Palette ───────────────────────────────────────────────────────────────
+
+[palette]
+base00 = "#{{ base00 }}"
+base01 = "#{{ base01 }}"
+base02 = "#{{ base02 }}"
+base03 = "#{{ base03 }}"
+base04 = "#{{ base04 }}"
+base05 = "#{{ base05 }}"
+base06 = "#{{ base06 }}"
+base07 = "#{{ base07 }}"
+base08 = "#{{ base08 }}"
+base09 = "#{{ base09 }}"
+base0A = "#{{ base0A }}"
+base0B = "#{{ base0B }}"
+base0C = "#{{ base0C }}"
+base0D = "#{{ base0D }}"
+base0E = "#{{ base0E }}"
+base0F = "#{{ base0F }}"

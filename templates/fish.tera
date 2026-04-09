@@ -1,0 +1,40 @@
+# coat theme: {{ scheme_name }}
+# {{ scheme_author }}
+{% if scheme_variant %}# variant: {{ scheme_variant }}{% endif %}
+
+# Syntax Highlighting Colors
+fish_color_normal {{ base05 }}
+fish_color_command {{ base0D }}
+fish_color_keyword {{ base0E }}
+fish_color_quote {{ base0B }}
+fish_color_redirection {{ base0C }}
+fish_color_end {{ base0C }}
+fish_color_error {{ base08 }}
+fish_color_param {{ base05 }}
+fish_color_comment {{ base03 }}
+fish_color_selection --background={{ base02 }}
+fish_color_search_match --background={{ base0A }}
+fish_color_operator {{ base0C }}
+fish_color_escape {{ base0C }}
+fish_color_autosuggestion {{ base03 }}
+fish_color_cwd {{ base0D }}
+fish_color_cwd_root {{ base08 }}
+fish_color_user {{ base0B }}
+fish_color_host {{ base0D }}
+fish_color_host_remote {{ base09 }}
+fish_color_cancel {{ base08 }}
+
+# Completion Pager Colors
+fish_pager_color_progress {{ base03 }}
+fish_pager_color_background
+fish_pager_color_prefix {{ base0D }}
+fish_pager_color_completion {{ base05 }}
+fish_pager_color_description {{ base03 }}
+fish_pager_color_selected_background --background={{ base02 }}
+fish_pager_color_selected_prefix {{ base0A }}
+fish_pager_color_selected_completion {{ base05 }}
+fish_pager_color_selected_description {{ base04 }}
+fish_pager_color_secondary_background
+fish_pager_color_secondary_prefix {{ base0D }}
+fish_pager_color_secondary_completion {{ base04 }}
+fish_pager_color_secondary_description {{ base03 }}
