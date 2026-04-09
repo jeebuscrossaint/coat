@@ -1,15 +1,11 @@
 #define _DEFAULT_SOURCE
 #include "qt.h"
 #include "tinted_parser.h"
+#include "coat_util.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <unistd.h>
-
-static const char *strip_hash(const char *color) {
-    return (color[0] == '#') ? color + 1 : color;
-}
 
 /*
  * Qt5ct / Qt6ct color scheme format (.conf):
@@ -200,7 +196,7 @@ static int apply_for_tool(const char *tool_dir,
 int qt_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
     if (!scheme) return -1;
 
-    const char *home = getenv("HOME");
+    const char *home = get_home();
     if (!home) {
         fprintf(stderr, "Could not determine home directory\n");
         return -1;

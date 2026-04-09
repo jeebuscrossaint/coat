@@ -45,7 +45,7 @@
 <main class="content">
   <h1>Modules</h1>
   <p class="page-subtitle">
-    Activation steps for all 28 supported applications. Click any module to expand it.
+    Activation steps for all 22 supported applications. Click any module to expand it.
   </p>
 
   <!-- ── Terminals ── -->
@@ -95,20 +95,6 @@ include=~/.config/foot/coat-theme.ini</code></pre>
         <p>Reload with <kbd>Ctrl+Shift+F5</kbd> or restart kitty.</p>
       </div>
     </div>
-
-    <div class="module">
-      <div class="module-header" onclick="toggle(this)">
-        <span class="module-name">tty</span>
-        <span class="module-desc">Linux TTY — console colors via escape sequences</span>
-        <span class="module-toggle">▸</span>
-      </div>
-      <div class="module-body">
-        <p>Writes a shell script to <code>~/.config/coat/tty-colors.sh</code> that sets the 16 terminal palette using escape sequences.</p>
-        <p><strong>Activation (add to <code>~/.profile</code> or <code>~/.bashrc</code>):</strong></p>
-        <pre><code>[ -f ~/.config/coat/tty-colors.sh ] &amp;&amp; source ~/.config/coat/tty-colors.sh</code></pre>
-        <p>Only takes effect on a real TTY; has no effect inside terminal emulators.</p>
-      </div>
-    </div>
   </div>
 
   <!-- ── Editors ── -->
@@ -154,25 +140,6 @@ theme = "coat"</code></pre>
 
     <div class="module">
       <div class="module-header" onclick="toggle(this)">
-        <span class="module-name">hyprland</span>
-        <span class="module-desc">Hyprland — Base16 color variables</span>
-        <span class="module-toggle">▸</span>
-      </div>
-      <div class="module-body">
-        <p>Writes <code>~/.config/hypr/coat-theme.conf</code> with <code>$base00</code>–<code>$base0F</code> variables.</p>
-        <p><strong>Permanent activation (add to <code>~/.config/hypr/hyprland.conf</code>):</strong></p>
-        <pre><code>source = ~/.config/hypr/coat-theme.conf</code></pre>
-        <p>Then use the variables anywhere in your config:</p>
-        <pre><code>general {
-    col.active_border = $base0D $base0C 45deg
-    col.inactive_border = $base01
-}</code></pre>
-        <p>Reload with <code>hyprctl reload</code>.</p>
-      </div>
-    </div>
-
-    <div class="module">
-      <div class="module-header" onclick="toggle(this)">
         <span class="module-name">i3</span>
         <span class="module-desc">i3 window manager — window &amp; bar colors</span>
         <span class="module-toggle">▸</span>
@@ -202,20 +169,6 @@ theme = "coat"</code></pre>
 include ~/.config/sway/coat-swaybar-theme</code></pre>
         <div class="warn">The swaybar file is a complete <code>bar { }</code> block. Either remove your existing bar block or manually extract only the <code>colors { }</code> section.</div>
         <p>Reload: <code>swaymsg reload</code></p>
-      </div>
-    </div>
-
-    <div class="module">
-      <div class="module-header" onclick="toggle(this)">
-        <span class="module-name">niri</span>
-        <span class="module-desc">Niri compositor — focus ring, borders, tab indicator</span>
-        <span class="module-toggle">▸</span>
-      </div>
-      <div class="module-body">
-        <p>Writes <code>~/.config/niri/coat-theme.kdl</code>.</p>
-        <p><strong>Permanent activation (add to <code>~/.config/niri/config.kdl</code>):</strong></p>
-        <pre><code>include "coat-theme.kdl"</code></pre>
-        <p>Niri reloads automatically when you save the config.</p>
       </div>
     </div>
 
@@ -297,20 +250,6 @@ include ~/.config/sway/coat-swaybar-theme</code></pre>
         <pre><code>@import "coat.rasi"</code></pre>
       </div>
     </div>
-
-    <div class="module">
-      <div class="module-header" onclick="toggle(this)">
-        <span class="module-name">bemenu</span>
-        <span class="module-desc">Bemenu — dynamic menu theme via env vars</span>
-        <span class="module-toggle">▸</span>
-      </div>
-      <div class="module-body">
-        <p>Writes a shell script to <code>~/.config/coat/bemenu-theme.sh</code>.</p>
-        <p><strong>Activation (add to your shell config):</strong></p>
-        <pre><code>source ~/.config/coat/bemenu-theme.sh</code></pre>
-        <p>Or source it in your bemenu launcher script directly.</p>
-      </div>
-    </div>
   </div>
 
   <!-- ── Notifications ── -->
@@ -332,34 +271,6 @@ include ~/.config/sway/coat-swaybar-theme</code></pre>
           <li>Frame color: low=cyan, normal=blue, critical=red</li>
           <li>Progress bar styling, font from <code>coat.yaml</code></li>
         </ul>
-      </div>
-    </div>
-
-    <div class="module">
-      <div class="module-header" onclick="toggle(this)">
-        <span class="module-name">mako</span>
-        <span class="module-desc">Mako notification daemon</span>
-        <span class="module-toggle">▸</span>
-      </div>
-      <div class="module-body">
-        <p>Writes the <strong>entire</strong> <code>~/.config/mako/config</code> and runs <code>makoctl reload</code> automatically.</p>
-        <p>If mako doesn't reload: <code>makoctl reload</code></p>
-        <ul>
-          <li>Background, text, border, progress bar colors</li>
-          <li>Urgency-level overrides (low/normal/high)</li>
-          <li>Font from <code>coat.yaml</code>, layout defaults (margin, padding, border-radius)</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="module">
-      <div class="module-header" onclick="toggle(this)">
-        <span class="module-name">avizo</span>
-        <span class="module-desc">Avizo overlay notifications</span>
-        <span class="module-toggle">▸</span>
-      </div>
-      <div class="module-body">
-        <p>Writes <code>~/.config/avizo/config.ini</code>.</p>
       </div>
     </div>
   </div>
@@ -387,15 +298,16 @@ include ~/.config/sway/coat-swaybar-theme</code></pre>
         <span class="module-toggle">▸</span>
       </div>
       <div class="module-body">
-        <p>Writes color schemes to:</p>
+        <p>Writes color schemes and configs to whichever directories exist:</p>
         <ul>
-          <li><code>~/.config/qt5ct/colors/coat.conf</code></li>
-          <li><code>~/.config/qt6ct/colors/coat.conf</code></li>
+          <li><code>~/.config/qt5ct/colors/coat.conf</code> + <code>qt5ct.conf</code></li>
+          <li><code>~/.config/qt6ct/colors/coat.conf</code> + <code>qt6ct.conf</code></li>
         </ul>
-        <p>Also updates the main qt5ct/qt6ct config to select the coat palette.</p>
-        <p><strong>Requirements:</strong> <code>qt5ct</code> and/or <code>qt6ct</code> must be installed.</p>
+        <p>The config sets <code>style=Fusion</code> and <code>custom_palette=true</code>, which are required for qt5ct/qt6ct to actually honour the color file.</p>
+        <p><strong>Requirements:</strong> Install <code>qt5ct</code> and/or <code>qt6ct</code>, run it once to create the config directory, then set:</p>
         <pre><code><span class="cm"># Add to ~/.profile or shell config</span>
 export QT_QPA_PLATFORMTHEME=qt5ct   <span class="cm"># or qt6ct</span></code></pre>
+        <p>coat skips whichever tool's config directory doesn't exist yet, so it's safe to have only one installed.</p>
       </div>
     </div>
 
@@ -451,18 +363,6 @@ export QT_QPA_PLATFORMTHEME=qt5ct   <span class="cm"># or qt6ct</span></code></p
 
     <div class="module">
       <div class="module-header" onclick="toggle(this)">
-        <span class="module-name">cava</span>
-        <span class="module-desc">CAVA audio visualizer</span>
-        <span class="module-toggle">▸</span>
-      </div>
-      <div class="module-body">
-        <p>Writes color settings to <code>~/.config/cava/config</code>.</p>
-        <p>Restart cava to apply. Or send <code>SIGUSR1</code>: <code>pkill -USR1 cava</code>.</p>
-      </div>
-    </div>
-
-    <div class="module">
-      <div class="module-header" onclick="toggle(this)">
         <span class="module-name">ranger</span>
         <span class="module-desc">Ranger file manager colorscheme</span>
         <span class="module-toggle">▸</span>
@@ -481,13 +381,23 @@ export QT_QPA_PLATFORMTHEME=qt5ct   <span class="cm"># or qt6ct</span></code></p
 
     <div class="module">
       <div class="module-header" onclick="toggle(this)">
-        <span class="module-name">yazi</span>
-        <span class="module-desc">Yazi file manager theme</span>
+        <span class="module-name">lf</span>
+        <span class="module-desc">lf file manager — truecolor file type colors</span>
         <span class="module-toggle">▸</span>
       </div>
       <div class="module-body">
-        <p>Writes <code>~/.config/yazi/theme.toml</code>.</p>
-        <p>Yazi picks up the theme automatically on next launch.</p>
+        <p>Writes <code>~/.config/lf/colors</code> using 24-bit truecolor ANSI codes so you get exact Base16 hex colors rather than 256-color approximations.</p>
+        <p><strong>One-time activation (add to <code>~/.config/lf/lfrc</code>):</strong></p>
+        <pre><code>set color true</code></pre>
+        <p>Color mappings:</p>
+        <ul>
+          <li>Directories — bold blue (base0D)</li>
+          <li>Symlinks — cyan (base0C), broken — bold red (base08)</li>
+          <li>Executables — bold green (base0B)</li>
+          <li>Archives — red (base08), images — cyan (base0C), video — magenta (base0E)</li>
+          <li>Audio — blue (base0D), documents — yellow (base0A)</li>
+          <li>Source code — green (base0B), config/markup — orange (base09)</li>
+        </ul>
       </div>
     </div>
 
@@ -523,31 +433,6 @@ export QT_QPA_PLATFORMTHEME=qt5ct   <span class="cm"># or qt6ct</span></code></p
         <p><strong>To activate in Vesktop:</strong> Settings → Themes → enable <strong>coat</strong></p>
         <p><strong>To activate in Vencord:</strong> Discord → Vencord settings → Themes → enable <strong>coat</strong></p>
         <p>Themes virtually all Discord UI surfaces via CSS custom properties mapped to Base16 colors.</p>
-      </div>
-    </div>
-
-    <div class="module">
-      <div class="module-header" onclick="toggle(this)">
-        <span class="module-name">conky</span>
-        <span class="module-desc">Conky system monitor</span>
-        <span class="module-toggle">▸</span>
-      </div>
-      <div class="module-body">
-        <p>Writes color variables to <code>~/.config/conky/coat-colors.conf</code>.</p>
-        <p><strong>Add to your <code>conky.conf</code>:</strong></p>
-        <pre><code>dofile(os.getenv("HOME") .. "/.config/conky/coat-colors.conf")</code></pre>
-      </div>
-    </div>
-
-    <div class="module">
-      <div class="module-header" onclick="toggle(this)">
-        <span class="module-name">mangowc</span>
-        <span class="module-desc">MangoHud / mangowc overlay</span>
-        <span class="module-toggle">▸</span>
-      </div>
-      <div class="module-body">
-        <p>Writes color settings to <code>~/.config/MangoHud/MangoHud.conf</code>.</p>
-        <p>Changes take effect the next time MangoHud is loaded.</p>
       </div>
     </div>
   </div>

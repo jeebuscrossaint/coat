@@ -1,7 +1,7 @@
 #include "lf.h"
 #include "tinted_parser.h"
+#include "coat_util.h"
 #include <stdio.h>
-#include <stdlib.h>
 #include <sys/stat.h>
 
 static void hex_to_rgb(const char *hex, int *r, int *g, int *b) {
@@ -22,7 +22,7 @@ int lf_apply_theme(const Base16Scheme *scheme, const FontConfig *font) {
     (void)font;
     if (!scheme) return -1;
 
-    const char *home = getenv("HOME");
+    const char *home = get_home();
     if (!home) return -1;
 
     char config_dir[1024];

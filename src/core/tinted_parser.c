@@ -3,8 +3,42 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stddef.h>
 #include <ctype.h>
 #include <yaml.h>
+
+/* Table-driven palette key → struct field mapping */
+static const struct {
+    const char *key;
+    size_t      off;
+    int         is24;
+} palette_map[] = {
+    {"base00", offsetof(Base16Scheme, base00), 0},
+    {"base01", offsetof(Base16Scheme, base01), 0},
+    {"base02", offsetof(Base16Scheme, base02), 0},
+    {"base03", offsetof(Base16Scheme, base03), 0},
+    {"base04", offsetof(Base16Scheme, base04), 0},
+    {"base05", offsetof(Base16Scheme, base05), 0},
+    {"base06", offsetof(Base16Scheme, base06), 0},
+    {"base07", offsetof(Base16Scheme, base07), 0},
+    {"base08", offsetof(Base16Scheme, base08), 0},
+    {"base09", offsetof(Base16Scheme, base09), 0},
+    {"base0A", offsetof(Base16Scheme, base0A), 0},
+    {"base0B", offsetof(Base16Scheme, base0B), 0},
+    {"base0C", offsetof(Base16Scheme, base0C), 0},
+    {"base0D", offsetof(Base16Scheme, base0D), 0},
+    {"base0E", offsetof(Base16Scheme, base0E), 0},
+    {"base0F", offsetof(Base16Scheme, base0F), 0},
+    {"base10", offsetof(Base16Scheme, base10), 1},
+    {"base11", offsetof(Base16Scheme, base11), 1},
+    {"base12", offsetof(Base16Scheme, base12), 1},
+    {"base13", offsetof(Base16Scheme, base13), 1},
+    {"base14", offsetof(Base16Scheme, base14), 1},
+    {"base15", offsetof(Base16Scheme, base15), 1},
+    {"base16", offsetof(Base16Scheme, base16), 1},
+    {"base17", offsetof(Base16Scheme, base17), 1},
+    {NULL, 0, 0}
+};
 
 // Helper function to slugify a string (convert to lowercase, replace spaces with dashes)
 static void slugify(const char *input, char *output, size_t output_size) {
@@ -120,63 +154,15 @@ int base16_scheme_load(Base16Scheme *scheme, const char *filepath) {
                     } else if (strcmp(current_key, "variant") == 0) {
                         strncpy(scheme->variant, value, sizeof(scheme->variant) - 1);
                     } else if (in_palette) {
-                        // Handle palette colors
-                        if (strcmp(current_key, "base00") == 0) {
-                            strncpy(scheme->base00, value, sizeof(scheme->base00) - 1);
-                        } else if (strcmp(current_key, "base01") == 0) {
-                            strncpy(scheme->base01, value, sizeof(scheme->base01) - 1);
-                        } else if (strcmp(current_key, "base02") == 0) {
-                            strncpy(scheme->base02, value, sizeof(scheme->base02) - 1);
-                        } else if (strcmp(current_key, "base03") == 0) {
-                            strncpy(scheme->base03, value, sizeof(scheme->base03) - 1);
-                        } else if (strcmp(current_key, "base04") == 0) {
-                            strncpy(scheme->base04, value, sizeof(scheme->base04) - 1);
-                        } else if (strcmp(current_key, "base05") == 0) {
-                            strncpy(scheme->base05, value, sizeof(scheme->base05) - 1);
-                        } else if (strcmp(current_key, "base06") == 0) {
-                            strncpy(scheme->base06, value, sizeof(scheme->base06) - 1);
-                        } else if (strcmp(current_key, "base07") == 0) {
-                            strncpy(scheme->base07, value, sizeof(scheme->base07) - 1);
-                        } else if (strcmp(current_key, "base08") == 0) {
-                            strncpy(scheme->base08, value, sizeof(scheme->base08) - 1);
-                        } else if (strcmp(current_key, "base09") == 0) {
-                            strncpy(scheme->base09, value, sizeof(scheme->base09) - 1);
-                        } else if (strcmp(current_key, "base0A") == 0) {
-                            strncpy(scheme->base0A, value, sizeof(scheme->base0A) - 1);
-                        } else if (strcmp(current_key, "base0B") == 0) {
-                            strncpy(scheme->base0B, value, sizeof(scheme->base0B) - 1);
-                        } else if (strcmp(current_key, "base0C") == 0) {
-                            strncpy(scheme->base0C, value, sizeof(scheme->base0C) - 1);
-                        } else if (strcmp(current_key, "base0D") == 0) {
-                            strncpy(scheme->base0D, value, sizeof(scheme->base0D) - 1);
-                        } else if (strcmp(current_key, "base0E") == 0) {
-                            strncpy(scheme->base0E, value, sizeof(scheme->base0E) - 1);
-                        } else if (strcmp(current_key, "base0F") == 0) {
-                            strncpy(scheme->base0F, value, sizeof(scheme->base0F) - 1);
-                        } else if (strcmp(current_key, "base10") == 0) {
-                            strncpy(scheme->base10, value, sizeof(scheme->base10) - 1);
-                            scheme->is_base24 = 1;
-                        } else if (strcmp(current_key, "base11") == 0) {
-                            strncpy(scheme->base11, value, sizeof(scheme->base11) - 1);
-                            scheme->is_base24 = 1;
-                        } else if (strcmp(current_key, "base12") == 0) {
-                            strncpy(scheme->base12, value, sizeof(scheme->base12) - 1);
-                            scheme->is_base24 = 1;
-                        } else if (strcmp(current_key, "base13") == 0) {
-                            strncpy(scheme->base13, value, sizeof(scheme->base13) - 1);
-                            scheme->is_base24 = 1;
-                        } else if (strcmp(current_key, "base14") == 0) {
-                            strncpy(scheme->base14, value, sizeof(scheme->base14) - 1);
-                            scheme->is_base24 = 1;
-                        } else if (strcmp(current_key, "base15") == 0) {
-                            strncpy(scheme->base15, value, sizeof(scheme->base15) - 1);
-                            scheme->is_base24 = 1;
-                        } else if (strcmp(current_key, "base16") == 0) {
-                            strncpy(scheme->base16, value, sizeof(scheme->base16) - 1);
-                            scheme->is_base24 = 1;
-                        } else if (strcmp(current_key, "base17") == 0) {
-                            strncpy(scheme->base17, value, sizeof(scheme->base17) - 1);
-                            scheme->is_base24 = 1;
+                        // Table-driven palette color assignment
+                        for (int pi = 0; palette_map[pi].key; pi++) {
+                            if (strcmp(current_key, palette_map[pi].key) == 0) {
+                                char *dst = (char *)scheme + palette_map[pi].off;
+                                strncpy(dst, value, MAX_COLOR_VALUE - 1);
+                                dst[MAX_COLOR_VALUE - 1] = '\0';
+                                if (palette_map[pi].is24) scheme->is_base24 = 1;
+                                break;
+                            }
                         }
                     }
                     current_key[0] = '\0';

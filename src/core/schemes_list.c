@@ -82,26 +82,15 @@ void schemes_show_preview(const Base16Scheme *scheme) {
     }
 }
 
-// Case-insensitive substring search
+// Case-insensitive substring search (no heap allocation)
 static int contains_ignore_case(const char *haystack, const char *needle) {
     if (!needle || !needle[0]) return 1;
-    
-    char *hay_lower = strdup(haystack);
-    char *needle_lower = strdup(needle);
-    
-    for (int i = 0; hay_lower[i]; i++) {
-        hay_lower[i] = tolower(hay_lower[i]);
+    if (!haystack) return 0;
+    size_t nlen = strlen(needle);
+    for (; *haystack; haystack++) {
+        if (strncasecmp(haystack, needle, nlen) == 0) return 1;
     }
-    for (int i = 0; needle_lower[i]; i++) {
-        needle_lower[i] = tolower(needle_lower[i]);
-    }
-    
-    int result = strstr(hay_lower, needle_lower) != NULL;
-    
-    free(hay_lower);
-    free(needle_lower);
-    
-    return result;
+    return 0;
 }
 
 // Comparison function for qsort
