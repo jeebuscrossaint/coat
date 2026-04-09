@@ -12,7 +12,6 @@
 #include "wallpaper.h"
 
 // Application modules
-#include "conky.h"
 #include "bat.h"
 #include "btop.h"
 #include "dunst.h"
@@ -21,24 +20,19 @@
 #include "fuzzel.h"
 #include "gtk.h"
 #include "helix.h"
-#include "hyprland.h"
 #include "i3.h"
 #include "kitty.h"
 #include "labwc.h"
-#include "mako.h"
-#include "mangowc.h"
-#include "niri.h"
+#include "lf.h"
 #include "qt.h"
 #include "ranger.h"
 #include "rofi.h"
 #include "sway.h"
 #include "swaylock.h"
-#include "tty.h"
 #include "vesktop.h"
 #include "vscode.h"
 #include "waybar.h"
 #include "xresources.h"
-#include "yazi.h"
 #include "zathura.h"
 
 // Application module definition
@@ -72,34 +66,28 @@ static int apply_font_opacity(Base16Scheme *s, FontConfig *f, OpacityConfig *o, 
 
 // Application modules table
 static const AppModule app_modules[] = {
-    {"conky", {NULL}, (void*)conky_apply_theme, 1, 0},
-    {"bat", {NULL}, (void*)bat_apply_theme, 0, 0},
-    {"btop", {NULL}, (void*)btop_apply_theme, 0, 0},
-    {"dunst", {NULL}, (void*)dunst_apply_theme, 1, 0},
-    {"fish", {NULL}, (void*)fish_apply_theme, 0, 0},
-    {"foot", {NULL}, (void*)foot_apply_theme, 1, 1},
-    {"fuzzel", {NULL}, (void*)fuzzel_apply_theme, 1, 0},
-    {"gtk", {NULL}, (void*)gtk_apply_theme, 1, 0},
-    {"helix", {NULL}, (void*)helix_apply_theme, 0, 0},
-    {"hyprland", {"hypr", NULL}, (void*)hyprland_apply_theme, 1, 0},
-    {"i3", {NULL}, (void*)i3_apply_theme, 1, 0},
-    {"kitty", {NULL}, (void*)kitty_apply_theme, 1, 1},
-    {"labwc", {NULL}, (void*)labwc_apply_theme, 1, 0},
-    {"mako", {NULL}, (void*)mako_apply_theme, 1, 0},
-    {"mangowc", {NULL}, (void*)mangowc_apply_theme, 1, 0},
-    {"niri", {NULL}, (void*)niri_apply_theme, 1, 0},
-    {"qt", {NULL}, (void*)qt_apply_theme, 1, 0},
-    {"ranger", {NULL}, (void*)ranger_apply_theme, 1, 0},
-    {"rofi", {NULL}, (void*)rofi_apply_theme, 1, 0},
-    {"sway", {NULL}, (void*)sway_apply_theme, 1, 0},
-    {"swaylock", {NULL}, (void*)swaylock_apply_theme, 0, 1},
-    {"tty", {"console", NULL}, (void*)tty_apply_theme, 0, 0},
-    {"vesktop", {"vencord", "discord", NULL}, (void*)vesktop_apply_theme, 1, 0},
-    {"vscode", {NULL}, (void*)vscode_apply_theme, 1, 0},
-    {"waybar", {NULL}, (void*)waybar_apply_theme, 1, 0},
-    {"xresources", {NULL}, (void*)xresources_apply_theme, 1, 0},
-    {"yazi", {NULL}, (void*)yazi_apply_theme, 0, 0},
-    {"zathura", {NULL}, (void*)zathura_apply_theme, 1, 0},
+    {"bat",       {NULL},                     (void*)bat_apply_theme,      0, 0},
+    {"btop",      {NULL},                     (void*)btop_apply_theme,     0, 0},
+    {"dunst",     {NULL},                     (void*)dunst_apply_theme,    1, 0},
+    {"fish",      {NULL},                     (void*)fish_apply_theme,     0, 0},
+    {"foot",      {NULL},                     (void*)foot_apply_theme,     1, 1},
+    {"fuzzel",    {NULL},                     (void*)fuzzel_apply_theme,   1, 0},
+    {"gtk",       {NULL},                     (void*)gtk_apply_theme,      1, 0},
+    {"helix",     {NULL},                     (void*)helix_apply_theme,    0, 0},
+    {"i3",        {NULL},                     (void*)i3_apply_theme,       1, 0},
+    {"kitty",     {NULL},                     (void*)kitty_apply_theme,    1, 1},
+    {"labwc",     {NULL},                     (void*)labwc_apply_theme,    1, 0},
+    {"lf",        {NULL},                     (void*)lf_apply_theme,       1, 0},
+    {"qt",        {NULL},                     (void*)qt_apply_theme,       1, 0},
+    {"ranger",    {NULL},                     (void*)ranger_apply_theme,   1, 0},
+    {"rofi",      {NULL},                     (void*)rofi_apply_theme,     1, 0},
+    {"sway",      {NULL},                     (void*)sway_apply_theme,     1, 0},
+    {"swaylock",  {NULL},                     (void*)swaylock_apply_theme, 0, 1},
+    {"vesktop",   {"vencord", "discord", NULL},(void*)vesktop_apply_theme,  1, 0},
+    {"vscode",    {NULL},                     (void*)vscode_apply_theme,   1, 0},
+    {"waybar",    {NULL},                     (void*)waybar_apply_theme,   1, 0},
+    {"xresources",{NULL},                     (void*)xresources_apply_theme,1, 0},
+    {"zathura",   {NULL},                     (void*)zathura_apply_theme,  1, 0},
 };
 
 static const int num_app_modules = sizeof(app_modules) / sizeof(app_modules[0]);
@@ -264,12 +252,11 @@ int main(int argc, char *argv[]) {
                 printf("IMPORTANT: Remove any 'bar { }' blocks!\n");
                 printf("The coat-theme includes a complete bar configuration.\n\n");
                 printf("Then reload: swaymsg reload\n");
-            } else if (strcmp(mod->name, "hyprland") == 0) {
-                printf("Add to ~/.config/hypr/hyprland.conf:\n\n");
-                printf("  source = ~/.config/hypr/coat-theme.conf\n\n");
-                printf("Then reload: hyprctl reload\n\n");
-                printf("The theme provides color variables $base00-$base0F.\n");
-                printf("Use them anywhere in your config for borders, shadows, etc.\n");
+            } else if (strcmp(mod->name, "lf") == 0) {
+                printf("Ensure lf has color support enabled.\n");
+                printf("Add to ~/.config/lf/lfrc:\n\n");
+                printf("  set color true\n\n");
+                printf("lf picks up ~/.config/lf/colors automatically on next launch.\n");
             } else if (strcmp(mod->name, "vscode") == 0) {
                 printf("The theme is automatically activated.\n\n");
                 printf("If it doesn't appear, reload VSCode:\n");
@@ -295,8 +282,6 @@ int main(int argc, char *argv[]) {
                 printf("4. Select 'coat'\n\n");
                 printf("Or set in ~/.config/btop/btop.conf:\n");
                 printf("  color_theme = \"coat\"\n");
-            } else if (strcmp(mod->name, "yazi") == 0) {
-                printf("Restart yazi to see the changes.\n");
             } else if (strcmp(mod->name, "zathura") == 0) {
                 printf("Restart zathura or open a new PDF to see the changes.\n");
             } else if (strcmp(mod->name, "vesktop") == 0) {
@@ -308,13 +293,6 @@ int main(int argc, char *argv[]) {
                 printf("  @import \"coat-theme.css\";\n\n");
                 printf("Or replace your entire style.css with coat-theme.css.\n\n");
                 printf("Then reload: pkill -SIGUSR2 waybar\n");
-            } else if (strcmp(mod->name, "tty") == 0) {
-                printf("To make permanent, choose one:\n\n");
-                printf("1. Add to ~/.bashrc or ~/.zshrc:\n");
-                printf("   ~/.config/coat/tty-theme.sh\n\n");
-                printf("2. Copy to /etc/profile.d/ (requires root):\n");
-                printf("   sudo cp ~/.config/coat/tty-theme.sh /etc/profile.d/\n\n");
-                printf("3. Create systemd service (see USAGE.md)\n");
             } else if (strcmp(mod->name, "xresources") == 0) {
                 printf("Theme is automatically merged.\n\n");
                 printf("To make permanent, add to ~/.xinitrc or ~/.xprofile:\n");

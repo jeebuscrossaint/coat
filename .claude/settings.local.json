@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc -l \"/c/Users/amarnath/Programming/coat\"/src/modules/*.c)",
+      "Bash(wc -l \"/c/Users/amarnath/Programming/coat\"/include/*.h \"/c/Users/amarnath/Programming/coat\"/src/core/*.c \"/c/Users/amarnath/Programming/coat\"/src/modules/*.c)",
+      "Bash(rm src/modules/hyprland.c src/modules/tty.c src/modules/niri.c src/modules/mako.c src/modules/yazi.c src/modules/conky.c src/modules/mangowc.c)",
+      "Bash(rm include/hyprland.h include/tty.h include/niri.h include/mako.h include/yazi.h include/conky.h include/mangowc.h)",
+      "Bash(make clean:*)",
+      "Bash(make)",
+      "Bash(where gcc:*)",
+      "Bash(where clang:*)",
+      "Bash(where cc:*)"
+    ]
+  }
+}
