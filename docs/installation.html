@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Installation — coat</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <a href="index.html">coat</a>
+    <span>color scheme configurator</span>
+  </div>
+  <nav>
+    <ul>
+      <li class="nav-section">Getting started</li>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="installation.html" class="active">Installation</a></li>
+      <li><a href="configuration.html">Configuration</a></li>
+      <li class="nav-section">Reference</li>
+      <li><a href="commands.html">Commands</a></li>
+      <li><a href="modules.html">Modules</a></li>
+      <li><a href="wallpaper.html">Wallpaper &amp; Material You</a></li>
+    </ul>
+  </nav>
+  <div class="sidebar-footer">
+    <button class="theme-btn" onclick="openThemePicker()">
+      <svg class="theme-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/>
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+      </svg>
+      themes
+    </button>
+    <a href="https://github.com/jeebuscrossaint/coat" target="_blank" rel="noopener">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.342-3.369-1.342-.454-1.155-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836a9.59 9.59 0 012.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
+      </svg>
+      GitHub
+    </a>
+  </div>
+</aside>
+
+<main class="content">
+  <h1>Installation</h1>
+  <p class="page-subtitle">Build coat from source and set up the scheme library.</p>
+
+  <h2>Dependencies</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Library</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><code>libyaml</code></td><td>Parsing <code>coat.yaml</code> and scheme files</td></tr>
+        <tr><td><code>libjson-c</code></td><td>JSON generation for some modules (VSCode, chromium)</td></tr>
+        <tr><td><code>libm</code></td><td>Color math — HCT conversions, Material You</td></tr>
+        <tr><td><code>stb_image.h</code></td><td>Wallpaper image loading — <strong>bundled, no install needed</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Arch Linux</h3>
+  <pre><code>sudo pacman -S libyaml json-c</code></pre>
+
+  <h3>Debian / Ubuntu</h3>
+  <pre><code>sudo apt install libyaml-dev libjson-c-dev</code></pre>
+
+  <h3>Fedora</h3>
+  <pre><code>sudo dnf install libyaml-devel json-c-devel</code></pre>
+
+  <h2>Building</h2>
+  <pre><code>git clone https://github.com/jeebuscrossaint/coat.git
+cd coat
+make</code></pre>
+
+  <p>
+    The Makefile auto-detects your C compiler (<code>cc</code>, then <code>gcc</code>, then <code>clang</code>).
+    Object files go into <code>build/core/</code> and <code>build/modules/</code>.
+    Compile flags: <code>-Wall -Wextra -std=c11 -O2</code>.
+  </p>
+
+  <h2>Installing</h2>
+  <pre><code><span class="cm"># Install to /usr/local/bin/coat</span>
+sudo make install
+
+<span class="cm"># Remove</span>
+sudo make uninstall</code></pre>
+
+  <h2>First-time setup</h2>
+  <p>
+    After installing, clone the tinted-theming scheme library. This downloads ~700
+    Base16/Base24 YAML schemes to <code>~/.config/coat/schemes/</code>.
+  </p>
+  <pre><code>coat clone</code></pre>
+
+  <p>To update the scheme library later:</p>
+  <pre><code>coat update</code></pre>
+
+  <p>Then create your config:</p>
+  <pre><code>mkdir -p ~/.config/coat
+$EDITOR ~/.config/coat/coat.yaml</code></pre>
+
+  <p>See <a href="configuration.html">Configuration</a> for the full reference, or
+  <a href="commands.html">Commands</a> to start browsing schemes.</p>
+
+  <h2>Runtime dependencies (per module)</h2>
+  <p>
+    These are only needed if you enable the corresponding module. coat will skip modules
+    whose target application doesn't appear to be installed.
+  </p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Module</th><th>Requires</th></tr></thead>
+      <tbody>
+        <tr><td><code>wallpaper</code> extraction</td><td><code>swww</code> running as a daemon</td></tr>
+        <tr><td><code>mako</code></td><td><code>makoctl</code> for live reload</td></tr>
+        <tr><td><code>dunst</code></td><td><code>dunst</code> process (killed &amp; restarted)</td></tr>
+        <tr><td><code>i3</code></td><td><code>i3-msg</code> for live reload</td></tr>
+        <tr><td><code>labwc</code></td><td><code>labwc --reconfigure</code></td></tr>
+        <tr><td><code>xresources</code></td><td><code>xrdb</code> for merging (X11 only)</td></tr>
+        <tr><td><code>qt</code></td><td><code>qt5ct</code> and/or <code>qt6ct</code></td></tr>
+        <tr><td><code>vesktop</code></td><td>Vesktop or Vencord installation</td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<script src="themes.js"></script>
+</body>
+</html>

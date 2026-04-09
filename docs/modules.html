@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modules — coat</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <a href="index.html">coat</a>
+    <span>color scheme configurator</span>
+  </div>
+  <nav>
+    <ul>
+      <li class="nav-section">Getting started</li>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="installation.html">Installation</a></li>
+      <li><a href="configuration.html">Configuration</a></li>
+      <li class="nav-section">Reference</li>
+      <li><a href="commands.html">Commands</a></li>
+      <li><a href="modules.html" class="active">Modules</a></li>
+      <li><a href="wallpaper.html">Wallpaper &amp; Material You</a></li>
+    </ul>
+  </nav>
+  <div class="sidebar-footer">
+    <button class="theme-btn" onclick="openThemePicker()">
+      <svg class="theme-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/>
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+      </svg>
+      themes
+    </button>
+    <a href="https://github.com/jeebuscrossaint/coat" target="_blank" rel="noopener">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.342-3.369-1.342-.454-1.155-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836a9.59 9.59 0 012.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
+      </svg>
+      GitHub
+    </a>
+  </div>
+</aside>
+
+<main class="content">
+  <h1>Modules</h1>
+  <p class="page-subtitle">
+    Activation steps for all 28 supported applications. Click any module to expand it.
+  </p>
+
+  <!-- ── Terminals ── -->
+  <div class="module-group">
+    <h3>Terminals</h3>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">fish</span>
+        <span class="module-desc">Fish shell — syntax highlighting &amp; pager colors</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes <code>~/.config/fish/themes/coat.theme</code>.</p>
+        <p><strong>One-time activation:</strong></p>
+        <pre><code>fish_config theme save coat</code></pre>
+        <p><strong>Permanent (add to <code>~/.config/fish/config.fish</code>):</strong></p>
+        <pre><code>fish_config theme choose coat</code></pre>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">foot</span>
+        <span class="module-desc">Foot terminal — colors, font, opacity</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes <code>~/.config/foot/coat-theme.ini</code>.</p>
+        <p><strong>Permanent activation (add to <code>~/.config/foot/foot.ini</code>):</strong></p>
+        <pre><code>[main]
+include=~/.config/foot/coat-theme.ini</code></pre>
+        <p>Restart foot or open a new window to pick up changes.</p>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">kitty</span>
+        <span class="module-desc">Kitty terminal — colors &amp; theme</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes <code>~/.config/kitty/coat-theme.conf</code>.</p>
+        <p><strong>Permanent activation (add to <code>~/.config/kitty/kitty.conf</code>):</strong></p>
+        <pre><code>include coat-theme.conf</code></pre>
+        <p>Reload with <kbd>Ctrl+Shift+F5</kbd> or restart kitty.</p>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">tty</span>
+        <span class="module-desc">Linux TTY — console colors via escape sequences</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes a shell script to <code>~/.config/coat/tty-colors.sh</code> that sets the 16 terminal palette using escape sequences.</p>
+        <p><strong>Activation (add to <code>~/.profile</code> or <code>~/.bashrc</code>):</strong></p>
+        <pre><code>[ -f ~/.config/coat/tty-colors.sh ] &amp;&amp; source ~/.config/coat/tty-colors.sh</code></pre>
+        <p>Only takes effect on a real TTY; has no effect inside terminal emulators.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Editors ── -->
+  <div class="module-group">
+    <h3>Editors</h3>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">helix</span>
+        <span class="module-desc">Helix editor — full syntax theme</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes <code>~/.config/helix/themes/coat.toml</code>.</p>
+        <p><strong>Permanent activation (add to <code>~/.config/helix/config.toml</code>):</strong></p>
+        <pre><code>[editor]
+theme = "coat"</code></pre>
+        <p>Reload with <code>:config-reload</code> or restart helix.</p>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">vscode</span>
+        <span class="module-desc">Visual Studio Code — color theme extension</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes a complete VS Code theme extension to <code>~/.vscode/extensions/coat-theme/</code>.</p>
+        <p><strong>Activation:</strong></p>
+        <ol>
+          <li>Open VS Code → <strong>Ctrl+Shift+P</strong> → <em>Color Theme</em></li>
+          <li>Select <strong>Coat</strong></li>
+        </ol>
+        <p>Re-run <code>coat apply vscode</code> and select again after changing schemes.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Window managers ── -->
+  <div class="module-group">
+    <h3>Window Managers &amp; Compositors</h3>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">hyprland</span>
+        <span class="module-desc">Hyprland — Base16 color variables</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes <code>~/.config/hypr/coat-theme.conf</code> with <code>$base00</code>–<code>$base0F</code> variables.</p>
+        <p><strong>Permanent activation (add to <code>~/.config/hypr/hyprland.conf</code>):</strong></p>
+        <pre><code>source = ~/.config/hypr/coat-theme.conf</code></pre>
+        <p>Then use the variables anywhere in your config:</p>
+        <pre><code>general {
+    col.active_border = $base0D $base0C 45deg
+    col.inactive_border = $base01
+}</code></pre>
+        <p>Reload with <code>hyprctl reload</code>.</p>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">i3</span>
+        <span class="module-desc">i3 window manager — window &amp; bar colors</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes <code>~/.config/i3/coat-theme.conf</code>. <code>i3-msg reload</code> is run automatically.</p>
+        <p><strong>Permanent activation (add to <code>~/.config/i3/config</code>):</strong></p>
+        <pre><code>include coat-theme.conf</code></pre>
+        <p>Or reload manually with <kbd>$mod+Shift+R</kbd>.</p>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">sway</span>
+        <span class="module-desc">Sway — window borders, client colors, swaybar</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes two files:</p>
+        <ul>
+          <li><code>~/.config/sway/coat-theme</code> — window client colors</li>
+          <li><code>~/.config/sway/coat-swaybar-theme</code> — complete <code>bar { }</code> block</li>
+        </ul>
+        <p><strong>Permanent activation (add to <code>~/.config/sway/config</code>):</strong></p>
+        <pre><code>include ~/.config/sway/coat-theme
+include ~/.config/sway/coat-swaybar-theme</code></pre>
+        <div class="warn">The swaybar file is a complete <code>bar { }</code> block. Either remove your existing bar block or manually extract only the <code>colors { }</code> section.</div>
+        <p>Reload: <code>swaymsg reload</code></p>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">niri</span>
+        <span class="module-desc">Niri compositor — focus ring, borders, tab indicator</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes <code>~/.config/niri/coat-theme.kdl</code>.</p>
+        <p><strong>Permanent activation (add to <code>~/.config/niri/config.kdl</code>):</strong></p>
+        <pre><code>include "coat-theme.kdl"</code></pre>
+        <p>Niri reloads automatically when you save the config.</p>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">labwc</span>
+        <span class="module-desc">Labwc — window borders, titlebar, menu</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes <code>~/.config/labwc/themerc</code> and runs <code>labwc --reconfigure</code> automatically. No manual activation needed.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Bars / Locker ── -->
+  <div class="module-group">
+    <h3>Bars &amp; Screen Locker</h3>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">waybar</span>
+        <span class="module-desc">Waybar — CSS theme with module-specific styling</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes <code>~/.config/waybar/coat-theme.css</code> with <code>@define-color</code> variables for all 16 Base16 colors, plus styles for workspaces, clock, battery, network, audio, CPU/memory, tray, MPD, and more.</p>
+        <p><strong>Permanent activation (add to <code>~/.config/waybar/style.css</code>):</strong></p>
+        <pre><code>@import "coat-theme.css";</code></pre>
+        <p>Reload: <code>killall -SIGUSR2 waybar</code></p>
+        <p>The CSS variables (<code>@base00</code>–<code>@base0F</code>) are available for use in your own <code>style.css</code>.</p>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">swaylock</span>
+        <span class="module-desc">Swaylock — full lock screen config</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes <code>~/.config/swaylock/config</code> directly. No include needed — the theme takes effect the next time you run <code>swaylock</code>.</p>
+        <ul>
+          <li>Ring, inside, text, line colors per state (idle, cleared, verifying, wrong, caps-lock)</li>
+          <li>Key highlight and backspace highlight colors</li>
+          <li>Separator and layout indicator colors</li>
+          <li>Opacity from <code>opacity.popups</code></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Launchers ── -->
+  <div class="module-group">
+    <h3>Launchers</h3>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">fuzzel</span>
+        <span class="module-desc">Fuzzel — full config including layout settings</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes the <strong>entire</strong> <code>~/.config/fuzzel/fuzzel.ini</code>. No include needed — just launch fuzzel and it will use the new config.</p>
+        <div class="warn">coat overwrites <code>fuzzel.ini</code> completely. Any manual edits to that file will be lost on the next <code>coat apply</code>.</div>
+        <p>Uses <code>font.sizes.popups</code> for font size.</p>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">rofi</span>
+        <span class="module-desc">Rofi — application launcher theme</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes <code>~/.config/rofi/coat.rasi</code>.</p>
+        <p><strong>Permanent activation (add to <code>~/.config/rofi/config.rasi</code>):</strong></p>
+        <pre><code>@import "coat.rasi"</code></pre>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">bemenu</span>
+        <span class="module-desc">Bemenu — dynamic menu theme via env vars</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes a shell script to <code>~/.config/coat/bemenu-theme.sh</code>.</p>
+        <p><strong>Activation (add to your shell config):</strong></p>
+        <pre><code>source ~/.config/coat/bemenu-theme.sh</code></pre>
+        <p>Or source it in your bemenu launcher script directly.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Notifications ── -->
+  <div class="module-group">
+    <h3>Notifications</h3>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">dunst</span>
+        <span class="module-desc">Dunst notification daemon</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes <code>~/.config/dunst/dunstrc</code> and restarts dunst automatically.</p>
+        <p>If dunst doesn't restart:</p>
+        <pre><code>killall dunst &amp;&amp; dunst &amp;</code></pre>
+        <ul>
+          <li>Background, foreground for all urgency levels</li>
+          <li>Frame color: low=cyan, normal=blue, critical=red</li>
+          <li>Progress bar styling, font from <code>coat.yaml</code></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">mako</span>
+        <span class="module-desc">Mako notification daemon</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes the <strong>entire</strong> <code>~/.config/mako/config</code> and runs <code>makoctl reload</code> automatically.</p>
+        <p>If mako doesn't reload: <code>makoctl reload</code></p>
+        <ul>
+          <li>Background, text, border, progress bar colors</li>
+          <li>Urgency-level overrides (low/normal/high)</li>
+          <li>Font from <code>coat.yaml</code>, layout defaults (margin, padding, border-radius)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">avizo</span>
+        <span class="module-desc">Avizo overlay notifications</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes <code>~/.config/avizo/config.ini</code>.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── System theming ── -->
+  <div class="module-group">
+    <h3>System Theming</h3>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">gtk</span>
+        <span class="module-desc">GTK 3.0 &amp; 4.0 — all GTK applications</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes to <code>~/.config/gtk-3.0/gtk.css</code> and <code>~/.config/gtk-4.0/gtk.css</code>. Uses Libadwaita-compatible color definitions.</p>
+        <p>Restart GTK applications to apply. Some apps (especially GNOME) may need a full logout/login.</p>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">qt</span>
+        <span class="module-desc">Qt5 / Qt6 via qt5ct / qt6ct</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes color schemes to:</p>
+        <ul>
+          <li><code>~/.config/qt5ct/colors/coat.conf</code></li>
+          <li><code>~/.config/qt6ct/colors/coat.conf</code></li>
+        </ul>
+        <p>Also updates the main qt5ct/qt6ct config to select the coat palette.</p>
+        <p><strong>Requirements:</strong> <code>qt5ct</code> and/or <code>qt6ct</code> must be installed.</p>
+        <pre><code><span class="cm"># Add to ~/.profile or shell config</span>
+export QT_QPA_PLATFORMTHEME=qt5ct   <span class="cm"># or qt6ct</span></code></pre>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">xresources</span>
+        <span class="module-desc">X11 Xresources — URxvt, XTerm, generic X11</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes <code>~/.Xresources</code> and runs <code>xrdb -merge ~/.Xresources</code> automatically.</p>
+        <div class="warn">This overwrites <code>~/.Xresources</code>. Back up any custom settings first.</div>
+        <ul>
+          <li><code>#define</code> macros for all 16 Base16 colors</li>
+          <li>URxvt color0–color15, background, foreground, cursor</li>
+          <li>XTerm color settings</li>
+          <li>Generic <code>*.color*</code> X11 resources</li>
+          <li>Font settings from <code>coat.yaml</code></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Utilities ── -->
+  <div class="module-group">
+    <h3>Utilities &amp; Viewers</h3>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">bat</span>
+        <span class="module-desc">bat syntax highlighter</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes a theme to <code>~/.config/bat/themes/coat.tmTheme</code>.</p>
+        <pre><code>bat cache --build   <span class="cm"># rebuild bat's theme cache</span></code></pre>
+        <pre><code><span class="cm"># Add to ~/.config/bat/config</span>
+--theme="coat"</code></pre>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">btop</span>
+        <span class="module-desc">btop++ system monitor</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes <code>~/.config/btop/themes/coat.theme</code>.</p>
+        <p>In btop: press <kbd>Esc</kbd> → <em>Options</em> → <em>Color theme</em> → <strong>coat</strong>.</p>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">cava</span>
+        <span class="module-desc">CAVA audio visualizer</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes color settings to <code>~/.config/cava/config</code>.</p>
+        <p>Restart cava to apply. Or send <code>SIGUSR1</code>: <code>pkill -USR1 cava</code>.</p>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">ranger</span>
+        <span class="module-desc">Ranger file manager colorscheme</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes a Python colorscheme to <code>~/.config/ranger/colorschemes/coat.py</code>.</p>
+        <p><strong>One-time activation (add to <code>~/.config/ranger/rc.conf</code>):</strong></p>
+        <pre><code>set colorscheme coat</code></pre>
+        <ul>
+          <li>Directories, executables, symlinks, sockets, FIFOs, media files</li>
+          <li>VCS (git) status colors</li>
+          <li>Selected, marked, tagged, cut/copied item highlighting</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">yazi</span>
+        <span class="module-desc">Yazi file manager theme</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes <code>~/.config/yazi/theme.toml</code>.</p>
+        <p>Yazi picks up the theme automatically on next launch.</p>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">zathura</span>
+        <span class="module-desc">Zathura document viewer</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes color settings to <code>~/.config/zathura/zathurarc</code>.</p>
+        <p>Restart zathura to apply.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Other ── -->
+  <div class="module-group">
+    <h3>Other</h3>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">vesktop</span>
+        <span class="module-desc">Vesktop / Vencord — Discord CSS theme</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes a CSS theme to whichever of these directories exists:</p>
+        <ul>
+          <li><code>~/.config/vesktop/themes/coat.theme.css</code></li>
+          <li><code>~/.config/Vencord/themes/coat.theme.css</code></li>
+        </ul>
+        <p><strong>To activate in Vesktop:</strong> Settings → Themes → enable <strong>coat</strong></p>
+        <p><strong>To activate in Vencord:</strong> Discord → Vencord settings → Themes → enable <strong>coat</strong></p>
+        <p>Themes virtually all Discord UI surfaces via CSS custom properties mapped to Base16 colors.</p>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">conky</span>
+        <span class="module-desc">Conky system monitor</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes color variables to <code>~/.config/conky/coat-colors.conf</code>.</p>
+        <p><strong>Add to your <code>conky.conf</code>:</strong></p>
+        <pre><code>dofile(os.getenv("HOME") .. "/.config/conky/coat-colors.conf")</code></pre>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">mangowc</span>
+        <span class="module-desc">MangoHud / mangowc overlay</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes color settings to <code>~/.config/MangoHud/MangoHud.conf</code>.</p>
+        <p>Changes take effect the next time MangoHud is loaded.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Adding new modules ── -->
+  <hr>
+  <h2>Adding a new module</h2>
+  <ol>
+    <li>Create <code>src/modules/myapp.c</code> and <code>include/myapp.h</code></li>
+    <li>Implement <code>myapp_apply_theme(const Base16Scheme*, const FontConfig*, const OpacityConfig*)</code></li>
+    <li>Add an entry to the <code>app_modules[]</code> table in <code>src/core/main.c</code></li>
+    <li>Add <code>src/modules/myapp.c</code> to <code>APP_SRCS</code> in the <code>Makefile</code></li>
+    <li>Rebuild: <code>make clean &amp;&amp; make</code></li>
+  </ol>
+</main>
+
+<script src="themes.js"></script>
+<script>
+function toggle(header) {
+  const body = header.nextElementSibling;
+  const arrow = header.querySelector('.module-toggle');
+  const open = body.classList.toggle('open');
+  arrow.textContent = open ? '▾' : '▸';
+}
+</script>
+</body>
+</html>

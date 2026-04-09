@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wallpaper &amp; Material You — coat</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <a href="index.html">coat</a>
+    <span>color scheme configurator</span>
+  </div>
+  <nav>
+    <ul>
+      <li class="nav-section">Getting started</li>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="installation.html">Installation</a></li>
+      <li><a href="configuration.html">Configuration</a></li>
+      <li class="nav-section">Reference</li>
+      <li><a href="commands.html">Commands</a></li>
+      <li><a href="modules.html">Modules</a></li>
+      <li><a href="wallpaper.html" class="active">Wallpaper &amp; Material You</a></li>
+    </ul>
+  </nav>
+  <div class="sidebar-footer">
+    <button class="theme-btn" onclick="openThemePicker()">
+      <svg class="theme-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/>
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+      </svg>
+      themes
+    </button>
+    <a href="https://github.com/jeebuscrossaint/coat" target="_blank" rel="noopener">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.342-3.369-1.342-.454-1.155-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836a9.59 9.59 0 012.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
+      </svg>
+      GitHub
+    </a>
+  </div>
+</aside>
+
+<main class="content">
+  <h1>Wallpaper &amp; Material You</h1>
+  <p class="page-subtitle">
+    Automatically generate a color palette from your wallpaper, optionally enhanced
+    with Material You color science.
+  </p>
+
+  <h2>Wallpaper extraction</h2>
+
+  <h3>Requirements</h3>
+  <ul>
+    <li><a href="https://github.com/LGFae/swww" target="_blank" rel="noopener">swww</a> must be running (<code>swww-daemon</code>)</li>
+    <li>Wallpaper must be PNG, JPG, or WebP</li>
+  </ul>
+
+  <h3>Usage</h3>
+  <pre><code><span class="cm"># One-time: extract and apply without changing coat.yaml</span>
+coat wallpaper
+coat wallpaper --no-material-you
+
+<span class="cm"># Permanent: extract on every coat apply</span>
+<span class="cm"># In coat.yaml:</span>
+<span class="kw">scheme</span>: wallpaper
+<span class="kw">material_you</span>: <span class="nm">true</span></code></pre>
+
+  <h3>How it works</h3>
+  <ol>
+    <li><strong>Query wallpaper</strong> — runs <code>swww query</code> to get the current image path</li>
+    <li><strong>Load image</strong> — reads the file with stb_image (no external dep)</li>
+    <li><strong>Quantization</strong> — Wu's Celebi algorithm (a fast k-means variant) finds the 16 most representative colors in the image</li>
+    <li><strong>Scoring</strong> — each candidate is evaluated in HCT color space:
+      <ul>
+        <li>Chroma ≥ 48 required for accent slots (discards grays)</li>
+        <li>Tone range 30–90 preferred (avoids near-black and near-white)</li>
+        <li>Colors weighted by pixel frequency</li>
+      </ul>
+    </li>
+    <li><strong>Palette assignment</strong>
+      <ul>
+        <li><code>base00–base07</code> (neutrals): darkest to lightest extracted colors</li>
+        <li><code>base08–base0F</code> (accents): most vibrant colors, spread across hues</li>
+      </ul>
+    </li>
+    <li><strong>Material You</strong> — optionally applied (see below)</li>
+    <li><strong>Apply</strong> — all enabled modules are themed with the palette</li>
+  </ol>
+
+  <div class="tip">
+    <strong>Tip:</strong> Run <code>coat wallpaper</code> whenever you change your wallpaper.
+    Or wire it into your wallpaper changer script so theming updates automatically.
+  </div>
+
+  <hr>
+
+  <h2>Material You</h2>
+  <p>
+    Material You is Google's color system from Android 12+, built on the HCT
+    (Hue-Chroma-Tone) color space. coat implements the core transformation to make
+    any palette — from a named scheme or from wallpaper extraction — more vibrant
+    and cohesive.
+  </p>
+
+  <h3>HCT color space</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Axis</th><th>Range</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><strong>H</strong> (Hue)</td><td>0–360°</td><td>Position on the color wheel</td></tr>
+        <tr><td><strong>C</strong> (Chroma)</td><td>0–150</td><td>Colorfulness / saturation</td></tr>
+        <tr><td><strong>T</strong> (Tone)</td><td>0–100</td><td>Perceptual lightness (0 = black, 100 = white)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    HCT is perceptually uniform — equal numeric changes produce equal perceived differences
+    regardless of hue. This is why Material You produces more natural-looking palettes than
+    simple HSL or RGB manipulation.
+  </p>
+
+  <h3>What the transformation does</h3>
+  <p><strong>Accent colors (base08–base0F):</strong></p>
+  <ul>
+    <li>Dark theme: tone → 80 (bright, vibrant)</li>
+    <li>Light theme: tone → 40 (saturated but legible on light background)</li>
+    <li>Chroma → 80–120 (highly saturated)</li>
+    <li>Optional hue harmonization: 15% blend toward the seed hue, tying all accents together</li>
+  </ul>
+
+  <p><strong>Neutral colors (base00–base07):</strong></p>
+  <ul>
+    <li>Chroma → 2–6 (near-gray, with a subtle tint toward the seed hue)</li>
+    <li>Tone stepped evenly from darkest to lightest to preserve hierarchy</li>
+  </ul>
+
+  <h3>Enable it</h3>
+  <pre><code><span class="kw">material_you</span>: <span class="nm">true</span></code></pre>
+  <p>
+    Works with both wallpaper extraction and named schemes. When used with a named scheme,
+    hues are preserved but tones and chroma are adjusted to the Material You targets.
+  </p>
+
+  <div class="note">
+    Gray or near-monochrome wallpapers will produce a near-neutral palette even with
+    Material You enabled — there's no seed hue to work with. Try a wallpaper with at
+    least one saturated color for best results.
+  </div>
+</main>
+
+<script src="themes.js"></script>
+</body>
+</html>

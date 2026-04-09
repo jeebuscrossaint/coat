@@ -249,6 +249,179 @@ killall dunst && dunst &
 - Progress bar styling
 - Font configuration from your coat config
 
+### Foot Terminal
+
+**Permanent activation (add to `~/.config/foot/foot.ini`):**
+```ini
+include=~/.config/foot/coat-theme.ini
+```
+
+**Then reload:**
+- Restart foot, or open a new window
+
+**What's themed:**
+- Foreground, background, cursor, selection colors
+- All 16 terminal colors (regular + bright)
+- Font and size (if configured in coat.yaml)
+- Terminal opacity (via `alpha=` in `[colors-dark]`)
+
+### Fuzzel Launcher
+
+Fuzzel's config is written **in full** to `~/.config/fuzzel/fuzzel.ini` — no include needed, and no manual activation step required. The next time you launch fuzzel it will pick up the new config.
+
+**Note:** coat writes the complete fuzzel.ini including layout settings (width, lines, prompt). Edits made directly to that file will be overwritten on the next `coat apply`.
+
+**What's themed:**
+- Background, text, match highlight colors
+- Selection and selection-match colors
+- Border color
+- Font and size (uses `sizes.popups` from coat.yaml)
+
+### Mako Notification Daemon
+
+Mako's config is written **in full** to `~/.config/mako/config` and `makoctl reload` is run automatically.
+
+**If mako doesn't reload automatically:**
+```bash
+makoctl reload
+```
+
+**What's themed:**
+- Background, text, border, and progress bar colors
+- Urgency-level overrides (low/normal/high)
+- Font from coat.yaml
+- Layout defaults (width, margin, padding, border-radius, anchor)
+
+### Waybar
+
+**Permanent activation (add to `~/.config/waybar/style.css`):**
+```css
+@import "coat-theme.css";
+```
+
+**Then reload:**
+```bash
+killall -SIGUSR2 waybar
+```
+
+**What's provided:**
+- CSS custom properties (`@define-color`) for all 16 Base16 colors
+- Styled selectors for common modules: workspaces, clock, battery, network, audio, CPU/memory, tray, MPD, idle inhibitor, tooltips
+- Font family and size from coat.yaml (uses `sizes.desktop`)
+
+**Customization:** The generated `~/.config/waybar/coat-theme.css` uses `@define-color` so you can reference `@base0D` etc. in your own `style.css`.
+
+### Niri Compositor
+
+**Permanent activation (add to `~/.config/niri/config.kdl`):**
+```kdl
+include "coat-theme.kdl"
+```
+
+**Then reload:**
+```bash
+niri msg action do-screen-transition
+```
+or simply save your config.kdl — niri reloads automatically.
+
+**What's provided:**
+- `layout {}` block with background-color, focus-ring, border, shadow, tab-indicator, and insert-hint settings
+- Full Base16 color reference as comments
+
+### Swaylock
+
+Swaylock's config is written to `~/.config/swaylock/config` directly — no include needed. The theme takes effect the next time you run `swaylock`.
+
+**What's themed:**
+- Ring colors for all states (default, cleared, verifying, wrong, caps-lock)
+- Inside fill colors per state
+- Text colors per state
+- Key highlight and backspace highlight colors
+- Separator and layout indicator colors
+
+### Labwc
+
+Labwc's `themerc` is written to `~/.config/labwc/themerc` and `labwc --reconfigure` is run automatically.
+
+**If labwc doesn't reconfigure automatically:**
+```bash
+labwc --reconfigure
+```
+
+**What's themed:**
+- Active and inactive window titlebar backgrounds and text
+- Window border colors (active = blue accent, inactive = subtle)
+- Button hover colors
+- Right-click menu colors
+
+### Vesktop / Vencord (Discord)
+
+coat writes a CSS theme file to both `~/.config/vesktop/themes/coat.theme.css` and `~/.config/Vencord/themes/coat.theme.css` (whichever directories already exist).
+
+**To activate in Vesktop:**
+1. Open Vesktop settings → Themes
+2. Enable **coat**
+
+**To activate in Vencord (standalone):**
+1. Open Discord → Vencord settings → Themes
+2. Enable **coat**
+
+**What's themed:**
+- All background surfaces (primary, secondary, tertiary, modals)
+- Text colors (normal, muted, brand, links)
+- Button colors (brand, positive, danger, secondary)
+- Status indicators (online, idle, DND, offline)
+- Input fields, checkboxes, scrollbars, tooltips
+
+### Qt Applications (qt5ct / qt6ct)
+
+coat writes color schemes to `~/.config/qt5ct/colors/coat.conf` and `~/.config/qt6ct/colors/coat.conf`, and updates the main qt5ct/qt6ct config to select the coat palette.
+
+**Requirements:**
+- `qt5ct` and/or `qt6ct` must be installed
+- Set `QT_QPA_PLATFORMTHEME=qt5ct` (or `qt6ct`) in your environment
+
+**To activate:**
+```bash
+# Set environment variable (add to ~/.profile or shell config)
+export QT_QPA_PLATFORMTHEME=qt5ct   # or qt6ct
+
+# Open qt5ct and verify "coat" is selected under Colors
+qt5ct
+```
+
+**What's themed:**
+- Full QPalette (active, disabled, inactive color groups)
+- Window, button, text, base, highlight, link, tooltip colors
+
+### Xresources
+
+coat writes to `~/.Xresources` and runs `xrdb -merge ~/.Xresources` automatically.
+
+**What's provided:**
+- `#define` macros for all 16 Base16 colors
+- URxvt color settings (color0-15, background, foreground, cursor)
+- XTerm color settings
+- Generic `*.color*` X11 resource settings
+- Font settings (if configured in coat.yaml)
+
+**Note:** This overwrites `~/.Xresources`. If you have custom Xresources settings, back them up first.
+
+### Ranger File Manager
+
+coat writes a Python colorscheme to `~/.config/ranger/colorschemes/coat.py`.
+
+**One-time activation (add to `~/.config/ranger/rc.conf`):**
+```
+set colorscheme coat
+```
+
+**What's themed:**
+- Directory, executable, symlink, socket, FIFO, and media file colors
+- Titlebar and statusbar colors
+- VCS (git) status colors in the file browser
+- Selected/marked/tagged item highlighting
+
 ---
 
 ## Quick Start
@@ -358,26 +531,57 @@ coat wallpaper --no-material-you  # Extract without Material You
 
 ## Supported Applications
 
-Currently supported:
+**Terminals**
 - **fish** - Fish shell syntax highlighting and pager colors
+- **foot** - Foot terminal emulator colors, font, and opacity
 - **kitty** - Kitty terminal emulator colors and theme
-- **i3** - i3 window manager colors (window borders, bar, workspaces)
-- **sway** - Sway window manager colors (window borders, client theming)
-- **helix** - Helix text editor theme
-- **rofi** - Rofi application launcher theme
-- **bat** - Bat syntax highlighter theme
 - **tty** - Linux TTY console colors
-- **avizo** - Avizo notification overlay theme
+
+**Editors**
+- **helix** - Helix text editor theme
+- **vscode** - Visual Studio Code color theme
+
+**Window Managers / Compositors**
+- **hyprland** - Hyprland compositor (color variables)
+- **i3** - i3 window manager colors (borders, bar, workspaces)
+- **labwc** - Labwc window manager (themerc)
+- **niri** - Niri compositor (layout colors, focus ring)
+- **sway** - Sway window manager colors (borders, client theming)
+
+**Bars / Panels**
+- **waybar** - Waybar CSS theme (modules, workspaces, battery, etc.)
+- swaybar (configured via the **sway** module)
+
+**Screen Locker**
+- **swaylock** - Swaylock screen locker for Wayland
+
+**Launchers**
 - **bemenu** - Bemenu dynamic menu theme
+- **fuzzel** - Fuzzel launcher (full config)
+- **rofi** - Rofi application launcher theme
+
+**Notifications**
+- **dunst** - Dunst notification daemon theme
+- **mako** - Mako notification daemon (full config)
+
+**System Theming**
+- **avizo** - Avizo notification overlay theme
+- **gtk** - GTK 3.0/4.0 applications (GNOME, Nautilus, etc.)
+- **qt** - Qt5/Qt6 applications via qt5ct/qt6ct
+- **xresources** - X11 Xresources (URxvt, XTerm, generic X11)
+
+**Utilities / Viewers**
+- **bat** - Bat syntax highlighter theme
 - **btop** - Btop system monitor theme
 - **cava** - CAVA audio visualizer theme
-- **zathura** - Zathura document viewer theme
+- **ranger** - Ranger file manager colorscheme
 - **yazi** - Yazi file manager theme
-- **vscode** - Visual Studio Code color theme
-- **gtk** - GTK 3.0/4.0 applications (GNOME, etc.)
-- **dunst** - Dunst notification daemon theme
-- **chromium** - Chromium-based browsers (Chrome, Brave, Edge, Vivaldi)
-- **swaylock** - Swaylock screen locker for Wayland
+- **zathura** - Zathura document viewer theme
+
+**Other**
+- **conky** - Conky system monitor
+- **mangowc** - MangoHud / mangowc overlay
+- **vesktop** - Vesktop/Vencord (Discord) CSS theme
 
 Coming soon:
 - alacritty

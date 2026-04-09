@@ -94,13 +94,16 @@ enabled:
 
 ## Supported Applications
 
-- **Terminals**: fish, kitty, tty
+- **Terminals**: fish, foot, kitty, tty
 - **Editors**: helix, vscode
-- **Window Managers**: hyprland, i3, niri, sway, swaylock
-- **Launchers**: rofi, bemenu
-- **Utilities**: bat, btop, cava, dunst, yazi, zathura
-- **System**: gtk, xresources, firefox, vesktop
-- **Monitoring**: avizo, mangowc
+- **Window Managers**: hyprland, i3, labwc, niri, sway
+- **Launchers**: bemenu, fuzzel, rofi
+- **Bars**: waybar, swaybar (via sway module)
+- **Screen locker**: swaylock
+- **Notifications**: dunst, mako
+- **System**: avizo, gtk, qt, xresources
+- **Utilities**: bat, btop, cava, ranger, yazi, zathura
+- **Other**: conky, mangowc, vesktop (Discord)
 
 ## Adding New Modules
 

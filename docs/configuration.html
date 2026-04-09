@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configuration — coat</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <a href="index.html">coat</a>
+    <span>color scheme configurator</span>
+  </div>
+  <nav>
+    <ul>
+      <li class="nav-section">Getting started</li>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="installation.html">Installation</a></li>
+      <li><a href="configuration.html" class="active">Configuration</a></li>
+      <li class="nav-section">Reference</li>
+      <li><a href="commands.html">Commands</a></li>
+      <li><a href="modules.html">Modules</a></li>
+      <li><a href="wallpaper.html">Wallpaper &amp; Material You</a></li>
+    </ul>
+  </nav>
+  <div class="sidebar-footer">
+    <button class="theme-btn" onclick="openThemePicker()">
+      <svg class="theme-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/>
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+      </svg>
+      themes
+    </button>
+    <a href="https://github.com/jeebuscrossaint/coat" target="_blank" rel="noopener">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.342-3.369-1.342-.454-1.155-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836a9.59 9.59 0 012.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
+      </svg>
+      GitHub
+    </a>
+  </div>
+</aside>
+
+<main class="content">
+  <h1>Configuration</h1>
+  <p class="page-subtitle">
+    Everything is controlled from <code>~/.config/coat/coat.yaml</code>.
+  </p>
+
+  <h2>Full example</h2>
+  <pre><code><span class="cm"># Which scheme to use — a name or "wallpaper"</span>
+<span class="kw">scheme</span>: gruvbox-dark-hard
+
+<span class="kw">prefer_base24</span>: <span class="nm">false</span>   <span class="cm"># use Base24 variant when available</span>
+<span class="kw">material_you</span>:  <span class="nm">true</span>    <span class="cm"># apply HCT color transformation</span>
+
+<span class="kw">enabled</span>:
+  - fish
+  - foot
+  - kitty
+  - helix
+  - hyprland
+  - waybar
+  - fuzzel
+  - dunst
+  - gtk
+  - vesktop
+
+<span class="kw">font</span>:
+  <span class="kw">monospace</span>: <span class="str">"JetBrains Mono"</span>
+  <span class="kw">sansserif</span>: <span class="str">"Ubuntu"</span>
+  <span class="kw">serif</span>:     <span class="str">"Ubuntu Serif"</span>
+  <span class="kw">emoji</span>:     <span class="str">"Noto Color Emoji"</span>
+  <span class="kw">sizes</span>:
+    <span class="kw">terminal</span>: <span class="nm">12</span>
+    <span class="kw">desktop</span>:  <span class="nm">10</span>
+    <span class="kw">popups</span>:   <span class="nm">10</span>
+
+<span class="kw">opacity</span>:
+  <span class="kw">terminal</span>:     <span class="nm">0.95</span>
+  <span class="kw">applications</span>: <span class="nm">1.0</span>
+  <span class="kw">desktop</span>:      <span class="nm">1.0</span>
+  <span class="kw">popups</span>:       <span class="nm">0.95</span></code></pre>
+
+  <h2>Options</h2>
+
+  <div class="config-field">
+    <div class="config-field-header">
+      <span class="config-key">scheme</span>
+      <span class="config-type">string</span>
+      <span class="config-def">required</span>
+    </div>
+    <div class="config-field-body">
+      The name of a Base16/Base24 scheme, matched case-insensitively against files in
+      <code>~/.config/coat/schemes/</code>. Use <code>coat list</code> or
+      <code>coat search &lt;term&gt;</code> to browse.<br><br>
+      Set to <code>"wallpaper"</code> to extract colors from your current wallpaper
+      on every <code>coat apply</code> run (requires <code>swww</code>).
+    </div>
+  </div>
+
+  <div class="config-field">
+    <div class="config-field-header">
+      <span class="config-key">prefer_base24</span>
+      <span class="config-type">bool</span>
+      <span class="config-def">default: false</span>
+    </div>
+    <div class="config-field-body">
+      When <code>true</code>, use the Base24 variant of the scheme (24 colors instead of 16)
+      if one exists. Falls back to Base16 if no Base24 variant is available.
+    </div>
+  </div>
+
+  <div class="config-field">
+    <div class="config-field-header">
+      <span class="config-key">material_you</span>
+      <span class="config-type">bool</span>
+      <span class="config-def">default: false</span>
+    </div>
+    <div class="config-field-body">
+      When <code>true</code>, transforms colors using the HCT color space before applying.
+      Accent colors become more vibrant and harmonized; neutrals gain a subtle tint.
+      See <a href="wallpaper.html">Wallpaper &amp; Material You</a> for the full breakdown.
+    </div>
+  </div>
+
+  <div class="config-field">
+    <div class="config-field-header">
+      <span class="config-key">enabled</span>
+      <span class="config-type">string[]</span>
+      <span class="config-def">required</span>
+    </div>
+    <div class="config-field-body">
+      List of modules to theme. Only apps in this list are written to.
+      See <a href="modules.html">Modules</a> for all available values and activation steps.
+    </div>
+  </div>
+
+  <h2>Font options</h2>
+  <p>All font fields are optional. Modules fall back to their own defaults when not set.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Field</th><th>Used by</th></tr></thead>
+      <tbody>
+        <tr><td><code>font.monospace</code></td><td>fish, foot, kitty, tty, helix, waybar, fuzzel, rofi, dunst, mako, btop, xresources</td></tr>
+        <tr><td><code>font.sansserif</code></td><td>gtk, qt, niri</td></tr>
+        <tr><td><code>font.serif</code></td><td>zathura</td></tr>
+        <tr><td><code>font.emoji</code></td><td>gtk</td></tr>
+        <tr><td><code>font.sizes.terminal</code></td><td>foot, kitty, xresources</td></tr>
+        <tr><td><code>font.sizes.desktop</code></td><td>waybar, swaybar (via sway module), btop</td></tr>
+        <tr><td><code>font.sizes.popups</code></td><td>fuzzel, rofi, dunst, mako</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Opacity options</h2>
+  <p>Values are <code>0.0</code> (fully transparent) to <code>1.0</code> (fully opaque).</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Field</th><th>Applies to</th></tr></thead>
+      <tbody>
+        <tr><td><code>opacity.terminal</code></td><td>foot (<code>alpha=</code>), kitty</td></tr>
+        <tr><td><code>opacity.applications</code></td><td>general applications</td></tr>
+        <tr><td><code>opacity.desktop</code></td><td>waybar, swaybar</td></tr>
+        <tr><td><code>opacity.popups</code></td><td>swaylock ring alpha, dunst</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Base16 color slots</h2>
+  <p>
+    coat's output is always a Base16 palette. Understanding the slot semantics helps
+    when reading module output files or writing your own.
+  </p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Slot</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr><td><code>base00</code></td><td>Default background</td></tr>
+        <tr><td><code>base01</code></td><td>Lighter background (status bars, line numbers)</td></tr>
+        <tr><td><code>base02</code></td><td>Selection background</td></tr>
+        <tr><td><code>base03</code></td><td>Comments, invisibles, line highlights</td></tr>
+        <tr><td><code>base04</code></td><td>Dark foreground (status bars)</td></tr>
+        <tr><td><code>base05</code></td><td>Default foreground, caret, delimiters</td></tr>
+        <tr><td><code>base06</code></td><td>Light foreground</td></tr>
+        <tr><td><code>base07</code></td><td>Light background, highlights</td></tr>
+        <tr><td><code>base08</code></td><td>Red — variables, XML tags, markup link text</td></tr>
+        <tr><td><code>base09</code></td><td>Orange — integers, booleans, constants</td></tr>
+        <tr><td><code>base0A</code></td><td>Yellow — classes, search text background</td></tr>
+        <tr><td><code>base0B</code></td><td>Green — strings, inherited class, markup code</td></tr>
+        <tr><td><code>base0C</code></td><td>Cyan — support, regex, escape chars</td></tr>
+        <tr><td><code>base0D</code></td><td>Blue — functions, methods, attribute IDs, headings</td></tr>
+        <tr><td><code>base0E</code></td><td>Magenta — keywords, storage, selector, markup italic</td></tr>
+        <tr><td><code>base0F</code></td><td>Brown — deprecated, opening/closing embedded language tags</td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<script src="themes.js"></script>
+</body>
+</html>

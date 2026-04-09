@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Commands — coat</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <a href="index.html">coat</a>
+    <span>color scheme configurator</span>
+  </div>
+  <nav>
+    <ul>
+      <li class="nav-section">Getting started</li>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="installation.html">Installation</a></li>
+      <li><a href="configuration.html">Configuration</a></li>
+      <li class="nav-section">Reference</li>
+      <li><a href="commands.html" class="active">Commands</a></li>
+      <li><a href="modules.html">Modules</a></li>
+      <li><a href="wallpaper.html">Wallpaper &amp; Material You</a></li>
+    </ul>
+  </nav>
+  <div class="sidebar-footer">
+    <button class="theme-btn" onclick="openThemePicker()">
+      <svg class="theme-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/>
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+      </svg>
+      themes
+    </button>
+    <a href="https://github.com/jeebuscrossaint/coat" target="_blank" rel="noopener">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.342-3.369-1.342-.454-1.155-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836a9.59 9.59 0 012.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
+      </svg>
+      GitHub
+    </a>
+  </div>
+</aside>
+
+<main class="content">
+  <h1>Commands</h1>
+  <p class="page-subtitle">All coat CLI commands and their options.</p>
+
+  <h2>coat clone</h2>
+  <p>
+    Clones the <a href="https://github.com/tinted-theming/schemes" target="_blank" rel="noopener">tinted-theming/schemes</a>
+    repository to <code>~/.config/coat/schemes/</code>. Run once after installing coat.
+  </p>
+  <pre><code>coat clone</code></pre>
+
+  <h2>coat update</h2>
+  <p>Pulls the latest schemes from the remote repository.</p>
+  <pre><code>coat update</code></pre>
+
+  <h2>coat list</h2>
+  <p>
+    Lists all available schemes. By default prints a live color preview (RGB color swatches)
+    next to each scheme name.
+  </p>
+  <pre><code>coat list                <span class="cm"># all schemes with color preview</span>
+coat list --dark         <span class="cm"># dark variants only</span>
+coat list --light        <span class="cm"># light variants only</span>
+coat list --no-preview   <span class="cm"># skip swatches, faster output</span></code></pre>
+
+  <h2>coat search</h2>
+  <p>Searches scheme names and authors. Matching is case-insensitive.</p>
+  <pre><code>coat search gruvbox
+coat search nord
+coat search "one dark"
+coat search morhetz   <span class="cm"># search by author</span></code></pre>
+
+  <h2>coat apply</h2>
+  <p>
+    The main command. Reads <code>~/.config/coat/coat.yaml</code>, loads the configured scheme,
+    optionally applies Material You transformation, and calls each enabled module's apply
+    function in sequence.
+  </p>
+  <pre><code>coat apply              <span class="cm"># all enabled apps</span>
+coat apply kitty        <span class="cm"># single app only</span>
+coat apply hyprland
+coat apply waybar</code></pre>
+
+  <p>
+    When targeting a single app, coat still reads the full config (for font/opacity settings)
+    but only calls that one module.
+  </p>
+  <div class="note">
+    If <code>scheme: wallpaper</code> is set in your config, <code>coat apply</code> runs
+    the full wallpaper extraction pipeline first.
+  </div>
+
+  <h2>coat wallpaper</h2>
+  <p>
+    One-shot wallpaper color extraction. Queries <code>swww</code> for the current wallpaper,
+    extracts dominant colors, generates a Base16 palette, and applies it to all enabled apps —
+    without changing <code>coat.yaml</code>.
+  </p>
+  <pre><code>coat wallpaper                   <span class="cm"># extract + apply</span>
+coat wallpaper --no-material-you <span class="cm"># skip Material You transformation</span></code></pre>
+
+  <p>
+    To make wallpaper extraction permanent, set <code>scheme: wallpaper</code> in
+    <code>coat.yaml</code> and use <code>coat apply</code> normally.
+    See <a href="wallpaper.html">Wallpaper &amp; Material You</a> for how extraction works.
+  </p>
+
+  <h2>coat docs</h2>
+  <p>Prints activation instructions for a specific module to stdout.</p>
+  <pre><code>coat docs kitty
+coat docs hyprland
+coat docs waybar</code></pre>
+
+  <h2>coat help</h2>
+  <p>Prints a summary of available commands.</p>
+  <pre><code>coat help</code></pre>
+
+  <h2>Typical workflow</h2>
+  <pre><code><span class="cm"># First time</span>
+coat clone
+
+<span class="cm"># Find a scheme you like</span>
+coat list --dark
+coat search catppuccin
+
+<span class="cm"># Set it in your config, then apply</span>
+coat apply
+
+<span class="cm"># Try a different scheme without editing the file</span>
+coat apply  <span class="cm"># (after editing coat.yaml)</span>
+
+<span class="cm"># Switch to wallpaper mode</span>
+coat wallpaper
+
+<span class="cm"># Update scheme library later</span>
+coat update</code></pre>
+</main>
+
+<script src="themes.js"></script>
+</body>
+</html>
