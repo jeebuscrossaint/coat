@@ -1,7 +1,8 @@
 /**
- * @name coat
- * @description Base16 color theme for Vesktop/Vencord
- * @author coat ({{ scheme_name }} — {{ scheme_author }})
+ * @name Coat Theme
+ * @author coat
+ * @version 1.0.0
+ * @description Theme configured via coat - Scheme: {{ scheme_name }} by {{ scheme_author }}
  */
 
 :root {
@@ -23,104 +24,171 @@
     --base0F: #{{ base0F }};
 }
 
-.theme-dark,
 .theme-light,
+.theme-dark,
 .theme-darker,
 .theme-midnight,
 .visual-refresh {
     /* Backgrounds */
-    --background-primary: #{{ base00 }} !important;
-    --background-secondary: #{{ base01 }} !important;
-    --background-secondary-alt: #{{ base01 }} !important;
-    --background-tertiary: #{{ base00 }} !important;
-    --background-accent: #{{ base02 }} !important;
-    --background-floating: #{{ base01 }} !important;
-    --background-mobile-primary: #{{ base00 }} !important;
-    --background-mobile-secondary: #{{ base01 }} !important;
-    --background-modifier-hover: #{{ base01 }}80 !important;
-    --background-modifier-active: #{{ base02 }} !important;
-    --background-modifier-selected: #{{ base02 }} !important;
-    --background-modifier-accent: #{{ base02 }}40 !important;
+    --activity-card-background: var(--base01) !important;
+    --background-accent: var(--base03) !important;
+    --background-floating: var(--base02) !important;
+    --background-mentioned-hover: var(--base02) !important;
+    --background-mentioned: var(--base01) !important;
+    --background-message-highlight: var(--base01) !important;
+    --background-message-hover: var(--base00) !important;
+    --background-modifier-accent: var(--base02) !important;
+    --background-modifier-active: var(--base02) !important;
+    --background-modifier-hover: var(--base00) !important;
+    --background-modifier-selected: var(--base01) !important;
+    --background-primary: var(--base00) !important;
+    --background-secondary-alt: var(--base01) !important;
+    --background-secondary: var(--base01) !important;
+    --background-surface-highest: var(--base02) !important;
+    --background-surface-higher: var(--base02) !important;
+    --background-surface-high: var(--base02) !important;
+    --background-tertiary: var(--base00) !important;
+    --background-base-low: var(--base01) !important;
+    --background-base-lower: var(--base00) !important;
+    --background-base-lowest: var(--base00) !important;
+    --background-base-tertiary: var(--base00) !important;
+    --background-code: var(--base02) !important;
+    --background-mod-subtle: var(--base02) !important;
+    --bg-base-secondary: var(--base01) !important;
+    --bg-base-tertiary: var(--base00) !important;
+    --bg-brand: var(--base03) !important;
+    --bg-mod-faint: var(--base01) !important;
+    --bg-overlay-2: var(--base01) !important;
+    --bg-overlay-3: var(--base01) !important;
+    --bg-overlay-color-inverse: var(--base03) !important;
+    --bg-surface-raised: var(--base02) !important;
+    --bg-surface-overlay: var(--base00) !important;
+    --black: var(--base00) !important;
 
-    /* Text */
-    --text-normal: #{{ base05 }} !important;
-    --text-muted: #{{ base03 }} !important;
-    --text-link: #{{ base0D }} !important;
-    --text-positive: #{{ base0B }} !important;
-    --text-warning: #{{ base09 }} !important;
-    --text-danger: #{{ base08 }} !important;
-    --text-brand: #{{ base0D }} !important;
-    --header-primary: #{{ base07 }} !important;
-    --header-secondary: #{{ base05 }} !important;
-    --interactive-normal: #{{ base04 }} !important;
-    --interactive-hover: #{{ base05 }} !important;
-    --interactive-active: #{{ base07 }} !important;
-    --interactive-muted: #{{ base03 }} !important;
+    /* Brand colors */
+    --brand-05a: var(--base01) !important;
+    --brand-10a: var(--base01) !important;
+    --brand-15a: var(--base01) !important;
+    --brand-260: var(--base0D) !important;
+    --brand-360: var(--base0D) !important;
+    --brand-500: var(--base0F) !important;
+    --brand-560: var(--base01) !important;
+    --brand-experiment: var(--base0D) !important;
+    --brand-experiment-hover: var(--base0C) !important;
+    --brand-experiment-560: var(--base0D) !important;
 
-    /* Channels */
-    --channel-icon: #{{ base03 }} !important;
-    --channel-text-area-placeholder: #{{ base03 }} !important;
-    --channels-default: #{{ base04 }} !important;
+    /* Buttons */
+    --button-danger-background: var(--base08) !important;
+    --button-filled-brand-background: var(--base0D) !important;
+    --button-filled-brand-background-hover: var(--base03) !important;
+    --button-filled-brand-text: var(--base00) !important;
+    --button-filled-brand-text-hover: var(--base05) !important;
+    --button-outline-positive-border: var(--base0B) !important;
+    --button-outline-danger-background-hover: var(--base08) !important;
+    --button-outline-danger-border-hover: var(--base08) !important;
+    --button-positive-background: var(--base0B) !important;
+    --button-positive-background-hover: var(--base03) !important;
+    --button-secondary-background: var(--base02) !important;
+    --button-secondary-background-hover: var(--base03) !important;
 
-    /* Brand / accent */
-    --brand-experiment: #{{ base0D }} !important;
-    --brand-experiment-100: #{{ base0D }}1a !important;
-    --brand-experiment-130: #{{ base0D }}21 !important;
-    --brand-experiment-160: #{{ base0D }}29 !important;
-    --brand-experiment-200: #{{ base0D }}33 !important;
-    --brand-experiment-230: #{{ base0D }}3b !important;
-    --brand-experiment-260: #{{ base0D }}42 !important;
-    --brand-experiment-300: #{{ base0D }}4d !important;
-    --brand-experiment-330: #{{ base0D }}54 !important;
-    --brand-experiment-360: #{{ base0D }}5c !important;
-    --brand-experiment-400: #{{ base0D }}66 !important;
-    --brand-experiment-430: #{{ base0D }}6e !important;
-    --brand-experiment-460: #{{ base0D }}75 !important;
-    --brand-experiment-500: #{{ base0D }} !important;
-    --brand-experiment-530: #{{ base0D }} !important;
-    --brand-experiment-560: #{{ base0D }} !important;
-    --brand-experiment-600: #{{ base0D }} !important;
+    /* Cards and channels */
+    --card-primary-bg: var(--base02) !important;
+    --channel-icon: var(--base04) !important;
+    --channels-default: var(--base04) !important;
+    --channel-text-area-placeholder: var(--base03) !important;
+    --channeltextarea-background: var(--base01) !important;
+    --chat-background-default: var(--base02) !important;
 
-    /* Status colors */
-    --status-positive-background: #{{ base0B }}33 !important;
-    --status-positive-text: #{{ base0B }} !important;
-    --status-warning-background: #{{ base09 }}33 !important;
-    --status-warning-text: #{{ base09 }} !important;
-    --status-danger-background: #{{ base08 }}33 !important;
-    --status-danger-text: #{{ base08 }} !important;
-    --status-online: #{{ base0B }} !important;
-    --status-idle: #{{ base0A }} !important;
-    --status-dnd: #{{ base08 }} !important;
-    --status-offline: #{{ base03 }} !important;
-    --status-invisible: #{{ base03 }} !important;
-    --status-streaming: #{{ base0E }} !important;
+    /* Checkboxes */
+    --checkbox-background-checked: var(--base0D) !important;
+    --checkbox-border-checked: var(--base0D) !important;
+    --checkbox-background-default: var(--base02) !important;
+    --checkbox-border-default: var(--base03) !important;
 
     /* Controls */
-    --control-brand-foreground: #{{ base0D }} !important;
-    --control-brand-foreground-new: #{{ base0D }} !important;
+    --control-brand-foreground-new: var(--base0D) !important;
+    --control-brand-foreground: var(--base04) !important;
+
+    /* Headers */
+    --header-primary: var(--base04) !important;
+    --header-secondary: var(--base04) !important;
+    --home-background: var(--base00) !important;
 
     /* Input */
-    --input-background: #{{ base01 }} !important;
-    --input-placeholder-text: #{{ base03 }} !important;
-    --input-prefix-color: #{{ base03 }} !important;
-    --input-border: #{{ base02 }} !important;
+    --input-background: var(--base02) !important;
 
-    /* Scrollbar */
-    --scrollbar-thin-thumb: #{{ base02 }} !important;
-    --scrollbar-thin-track: transparent !important;
-    --scrollbar-auto-thumb: #{{ base03 }} !important;
-    --scrollbar-auto-track: #{{ base01 }} !important;
-
-    /* Elevation / borders */
-    --elevation-low: 0 1px 0 0 #{{ base00 }}, 0 0 0 1px #{{ base00 }}, 0 2px 0 0 #{{ base01 }} !important;
-    --elevation-medium: 0 0 0 1px #{{ base00 }}, 0 2px 10px 0 #{{ base00 }} !important;
-    --elevation-high: 0 0 0 1px #{{ base00 }}, 0 8px 16px 0 #{{ base00 }} !important;
+    /* Interactive */
+    --interactive-active: var(--base05) !important;
+    --interactive-hover: var(--base05) !important;
+    --interactive-muted: var(--base03) !important;
+    --interactive-normal: var(--base05) !important;
 
     /* Mentions */
-    --mention-foreground: #{{ base0D }} !important;
-    --mention-background: #{{ base0D }}1a !important;
+    --mention-background: var(--base03) !important;
+    --mention-foreground: var(--base05) !important;
 
-    /* Reactions */
-    --background-message-hover: #{{ base01 }}40 !important;
-    --background-message-automod: #{{ base08 }}1a !important;
+    /* Menus */
+    --menu-item-danger-active-bg: var(--base08) !important;
+    --menu-item-danger-hover-bg: var(--base08) !important;
+    --menu-item-default-hover-bg: var(--base03) !important;
+
+    /* Messages */
+    --message-reacted-background: var(--base02) !important;
+    --message-reacted-text: var(--base05) !important;
+
+    /* Modals */
+    --modal-background: var(--base01) !important;
+    --modal-footer-background: var(--base00) !important;
+
+    /* Primary (critical for main panel backgrounds) */
+    --primary-130: var(--base05) !important;
+    --primary-300: var(--base05) !important;
+    --primary-500: var(--base02) !important;
+    --primary-600: var(--base00) !important;
+    --primary-630: var(--base01) !important;
+    --primary-660: var(--base00) !important;
+    --primary-800: var(--base00) !important;
+
+    /* Scrollbars */
+    --scrollbar-auto-thumb: var(--base00) !important;
+    --scrollbar-auto-track: transparent;
+    --scrollbar-thin-thumb: var(--base00) !important;
+    --scrollbar-thin-track: transparent;
+
+    /* Status */
+    --status-danger-background: var(--base08) !important;
+    --status-danger: var(--base08) !important;
+    --status-negative: var(--base08) !important;
+    --status-positive-background: var(--base0B) !important;
+    --status-positive-text: var(--base0B) !important;
+    --status-positive: var(--base0B) !important;
+    --status-success: var(--base0B) !important;
+    --status-warning-background: var(--base03) !important;
+    --status-warning: var(--base09) !important;
+
+    /* Text */
+    --text-brand: var(--base07) !important;
+    --text-feedback-positive: var(--base0B) !important;
+    --text-feedback-negative: var(--base08) !important;
+    --text-feedback-warning: var(--base09) !important;
+    --text-feedback-success: var(--base0B) !important;
+    --text-link: var(--base04) !important;
+    --text-muted: var(--base05) !important;
+    --text-negative: var(--base08) !important;
+    --text-normal: var(--base05) !important;
+    --text-positive: var(--base0B) !important;
+    --text-primary: var(--base05) !important;
+    --text-secondary: var(--base04) !important;
+    --text-tertiary: var(--base03) !important;
+    --text-warning: var(--base09) !important;
+
+    /* Misc */
+    --border-faint: var(--base02) !important;
+    --info-warning-foreground: var(--base0A) !important;
+    --textbox-markdown-syntax: var(--base05) !important;
+    --theme-base-color: var(--base00) !important;
+    --white-100: var(--base05) !important;
+    --white-200: var(--base05) !important;
+    --white-500: var(--base05) !important;
+    --white: var(--base05) !important;
 }
