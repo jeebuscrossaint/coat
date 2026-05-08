@@ -1,0 +1,135 @@
+[ColorEffects:Disabled]
+ChangeSelectionColor=true
+Color=56,56,56
+ColorAmount=0
+ColorEffect=0
+ContrastAmount=0.65
+ContrastEffect=1
+Enable=true
+IntensityAmount=0.1
+IntensityEffect=2
+
+[ColorEffects:Inactive]
+ChangeSelectionColor=true
+Color=112,111,110
+ColorAmount=0.025
+ColorEffect=2
+ContrastAmount=0.1
+ContrastEffect=0
+Enable=false
+IntensityAmount=0
+IntensityEffect=0
+
+[Colors:Button]
+BackgroundAlternate={{ base02 | r }},{{ base02 | g }},{{ base02 | b }}
+BackgroundNormal={{ base01 | r }},{{ base01 | g }},{{ base01 | b }}
+DecorationFocus={{ base0D | r }},{{ base0D | g }},{{ base0D | b }}
+DecorationHover={{ base0C | r }},{{ base0C | g }},{{ base0C | b }}
+ForegroundActive={{ base06 | r }},{{ base06 | g }},{{ base06 | b }}
+ForegroundInactive={{ base03 | r }},{{ base03 | g }},{{ base03 | b }}
+ForegroundLink={{ base0D | r }},{{ base0D | g }},{{ base0D | b }}
+ForegroundNegative={{ base08 | r }},{{ base08 | g }},{{ base08 | b }}
+ForegroundNeutral={{ base09 | r }},{{ base09 | g }},{{ base09 | b }}
+ForegroundNormal={{ base05 | r }},{{ base05 | g }},{{ base05 | b }}
+ForegroundPositive={{ base0B | r }},{{ base0B | g }},{{ base0B | b }}
+ForegroundVisited={{ base0E | r }},{{ base0E | g }},{{ base0E | b }}
+
+[Colors:Complementary]
+BackgroundAlternate={{ base02 | r }},{{ base02 | g }},{{ base02 | b }}
+BackgroundNormal={{ base01 | r }},{{ base01 | g }},{{ base01 | b }}
+DecorationFocus={{ base0D | r }},{{ base0D | g }},{{ base0D | b }}
+DecorationHover={{ base0C | r }},{{ base0C | g }},{{ base0C | b }}
+ForegroundActive={{ base06 | r }},{{ base06 | g }},{{ base06 | b }}
+ForegroundInactive={{ base03 | r }},{{ base03 | g }},{{ base03 | b }}
+ForegroundLink={{ base0D | r }},{{ base0D | g }},{{ base0D | b }}
+ForegroundNegative={{ base08 | r }},{{ base08 | g }},{{ base08 | b }}
+ForegroundNeutral={{ base09 | r }},{{ base09 | g }},{{ base09 | b }}
+ForegroundNormal={{ base05 | r }},{{ base05 | g }},{{ base05 | b }}
+ForegroundPositive={{ base0B | r }},{{ base0B | g }},{{ base0B | b }}
+ForegroundVisited={{ base0E | r }},{{ base0E | g }},{{ base0E | b }}
+
+[Colors:Header]
+BackgroundAlternate={{ base02 | r }},{{ base02 | g }},{{ base02 | b }}
+BackgroundNormal={{ base01 | r }},{{ base01 | g }},{{ base01 | b }}
+DecorationFocus={{ base0D | r }},{{ base0D | g }},{{ base0D | b }}
+DecorationHover={{ base0C | r }},{{ base0C | g }},{{ base0C | b }}
+ForegroundActive={{ base06 | r }},{{ base06 | g }},{{ base06 | b }}
+ForegroundInactive={{ base03 | r }},{{ base03 | g }},{{ base03 | b }}
+ForegroundLink={{ base0D | r }},{{ base0D | g }},{{ base0D | b }}
+ForegroundNegative={{ base08 | r }},{{ base08 | g }},{{ base08 | b }}
+ForegroundNeutral={{ base09 | r }},{{ base09 | g }},{{ base09 | b }}
+ForegroundNormal={{ base05 | r }},{{ base05 | g }},{{ base05 | b }}
+ForegroundPositive={{ base0B | r }},{{ base0B | g }},{{ base0B | b }}
+ForegroundVisited={{ base0E | r }},{{ base0E | g }},{{ base0E | b }}
+
+[Colors:Selection]
+BackgroundAlternate={{ base0E | r }},{{ base0E | g }},{{ base0E | b }}
+BackgroundNormal={{ base0D | r }},{{ base0D | g }},{{ base0D | b }}
+DecorationFocus={{ base0D | r }},{{ base0D | g }},{{ base0D | b }}
+DecorationHover={{ base0C | r }},{{ base0C | g }},{{ base0C | b }}
+ForegroundActive={{ base07 | r }},{{ base07 | g }},{{ base07 | b }}
+ForegroundInactive={{ base01 | r }},{{ base01 | g }},{{ base01 | b }}
+ForegroundLink={{ base07 | r }},{{ base07 | g }},{{ base07 | b }}
+ForegroundNegative={{ base08 | r }},{{ base08 | g }},{{ base08 | b }}
+ForegroundNeutral={{ base09 | r }},{{ base09 | g }},{{ base09 | b }}
+ForegroundNormal={{ base00 | r }},{{ base00 | g }},{{ base00 | b }}
+ForegroundPositive={{ base0B | r }},{{ base0B | g }},{{ base0B | b }}
+ForegroundVisited={{ base06 | r }},{{ base06 | g }},{{ base06 | b }}
+
+[Colors:Tooltip]
+BackgroundAlternate={{ base02 | r }},{{ base02 | g }},{{ base02 | b }}
+BackgroundNormal={{ base01 | r }},{{ base01 | g }},{{ base01 | b }}
+DecorationFocus={{ base0D | r }},{{ base0D | g }},{{ base0D | b }}
+DecorationHover={{ base0C | r }},{{ base0C | g }},{{ base0C | b }}
+ForegroundActive={{ base06 | r }},{{ base06 | g }},{{ base06 | b }}
+ForegroundInactive={{ base03 | r }},{{ base03 | g }},{{ base03 | b }}
+ForegroundLink={{ base0D | r }},{{ base0D | g }},{{ base0D | b }}
+ForegroundNegative={{ base08 | r }},{{ base08 | g }},{{ base08 | b }}
+ForegroundNeutral={{ base09 | r }},{{ base09 | g }},{{ base09 | b }}
+ForegroundNormal={{ base05 | r }},{{ base05 | g }},{{ base05 | b }}
+ForegroundPositive={{ base0B | r }},{{ base0B | g }},{{ base0B | b }}
+ForegroundVisited={{ base0E | r }},{{ base0E | g }},{{ base0E | b }}
+
+[Colors:View]
+BackgroundAlternate={{ base01 | r }},{{ base01 | g }},{{ base01 | b }}
+BackgroundNormal={{ base00 | r }},{{ base00 | g }},{{ base00 | b }}
+DecorationFocus={{ base0D | r }},{{ base0D | g }},{{ base0D | b }}
+DecorationHover={{ base0C | r }},{{ base0C | g }},{{ base0C | b }}
+ForegroundActive={{ base06 | r }},{{ base06 | g }},{{ base06 | b }}
+ForegroundInactive={{ base03 | r }},{{ base03 | g }},{{ base03 | b }}
+ForegroundLink={{ base0D | r }},{{ base0D | g }},{{ base0D | b }}
+ForegroundNegative={{ base08 | r }},{{ base08 | g }},{{ base08 | b }}
+ForegroundNeutral={{ base09 | r }},{{ base09 | g }},{{ base09 | b }}
+ForegroundNormal={{ base05 | r }},{{ base05 | g }},{{ base05 | b }}
+ForegroundPositive={{ base0B | r }},{{ base0B | g }},{{ base0B | b }}
+ForegroundVisited={{ base0E | r }},{{ base0E | g }},{{ base0E | b }}
+
+[Colors:Window]
+BackgroundAlternate={{ base01 | r }},{{ base01 | g }},{{ base01 | b }}
+BackgroundNormal={{ base00 | r }},{{ base00 | g }},{{ base00 | b }}
+DecorationFocus={{ base0D | r }},{{ base0D | g }},{{ base0D | b }}
+DecorationHover={{ base0C | r }},{{ base0C | g }},{{ base0C | b }}
+ForegroundActive={{ base07 | r }},{{ base07 | g }},{{ base07 | b }}
+ForegroundInactive={{ base03 | r }},{{ base03 | g }},{{ base03 | b }}
+ForegroundLink={{ base0D | r }},{{ base0D | g }},{{ base0D | b }}
+ForegroundNegative={{ base08 | r }},{{ base08 | g }},{{ base08 | b }}
+ForegroundNeutral={{ base09 | r }},{{ base09 | g }},{{ base09 | b }}
+ForegroundNormal={{ base05 | r }},{{ base05 | g }},{{ base05 | b }}
+ForegroundPositive={{ base0B | r }},{{ base0B | g }},{{ base0B | b }}
+ForegroundVisited={{ base0E | r }},{{ base0E | g }},{{ base0E | b }}
+
+[General]
+ColorScheme=coat
+Name={{ scheme_name }}
+shadeSortColumn=true
+
+[KDE]
+contrast=4
+
+[WM]
+activeBackground={{ base01 | r }},{{ base01 | g }},{{ base01 | b }}
+activeBlend={{ base05 | r }},{{ base05 | g }},{{ base05 | b }}
+activeForeground={{ base05 | r }},{{ base05 | g }},{{ base05 | b }}
+inactiveBackground={{ base00 | r }},{{ base00 | g }},{{ base00 | b }}
+inactiveBlend={{ base03 | r }},{{ base03 | g }},{{ base03 | b }}
+inactiveForeground={{ base03 | r }},{{ base03 | g }},{{ base03 | b }}

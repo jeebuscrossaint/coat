@@ -121,7 +121,7 @@ impl Scheme {
     }
 
     pub fn is_dark(&self) -> bool {
-        !self.variant.to_lowercase().contains("light")
+        self.variant.is_empty() || !self.variant.to_lowercase().contains("light")
     }
 
     pub fn hex_to_rgb(hex: &str) -> (u8, u8, u8) {

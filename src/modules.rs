@@ -27,7 +27,9 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("gtk",       "gtk.tera"),
     tpl!("helix",     "helix.tera"),
     tpl!("i3",        "i3.tera"),
+    tpl!("kde",       "kde.tera"),
     tpl!("kitty",     "kitty.tera"),
+    tpl!("konsole",   "konsole.tera"),
     tpl!("labwc",     "labwc.tera"),
     tpl!("lf",        "lf.tera"),
     tpl!("ranger",    "ranger.tera"),
@@ -43,7 +45,7 @@ static TEMPLATES: &[(&str, &str)] = &[
 
 // ── Tera setup ─────────────────────────────────────────────────────────────
 
-fn make_tera() -> Result<Tera> {
+pub fn make_tera() -> Result<Tera> {
     let mut tera = Tera::default();
     for (name, src) in TEMPLATES {
         tera.add_raw_template(name, src)
@@ -114,6 +116,16 @@ fn build_context(scheme: &Scheme, config: &CoatConfig) -> tera::Context {
     ctx.insert("base0D", &scheme.base0d);
     ctx.insert("base0E", &scheme.base0e);
     ctx.insert("base0F", &scheme.base0f);
+    // Base24 extended colors (empty strings for Base16 schemes)
+    ctx.insert("base10", &scheme.base10);
+    ctx.insert("base11", &scheme.base11);
+    ctx.insert("base12", &scheme.base12);
+    ctx.insert("base13", &scheme.base13);
+    ctx.insert("base14", &scheme.base14);
+    ctx.insert("base15", &scheme.base15);
+    ctx.insert("base16", &scheme.base16_color);
+    ctx.insert("base17", &scheme.base17);
+    ctx.insert("is_base24", &scheme.is_base24);
     // Scheme metadata
     ctx.insert("scheme_name", &scheme.name);
     ctx.insert("scheme_author", &scheme.author);
@@ -162,27 +174,29 @@ fn render_to(tera: &Tera, name: &str, ctx: &tera::Context, dest: &Path) -> Resul
 }
 
 fn run(cmd: &str) {
-    let _ = Command::new("sh").args(["-c", cmd]).status();
+    if let Err(e) = Command::new("sh").args(["-c", cmd]).status() {
+        eprintln!("  warning: {}", e);
+    }
 }
 
 // ── Module dispatch ────────────────────────────────────────────────────────
 
 pub const ALL_MODULES: &[&str] = &[
     "bat", "btop", "dunst", "fish", "foot", "fuzzel", "gtk", "helix",
-    "i3", "kitty", "labwc", "lf", "qt", "ranger", "rofi", "sway",
+    "i3", "kde", "kitty", "labwc", "lf", "qt", "ranger", "rofi", "sway",
     "swaylock", "vesktop", "vscode", "waybar", "xresources", "zathura",
 ];
 
 pub fn module_aliases(name: &str) -> Option<&'static str> {
     match name {
         "vencord" | "discord" => Some("vesktop"),
+        "plasma" | "kde-plasma" => Some("kde"),
         _ => None,
     }
 }
 
-pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig) -> Result<()> {
+pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Tera) -> Result<()> {
     let name = module_aliases(name).unwrap_or(name);
-    let tera = make_tera()?;
     let ctx = build_context(scheme, config);
 
     match name {
@@ -195,6 +209,7 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig) -> Result<
         "gtk"        => apply_gtk(&tera, &ctx, scheme, config),
         "helix"      => apply_helix(&tera, &ctx, scheme, config),
         "i3"         => apply_i3(&tera, &ctx, scheme, config),
+        "kde"        => apply_kde(&tera, &ctx, scheme, config),
         "kitty"      => apply_kitty(&tera, &ctx, scheme, config),
         "labwc"      => apply_labwc(&tera, &ctx, scheme, config),
         "lf"         => apply_lf(&tera, &ctx, scheme, config),
@@ -304,6 +319,180 @@ fn apply_i3(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> R
     Ok(())
 }
 
+fn rgb(hex: &str) -> String {
+    let (r, g, b) = Scheme::hex_to_rgb(hex);
+    format!("{},{},{}", r, g, b)
+}
+
+fn kde_color_sections(s: &Scheme) -> String {
+    let mut o = String::new();
+
+    for sec in &["Colors:Button", "Colors:Complementary", "Colors:Header", "Colors:Tooltip"] {
+        o += &format!("[{}]\n", sec);
+        o += &format!("BackgroundAlternate={}\n", rgb(&s.base02));
+        o += &format!("BackgroundNormal={}\n",    rgb(&s.base01));
+        o += &format!("DecorationFocus={}\n",     rgb(&s.base0d));
+        o += &format!("DecorationHover={}\n",     rgb(&s.base0c));
+        o += &format!("ForegroundActive={}\n",    rgb(&s.base06));
+        o += &format!("ForegroundInactive={}\n",  rgb(&s.base03));
+        o += &format!("ForegroundLink={}\n",      rgb(&s.base0d));
+        o += &format!("ForegroundNegative={}\n",  rgb(&s.base08));
+        o += &format!("ForegroundNeutral={}\n",   rgb(&s.base09));
+        o += &format!("ForegroundNormal={}\n",    rgb(&s.base05));
+        o += &format!("ForegroundPositive={}\n",  rgb(&s.base0b));
+        o += &format!("ForegroundVisited={}\n",   rgb(&s.base0e));
+        o += "\n";
+    }
+
+    o += &format!("[Colors:Selection]\n\
+        BackgroundAlternate={}\nBackgroundNormal={}\n\
+        DecorationFocus={}\nDecorationHover={}\n\
+        ForegroundActive={}\nForegroundInactive={}\n\
+        ForegroundLink={}\nForegroundNegative={}\n\
+        ForegroundNeutral={}\nForegroundNormal={}\n\
+        ForegroundPositive={}\nForegroundVisited={}\n\n",
+        rgb(&s.base0e), rgb(&s.base0d),
+        rgb(&s.base0d), rgb(&s.base0c),
+        rgb(&s.base07), rgb(&s.base01),
+        rgb(&s.base07), rgb(&s.base08),
+        rgb(&s.base09), rgb(&s.base00),
+        rgb(&s.base0b), rgb(&s.base06));
+
+    for (sec, bg, bg_alt, fg_active) in &[
+        ("Colors:View",   &s.base00, &s.base01, &s.base06),
+        ("Colors:Window", &s.base00, &s.base01, &s.base07),
+    ] {
+        o += &format!("[{}]\n", sec);
+        o += &format!("BackgroundAlternate={}\n", rgb(bg_alt));
+        o += &format!("BackgroundNormal={}\n",    rgb(bg));
+        o += &format!("DecorationFocus={}\n",     rgb(&s.base0d));
+        o += &format!("DecorationHover={}\n",     rgb(&s.base0c));
+        o += &format!("ForegroundActive={}\n",    rgb(fg_active));
+        o += &format!("ForegroundInactive={}\n",  rgb(&s.base03));
+        o += &format!("ForegroundLink={}\n",      rgb(&s.base0d));
+        o += &format!("ForegroundNegative={}\n",  rgb(&s.base08));
+        o += &format!("ForegroundNeutral={}\n",   rgb(&s.base09));
+        o += &format!("ForegroundNormal={}\n",    rgb(&s.base05));
+        o += &format!("ForegroundPositive={}\n",  rgb(&s.base0b));
+        o += &format!("ForegroundVisited={}\n",   rgb(&s.base0e));
+        o += "\n";
+    }
+
+    o += &format!("[WM]\n\
+        activeBackground={}\nactiveBlend={}\nactiveForeground={}\n\
+        inactiveBackground={}\ninactiveBlend={}\ninactiveForeground={}\n\n",
+        rgb(&s.base01), rgb(&s.base05), rgb(&s.base05),
+        rgb(&s.base00), rgb(&s.base03), rgb(&s.base03));
+
+    o += "[ColorEffects:Disabled]\n\
+        ChangeSelectionColor=true\nColor=56,56,56\nColorAmount=0\n\
+        ColorEffect=0\nContrastAmount=0.65\nContrastEffect=1\n\
+        Enable=true\nIntensityAmount=0.1\nIntensityEffect=2\n\n";
+
+    o += "[ColorEffects:Inactive]\n\
+        ChangeSelectionColor=true\nColor=112,111,110\nColorAmount=0.025\n\
+        ColorEffect=2\nContrastAmount=0.1\nContrastEffect=0\n\
+        Enable=false\nIntensityAmount=0\nIntensityEffect=0\n\n";
+
+    o
+}
+
+// Write color sections directly into kdeglobals, bypassing plasma-apply-colorscheme.
+// That tool silently skips re-application when the scheme name already matches
+// (it checks ColorScheme= and ColorSchemeHash= in [General]), so it never updates
+// colors when you switch between schemes while keeping the "coat" name.
+fn update_kdeglobals(scheme: &Scheme) -> Result<()> {
+    let home = home_dir()?;
+    let path = home.join(".config/kdeglobals");
+
+    let owned: &[&str] = &[
+        "Colors:Button", "Colors:Complementary", "Colors:Header",
+        "Colors:Selection", "Colors:Tooltip", "Colors:View", "Colors:Window",
+        "WM", "ColorEffects:Disabled", "ColorEffects:Inactive",
+    ];
+
+    let existing = if path.exists() {
+        fs::read_to_string(&path).unwrap_or_default()
+    } else {
+        String::new()
+    };
+
+    let mut out = String::new();
+    let mut in_owned = false;
+    let mut in_general = false;
+    let mut wrote_colorscheme = false;
+    let mut saw_general = false;
+
+    for line in existing.lines() {
+        if line.starts_with('[') && line.ends_with(']') {
+            let sec = &line[1..line.len() - 1];
+            if in_general && !wrote_colorscheme {
+                out.push_str("ColorScheme=coat\n");
+                wrote_colorscheme = true;
+            }
+            in_owned   = owned.contains(&sec);
+            in_general = sec == "General";
+            if in_general { saw_general = true; }
+        }
+        if in_owned { continue; }
+        if in_general {
+            if line.starts_with("ColorScheme=") {
+                out.push_str("ColorScheme=coat\n");
+                wrote_colorscheme = true;
+                continue;
+            }
+            if line.starts_with("ColorSchemeHash=") { continue; }
+        }
+        out.push_str(line);
+        out.push('\n');
+    }
+
+    if in_general && !wrote_colorscheme {
+        out.push_str("ColorScheme=coat\n");
+        wrote_colorscheme = true;
+    }
+    if !saw_general {
+        out.push_str("\n[General]\nColorScheme=coat\n");
+        wrote_colorscheme = true;
+    }
+    let _ = wrote_colorscheme;
+
+    out.push('\n');
+    out.push_str(&kde_color_sections(scheme));
+
+    let out = out.trim_end().to_string() + "\n";
+    ensure_dir(path.parent().unwrap_or(std::path::Path::new("/")))?;
+    fs::write(&path, &out)
+        .with_context(|| format!("Failed to write {}", path.display()))?;
+    println!("  ✓ {}", path.display());
+    Ok(())
+}
+
+fn apply_kde(tera: &Tera, ctx: &tera::Context, scheme: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+
+    // coat.colors — available in System Settings colour picker
+    let colors_dir = home.join(".local/share/color-schemes");
+    ensure_dir(&colors_dir)?;
+    render_to(tera, "kde", ctx, &colors_dir.join("coat.colors"))?;
+
+    // Konsole colour scheme
+    let konsole_dir = home.join(".local/share/konsole");
+    ensure_dir(&konsole_dir)?;
+    render_to(tera, "konsole", ctx, &konsole_dir.join("coat.colorscheme"))?;
+
+    // Write colours directly into kdeglobals (ensures correct values even if
+    // plasma-apply-colorscheme is unavailable)
+    update_kdeglobals(scheme)?;
+
+    // plasma-apply-colorscheme silently skips when the scheme name in kdeglobals
+    // already matches. Reset it first so it always does a full live apply.
+    run("kwriteconfig6 --file kdeglobals --group General --key ColorScheme _coat_reset 2>/dev/null");
+    run("plasma-apply-colorscheme coat 2>/dev/null");
+
+    Ok(())
+}
+
 fn apply_kitty(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
     let dest = home.join(".config/kitty/coat-theme.conf");
@@ -361,29 +550,11 @@ fn apply_swaylock(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig
     render_to(tera, "swaylock", ctx, &dest)
 }
 
-/// Render the vesktop CSS theme to any path — used by both the Linux module
-/// and the Windows `apply_discord` function in windows.rs.
-pub fn apply_vesktop_shared(scheme: &Scheme, path: &Path) -> Result<()> {
+/// Render the vesktop CSS theme to any path — used by the Windows `apply_discord` function.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn apply_vesktop_shared(scheme: &Scheme, config: &CoatConfig, path: &Path) -> Result<()> {
     let tera = make_tera()?;
-    let mut ctx = tera::Context::new();
-    ctx.insert("base00", &scheme.base00);
-    ctx.insert("base01", &scheme.base01);
-    ctx.insert("base02", &scheme.base02);
-    ctx.insert("base03", &scheme.base03);
-    ctx.insert("base04", &scheme.base04);
-    ctx.insert("base05", &scheme.base05);
-    ctx.insert("base06", &scheme.base06);
-    ctx.insert("base07", &scheme.base07);
-    ctx.insert("base08", &scheme.base08);
-    ctx.insert("base09", &scheme.base09);
-    ctx.insert("base0A", &scheme.base0a);
-    ctx.insert("base0B", &scheme.base0b);
-    ctx.insert("base0C", &scheme.base0c);
-    ctx.insert("base0D", &scheme.base0d);
-    ctx.insert("base0E", &scheme.base0e);
-    ctx.insert("base0F", &scheme.base0f);
-    ctx.insert("scheme_name",   &scheme.name);
-    ctx.insert("scheme_author", &scheme.author);
+    let ctx = build_context(scheme, config);
     render_to(&tera, "vesktop", &ctx, path)
 }
 
@@ -709,6 +880,13 @@ pub fn module_docs(name: &str) {
             println!("  fish_config theme save coat\n");
             println!("Or add to ~/.config/fish/config.fish:\n");
             println!("  fish_config theme choose coat");
+        }
+        "kde" => {
+            println!("The KDE color scheme is applied automatically via plasma-apply-colorscheme.\n");
+            println!("A Konsole color scheme is also written. To activate it in Konsole:\n");
+            println!("  Settings → Edit Current Profile → Appearance → coat\n");
+            println!("Or from within a Konsole session:");
+            println!("  konsoleprofile ColorScheme=coat");
         }
         "kitty" => {
             println!("Add to ~/.config/kitty/kitty.conf:\n");

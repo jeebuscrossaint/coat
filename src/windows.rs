@@ -5,6 +5,7 @@ use serde_json::Value as JsonValue;
 use std::fs;
 use std::path::PathBuf;
 
+use crate::config::CoatConfig;
 use crate::scheme::Scheme;
 
 // ── Palette shading ────────────────────────────────────────────────────────
@@ -288,7 +289,7 @@ fn discord_theme_paths() -> Vec<std::path::PathBuf> {
     paths
 }
 
-pub fn apply_discord(scheme: &Scheme) -> Result<()> {
+pub fn apply_discord(scheme: &Scheme, config: &CoatConfig) -> Result<()> {
     let paths = discord_theme_paths();
     if paths.is_empty() {
         println!("  (no Discord mod found — skipping)");
@@ -299,7 +300,7 @@ pub fn apply_discord(scheme: &Scheme) -> Result<()> {
         fs::create_dir_all(dir)
             .with_context(|| format!("Failed to create {}", dir.display()))?;
         let dest = dir.join("coat.theme.css");
-        crate::modules::apply_vesktop_shared(scheme, &dest)?;
+        crate::modules::apply_vesktop_shared(scheme, config, &dest)?;
     }
     println!("  Enable the 'coat' theme in your Discord mod's theme settings.");
     Ok(())
@@ -414,7 +415,7 @@ fn try_set_elevated(scheme: &Scheme, dark: bool) {
 fn try_set_elevated(_scheme: &Scheme, _dark: bool) {}
 
 /// Apply all Windows platform defaults for a given scheme.
-pub fn apply_all(scheme: &Scheme) -> Result<()> {
+pub fn apply_all(scheme: &Scheme, config: &CoatConfig) -> Result<()> {
     println!("Applying Windows theme: {}\n", scheme.name);
 
     println!("Applying accent color...");
@@ -438,7 +439,7 @@ pub fn apply_all(scheme: &Scheme) -> Result<()> {
     println!();
 
     println!("Applying Discord theme (Vencord/BetterDiscord)...");
-    apply_discord(scheme)?;
+    apply_discord(scheme, config)?;
     println!();
 
     println!("Restarting Explorer (taskbar will flicker briefly)...");

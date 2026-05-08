@@ -1,0 +1,94 @@
+[Background]
+Color={{ base00 | r }},{{ base00 | g }},{{ base00 | b }}
+
+[BackgroundFaint]
+Color={{ base00 | r }},{{ base00 | g }},{{ base00 | b }}
+
+[BackgroundIntense]
+Color={{ base01 | r }},{{ base01 | g }},{{ base01 | b }}
+
+[Color0]
+Color={{ base00 | r }},{{ base00 | g }},{{ base00 | b }}
+
+[Color0Faint]
+Color={{ base00 | r }},{{ base00 | g }},{{ base00 | b }}
+
+[Color0Intense]
+Color={{ base03 | r }},{{ base03 | g }},{{ base03 | b }}
+
+[Color1]
+Color={{ base08 | r }},{{ base08 | g }},{{ base08 | b }}
+
+[Color1Faint]
+Color={{ base08 | r }},{{ base08 | g }},{{ base08 | b }}
+
+[Color1Intense]
+Color={{ base08 | r }},{{ base08 | g }},{{ base08 | b }}
+
+[Color2]
+Color={{ base0B | r }},{{ base0B | g }},{{ base0B | b }}
+
+[Color2Faint]
+Color={{ base0B | r }},{{ base0B | g }},{{ base0B | b }}
+
+[Color2Intense]
+Color={{ base0B | r }},{{ base0B | g }},{{ base0B | b }}
+
+[Color3]
+Color={{ base0A | r }},{{ base0A | g }},{{ base0A | b }}
+
+[Color3Faint]
+Color={{ base0A | r }},{{ base0A | g }},{{ base0A | b }}
+
+[Color3Intense]
+Color={{ base0A | r }},{{ base0A | g }},{{ base0A | b }}
+
+[Color4]
+Color={{ base0D | r }},{{ base0D | g }},{{ base0D | b }}
+
+[Color4Faint]
+Color={{ base0D | r }},{{ base0D | g }},{{ base0D | b }}
+
+[Color4Intense]
+Color={{ base0D | r }},{{ base0D | g }},{{ base0D | b }}
+
+[Color5]
+Color={{ base0E | r }},{{ base0E | g }},{{ base0E | b }}
+
+[Color5Faint]
+Color={{ base0E | r }},{{ base0E | g }},{{ base0E | b }}
+
+[Color5Intense]
+Color={{ base0E | r }},{{ base0E | g }},{{ base0E | b }}
+
+[Color6]
+Color={{ base0C | r }},{{ base0C | g }},{{ base0C | b }}
+
+[Color6Faint]
+Color={{ base0C | r }},{{ base0C | g }},{{ base0C | b }}
+
+[Color6Intense]
+Color={{ base0C | r }},{{ base0C | g }},{{ base0C | b }}
+
+[Color7]
+Color={{ base05 | r }},{{ base05 | g }},{{ base05 | b }}
+
+[Color7Faint]
+Color={{ base04 | r }},{{ base04 | g }},{{ base04 | b }}
+
+[Color7Intense]
+Color={{ base07 | r }},{{ base07 | g }},{{ base07 | b }}
+
+[Foreground]
+Color={{ base05 | r }},{{ base05 | g }},{{ base05 | b }}
+
+[ForegroundFaint]
+Color={{ base03 | r }},{{ base03 | g }},{{ base03 | b }}
+
+[ForegroundIntense]
+Color={{ base07 | r }},{{ base07 | g }},{{ base07 | b }}
+
+[General]
+Description={{ scheme_name }}
+Opacity={{ opacity_terminal }}
+Wallpaper=

@@ -8,7 +8,7 @@ mod windows;
 
 use anyhow::{Context, Result};
 use config::CoatConfig;
-use modules::{apply_module, module_docs, module_aliases, ALL_MODULES};
+use modules::{apply_module, make_tera, module_docs, module_aliases, ALL_MODULES};
 use scheme::{find_scheme, list_schemes, schemes_clone, schemes_exists, schemes_update};
 use std::fs;
 
@@ -72,10 +72,12 @@ fn cmd_apply(args: &[String], _prog: &str) -> Result<()> {
         .with_context(|| format!("Failed to load scheme '{}'", config.scheme))?;
     println!("Applying scheme: {}\n", scheme.name);
 
+    let tera = make_tera().context("Failed to build template engine")?;
+
     if let Some(app) = specific_app {
         println!("Target: {} only\n", app);
         println!("Applying to {}...", app);
-        match apply_module(app, &scheme, &config) {
+        match apply_module(app, &scheme, &config, &tera) {
             Ok(_) => println!("\n✓ Successfully applied scheme to {}!", app),
             Err(e) => eprintln!("\n✗ Failed to apply scheme to {}: {}", app, e),
         }
@@ -87,7 +89,7 @@ fn cmd_apply(args: &[String], _prog: &str) -> Result<()> {
         let mut applied = 0;
         for app in &config.enabled {
             println!("Applying to {}...", app);
-            match apply_module(app, &scheme, &config) {
+            match apply_module(app, &scheme, &config, &tera) {
                 Ok(_) => applied += 1,
                 Err(e) => eprintln!("  ✗ {}: {}", app, e),
             }
@@ -168,24 +170,25 @@ fn cmd_set(args: &[String]) -> Result<()> {
     update_scheme_in_config(&scheme.slug)?;
     println!();
 
+    let config = CoatConfig::load().context("Failed to load coat.yaml")?;
+
     // Platform-specific theming
     #[cfg(windows)]
     {
-        windows::apply_all(&scheme)?;
+        windows::apply_all(&scheme, &config)?;
     }
 
     #[cfg(not(windows))]
     {
-        // Apply all enabled Linux modules with the new scheme
-        let config = CoatConfig::load().context("Failed to load coat.yaml")?;
         if config.enabled.is_empty() {
             println!("No modules enabled. Add apps to coat.yaml and run 'coat apply'.");
         } else {
             println!("Applying to {} enabled module(s)...\n", config.enabled.len());
+            let tera = make_tera().context("Failed to build template engine")?;
             let mut applied = 0;
             for app in &config.enabled {
                 print!("  {}... ", app);
-                match apply_module(app, &scheme, &config) {
+                match apply_module(app, &scheme, &config, &tera) {
                     Ok(_)  => { println!("✓"); applied += 1; }
                     Err(e) => println!("✗ {}", e),
                 }
