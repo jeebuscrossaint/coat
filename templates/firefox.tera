@@ -24,3 +24,28 @@
 
   --focus-outline-color: #{{ base0D | lower_hex }} !important;
 }
+
+/* Active/selected tab */
+.tabbrowser-tab[selected] .tab-background,
+.tabbrowser-tab[visuallyselected] .tab-background {
+  background-color: #{{ base00 | lower_hex }} !important;
+}
+
+/* URL bar background */
+#urlbar-background {
+  background-color: #{{ base02 | lower_hex }} !important;
+}
+
+#urlbar[focused] > #urlbar-background {
+  background-color: #{{ base02 | lower_hex }} !important;
+}
+
+#urlbar .urlbar-input-container {
+  color: #{{ base05 | lower_hex }} !important;
+}
+
+/* Search bar */
+.searchbar-textbox {
+  background-color: #{{ base02 | lower_hex }} !important;
+  color: #{{ base05 | lower_hex }} !important;
+}
