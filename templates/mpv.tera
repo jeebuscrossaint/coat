@@ -1,0 +1,9 @@
+# coat — {{ scheme_name }}
+osd-color=#{{ base05 | lower_hex }}
+osd-border-color=#{{ base00 | lower_hex }}
+osd-back-color=#{{ base00 | lower_hex }}CC
+osd-shadow-color=#{{ base00 | lower_hex }}80
+{% if font_sansserif -%}
+osd-font={{ font_sansserif }}
+sub-font={{ font_sansserif }}
+{% endif %}

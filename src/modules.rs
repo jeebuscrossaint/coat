@@ -21,6 +21,7 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("bat",       "bat.tera"),
     tpl!("btop",      "btop.tera"),
     tpl!("dunst",     "dunst.tera"),
+    tpl!("firefox",   "firefox.tera"),
     tpl!("fish",      "fish.tera"),
     tpl!("foot",      "foot.tera"),
     tpl!("fuzzel",    "fuzzel.tera"),
@@ -32,6 +33,7 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("konsole",   "konsole.tera"),
     tpl!("labwc",     "labwc.tera"),
     tpl!("lf",        "lf.tera"),
+    tpl!("mpv",       "mpv.tera"),
     tpl!("ranger",    "ranger.tera"),
     tpl!("rofi",      "rofi.tera"),
     tpl!("sway",      "sway.tera"),
@@ -182,8 +184,8 @@ fn run(cmd: &str) {
 // ── Module dispatch ────────────────────────────────────────────────────────
 
 pub const ALL_MODULES: &[&str] = &[
-    "bat", "btop", "dunst", "fish", "foot", "fuzzel", "gtk", "helix",
-    "i3", "kde", "kitty", "labwc", "lf", "qt", "ranger", "rofi", "sway",
+    "bat", "btop", "dunst", "firefox", "fish", "foot", "fuzzel", "gtk", "helix",
+    "i3", "kde", "kitty", "labwc", "lf", "mpv", "qt", "ranger", "rofi", "sway",
     "swaylock", "vesktop", "vscode", "waybar", "xresources", "zathura",
 ];
 
@@ -203,6 +205,7 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "bat"        => apply_bat(&tera, &ctx, scheme, config),
         "btop"       => apply_btop(&tera, &ctx, scheme, config),
         "dunst"      => apply_dunst(&tera, &ctx, scheme, config),
+        "firefox"    => apply_firefox(&tera, &ctx, scheme, config),
         "fish"       => apply_fish(&tera, &ctx, scheme, config),
         "foot"       => apply_foot(&tera, &ctx, scheme, config),
         "fuzzel"     => apply_fuzzel(&tera, &ctx, scheme, config),
@@ -213,6 +216,7 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "kitty"      => apply_kitty(&tera, &ctx, scheme, config),
         "labwc"      => apply_labwc(&tera, &ctx, scheme, config),
         "lf"         => apply_lf(&tera, &ctx, scheme, config),
+        "mpv"        => apply_mpv(&tera, &ctx, scheme, config),
         "qt"         => apply_qt(scheme, config),
         "ranger"     => apply_ranger(&tera, &ctx, scheme, config),
         "rofi"       => apply_rofi(&tera, &ctx, scheme, config),
@@ -513,6 +517,120 @@ fn apply_labwc(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -
     let dest = home.join(".config/labwc/themerc");
     render_to(tera, "labwc", ctx, &dest)?;
     run("labwc --reconfigure 2>/dev/null; true");
+    Ok(())
+}
+
+fn apply_mpv(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    let dest = home.join(".config/mpv/coat-theme.conf");
+    render_to(tera, "mpv", ctx, &dest)?;
+    println!("    Add to ~/.config/mpv/mpv.conf: include ~/.config/mpv/coat-theme.conf");
+    Ok(())
+}
+
+fn firefox_profile_dir() -> Option<PathBuf> {
+    let home = dirs::home_dir()?;
+    // Check XDG path first, then legacy ~/.mozilla path
+    let ini_path = [
+        home.join(".config/mozilla/firefox/profiles.ini"),
+        home.join(".mozilla/firefox/profiles.ini"),
+    ]
+    .into_iter()
+    .find(|p| p.exists())?;
+    let content = fs::read_to_string(&ini_path).ok()?;
+
+    // Parse all sections into (name, key→value) pairs
+    let mut sections: Vec<(String, HashMap<String, String>)> = Vec::new();
+    let mut cur_name = String::new();
+    let mut cur_map: HashMap<String, String> = HashMap::new();
+
+    for line in content.lines() {
+        let line = line.trim();
+        if line.starts_with('[') && line.ends_with(']') {
+            if !cur_name.is_empty() {
+                sections.push((cur_name.clone(), cur_map.clone()));
+                cur_map.clear();
+            }
+            cur_name = line[1..line.len() - 1].to_string();
+        } else if let Some((k, v)) = line.split_once('=') {
+            cur_map.insert(k.trim().to_string(), v.trim().to_string());
+        }
+    }
+    if !cur_name.is_empty() {
+        sections.push((cur_name, cur_map));
+    }
+
+    // [Install*] Default= is the most reliable pointer to the default profile
+    let mut path_str: Option<String> = None;
+    let mut relative = true;
+    for (sec, map) in &sections {
+        if sec.starts_with("Install") {
+            if let Some(p) = map.get("Default") {
+                path_str = Some(p.clone());
+                break;
+            }
+        }
+    }
+    // Fall back to [Profile*] with Default=1
+    if path_str.is_none() {
+        for (sec, map) in &sections {
+            if sec.starts_with("Profile") && map.get("Default").map(|s| s == "1").unwrap_or(false) {
+                path_str = map.get("Path").cloned();
+                relative = map.get("IsRelative").map(|s| s == "1").unwrap_or(true);
+                break;
+            }
+        }
+    }
+    // Fall back to first profile
+    if path_str.is_none() {
+        for (sec, map) in &sections {
+            if sec.starts_with("Profile") {
+                path_str = map.get("Path").cloned();
+                relative = map.get("IsRelative").map(|s| s == "1").unwrap_or(true);
+                break;
+            }
+        }
+    }
+
+    let p = path_str?;
+    if relative {
+        Some(ini_path.parent()?.join(&p))
+    } else {
+        Some(PathBuf::from(&p))
+    }
+}
+
+fn apply_firefox(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let Some(profile) = firefox_profile_dir() else {
+        eprintln!("  ✗ Firefox profile not found — is Firefox installed?");
+        return Ok(());
+    };
+
+    // Write userChrome.css
+    let chrome_dir = profile.join("chrome");
+    ensure_dir(&chrome_dir)?;
+    render_to(tera, "firefox", ctx, &chrome_dir.join("userChrome.css"))?;
+
+    // Ensure toolkit.legacyUserProfileCustomizations.stylesheets is enabled
+    let user_js = profile.join("user.js");
+    let existing = if user_js.exists() {
+        fs::read_to_string(&user_js).unwrap_or_default()
+    } else {
+        String::new()
+    };
+    let pref = "toolkit.legacyUserProfileCustomizations.stylesheets";
+    if !existing.contains(pref) {
+        let appended = format!(
+            "{}user_pref(\"{}\", true);\n",
+            if existing.ends_with('\n') || existing.is_empty() { existing } else { existing + "\n" },
+            pref
+        );
+        fs::write(&user_js, appended)
+            .with_context(|| format!("Failed to write {}", user_js.display()))?;
+        println!("  ✓ {}", user_js.display());
+    }
+
+    println!("    Restart Firefox for changes to take effect.");
     Ok(())
 }
 
@@ -875,6 +993,16 @@ pub fn module_docs(name: &str) {
     let name = module_aliases(name).unwrap_or(name);
     println!("=== {} Setup Instructions ===\n", name);
     match name {
+        "mpv" => {
+            println!("Add to ~/.config/mpv/mpv.conf:\n");
+            println!("  include ~/.config/mpv/coat-theme.conf");
+        }
+        "firefox" => {
+            println!("userChrome.css is written automatically.\n");
+            println!("If colors don't appear, enable custom CSS in about:config:\n");
+            println!("  toolkit.legacyUserProfileCustomizations.stylesheets = true\n");
+            println!("Then restart Firefox.");
+        }
         "fish" => {
             println!("To activate the fish theme:\n");
             println!("  fish_config theme save coat\n");

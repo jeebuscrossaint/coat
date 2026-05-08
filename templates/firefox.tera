@@ -1,0 +1,26 @@
+/* coat — {{ scheme_name }} */
+
+:root {
+  --toolbar-bgcolor: #{{ base01 | lower_hex }} !important;
+  --toolbar-color: #{{ base05 | lower_hex }} !important;
+
+  --tab-selected-bgcolor: #{{ base00 | lower_hex }} !important;
+  --tab-selected-color: #{{ base05 | lower_hex }} !important;
+  --tabs-border-color: #{{ base02 | lower_hex }} !important;
+  --tab-hover-background-color: #{{ base02 | lower_hex }} !important;
+
+  --urlbar-box-bgcolor: #{{ base02 | lower_hex }} !important;
+  --urlbar-box-focus-bgcolor: #{{ base02 | lower_hex }} !important;
+  --urlbar-box-text-color: #{{ base05 | lower_hex }} !important;
+  --urlbar-popup-bgcolor: #{{ base01 | lower_hex }} !important;
+  --urlbar-popup-color: #{{ base05 | lower_hex }} !important;
+
+  --toolbarbutton-hover-background: color-mix(in srgb, #{{ base05 | lower_hex }} 12%, transparent) !important;
+  --toolbarbutton-active-background: color-mix(in srgb, #{{ base05 | lower_hex }} 22%, transparent) !important;
+
+  --sidebar-background-color: #{{ base00 | lower_hex }} !important;
+  --sidebar-text-color: #{{ base05 | lower_hex }} !important;
+  --sidebar-border-color: #{{ base02 | lower_hex }} !important;
+
+  --focus-outline-color: #{{ base0D | lower_hex }} !important;
+}
