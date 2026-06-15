@@ -314,6 +314,17 @@ fn vscode_settings_path_windows() -> Option<PathBuf> {
     Some(path)
 }
 
+// ── Zed on Windows ─────────────────────────────────────────────────────────
+
+/// Zed stores its config under %APPDATA%\Zed on Windows.
+fn zed_paths_windows() -> Option<(PathBuf, PathBuf)> {
+    let appdata = std::env::var("APPDATA").ok()?;
+    let base = PathBuf::from(appdata).join("Zed");
+    let settings = base.join("settings.json");
+    let themes = base.join("themes");
+    Some((settings, themes))
+}
+
 // ── Public entry points ────────────────────────────────────────────────────
 
 pub fn apply_accent(scheme: &Scheme) -> Result<()> {
@@ -349,6 +360,20 @@ pub fn apply_vscode(scheme: &Scheme) -> Result<()> {
     };
     // Delegate to the shared VSCode apply function in modules.rs (no font on Windows)
     crate::modules::apply_vscode_shared(scheme, &path, None)
+}
+
+pub fn apply_zed(scheme: &Scheme) -> Result<()> {
+    let Some((settings, themes)) = zed_paths_windows() else {
+        println!("  (Zed not found at %APPDATA%\\Zed — skipping)");
+        return Ok(());
+    };
+    // Only apply if Zed's config dir already exists — avoids creating it blind.
+    if !settings.parent().map(|p| p.is_dir()).unwrap_or(false) {
+        println!("  (Zed not found at %APPDATA%\\Zed — skipping)");
+        return Ok(());
+    }
+    // Delegate to the shared Zed apply function in modules.rs (no font on Windows)
+    crate::modules::apply_zed_shared(scheme, &settings, &themes, None)
 }
 
 /// Try to write registry keys that require admin (HKLM + HKU\.DEFAULT).
@@ -436,6 +461,10 @@ pub fn apply_all(scheme: &Scheme, config: &CoatConfig) -> Result<()> {
 
     println!("Applying VSCode colors...");
     apply_vscode(scheme)?;
+    println!();
+
+    println!("Applying Zed colors...");
+    apply_zed(scheme)?;
     println!();
 
     println!("Applying Discord theme (Vencord/BetterDiscord)...");

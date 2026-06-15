@@ -186,7 +186,7 @@ fn run(cmd: &str) {
 pub const ALL_MODULES: &[&str] = &[
     "bat", "btop", "dunst", "firefox", "fish", "foot", "fuzzel", "gtk", "helix",
     "i3", "kde", "kitty", "labwc", "lf", "mpv", "qt", "ranger", "rofi", "sway",
-    "swaylock", "vesktop", "vscode", "waybar", "xresources", "zathura",
+    "swaylock", "vesktop", "vscode", "waybar", "xresources", "zathura", "zed",
 ];
 
 pub fn module_aliases(name: &str) -> Option<&'static str> {
@@ -227,6 +227,7 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "waybar"     => apply_waybar(&tera, &ctx, scheme, config),
         "xresources" => apply_xresources(&tera, &ctx, scheme, config),
         "zathura"    => apply_zathura(&tera, &ctx, scheme, config),
+        "zed"        => apply_zed(scheme, config),
         other        => bail!("Unknown module: {}", other),
     }
 }
@@ -987,6 +988,280 @@ fn apply_vscode(scheme: &Scheme, config: &CoatConfig) -> Result<()> {
     apply_vscode_shared(scheme, &settings_path, font)
 }
 
+// ── Zed — handled directly (theme JSON + settings.json merge) ──────────────
+
+/// Build a Zed theme-family JSON document for the given scheme.
+/// Produces a single inner theme named "coat" following the v0.2.0 schema.
+fn build_zed_theme(s: &Scheme) -> JsonValue {
+    let h = |c: &str| format!("#{}", c);
+    let ha = |c: &str, a: &str| format!("#{}{}", c, a);
+
+    // Build the style object programmatically — a single json! literal with
+    // this many keys blows past the macro recursion limit.
+    let mut style = serde_json::Map::new();
+    let mut put = |k: &str, v: String| {
+        style.insert(k.to_string(), JsonValue::String(v));
+    };
+
+    put("border",                 h(&s.base02));
+    put("border.variant",         h(&s.base01));
+    put("border.focused",         h(&s.base0d));
+    put("border.selected",        h(&s.base0d));
+    put("border.transparent",     ha(&s.base02, "00"));
+    put("border.disabled",        h(&s.base01));
+    put("elevated_surface.background", h(&s.base01));
+    put("surface.background",     h(&s.base01));
+    put("background",             h(&s.base00));
+    put("element.background",     h(&s.base01));
+    put("element.hover",          h(&s.base02));
+    put("element.active",         h(&s.base02));
+    put("element.selected",       h(&s.base02));
+    put("element.disabled",       h(&s.base01));
+    put("drop_target.background", ha(&s.base0d, "40"));
+    put("ghost_element.background", ha(&s.base00, "00"));
+    put("ghost_element.hover",    h(&s.base01));
+    put("ghost_element.active",   h(&s.base02));
+    put("ghost_element.selected", h(&s.base02));
+    put("ghost_element.disabled", h(&s.base01));
+    put("text",                   h(&s.base05));
+    put("text.muted",             h(&s.base04));
+    put("text.placeholder",       h(&s.base03));
+    put("text.disabled",          h(&s.base03));
+    put("text.accent",            h(&s.base0d));
+    put("icon",                   h(&s.base05));
+    put("icon.muted",             h(&s.base04));
+    put("icon.disabled",          h(&s.base03));
+    put("icon.placeholder",       h(&s.base04));
+    put("icon.accent",            h(&s.base0d));
+    put("status_bar.background",  h(&s.base01));
+    put("title_bar.background",   h(&s.base01));
+    put("title_bar.inactive_background", h(&s.base00));
+    put("toolbar.background",     h(&s.base00));
+    put("tab_bar.background",     h(&s.base01));
+    put("tab.inactive_background", h(&s.base01));
+    put("tab.active_background",  h(&s.base00));
+    put("search.match_background", ha(&s.base0a, "66"));
+    put("panel.background",       h(&s.base01));
+    put("panel.focused_border",   h(&s.base0d));
+    put("pane.focused_border",    h(&s.base0d));
+    put("scrollbar.thumb.background", ha(&s.base03, "80"));
+    put("scrollbar.thumb.hover_background", ha(&s.base04, "80"));
+    put("scrollbar.thumb.border", ha(&s.base03, "00"));
+    put("scrollbar.track.background", ha(&s.base00, "00"));
+    put("scrollbar.track.border", h(&s.base01));
+    put("editor.foreground",      h(&s.base05));
+    put("editor.background",      h(&s.base00));
+    put("editor.gutter.background", h(&s.base00));
+    put("editor.subheader.background", h(&s.base01));
+    put("editor.active_line.background", ha(&s.base01, "bb"));
+    put("editor.highlighted_line.background", h(&s.base01));
+    put("editor.line_number",     h(&s.base03));
+    put("editor.active_line_number", h(&s.base05));
+    put("editor.invisible",       h(&s.base03));
+    put("editor.wrap_guide",      ha(&s.base02, "80"));
+    put("editor.active_wrap_guide", h(&s.base02));
+    put("editor.document_highlight.read_background", ha(&s.base0d, "33"));
+    put("editor.document_highlight.write_background", ha(&s.base04, "33"));
+    put("terminal.background",    h(&s.base00));
+    put("terminal.foreground",    h(&s.base05));
+    put("terminal.bright_foreground", h(&s.base07));
+    put("terminal.dim_foreground", h(&s.base04));
+    put("terminal.ansi.black",           h(&s.base00));
+    put("terminal.ansi.bright_black",    h(&s.base03));
+    put("terminal.ansi.dim_black",       h(&s.base00));
+    put("terminal.ansi.red",             h(&s.base08));
+    put("terminal.ansi.bright_red",      h(&s.base08));
+    put("terminal.ansi.dim_red",         h(&s.base08));
+    put("terminal.ansi.green",           h(&s.base0b));
+    put("terminal.ansi.bright_green",    h(&s.base0b));
+    put("terminal.ansi.dim_green",       h(&s.base0b));
+    put("terminal.ansi.yellow",          h(&s.base0a));
+    put("terminal.ansi.bright_yellow",   h(&s.base0a));
+    put("terminal.ansi.dim_yellow",      h(&s.base0a));
+    put("terminal.ansi.blue",            h(&s.base0d));
+    put("terminal.ansi.bright_blue",     h(&s.base0d));
+    put("terminal.ansi.dim_blue",        h(&s.base0d));
+    put("terminal.ansi.magenta",         h(&s.base0e));
+    put("terminal.ansi.bright_magenta",  h(&s.base0e));
+    put("terminal.ansi.dim_magenta",     h(&s.base0e));
+    put("terminal.ansi.cyan",            h(&s.base0c));
+    put("terminal.ansi.bright_cyan",     h(&s.base0c));
+    put("terminal.ansi.dim_cyan",        h(&s.base0c));
+    put("terminal.ansi.white",           h(&s.base05));
+    put("terminal.ansi.bright_white",    h(&s.base07));
+    put("terminal.ansi.dim_white",       h(&s.base04));
+    put("link_text.hover",        h(&s.base0c));
+    put("conflict",               h(&s.base09));
+    put("conflict.background",    h(&s.base01));
+    put("conflict.border",        h(&s.base09));
+    put("created",                h(&s.base0b));
+    put("created.background",     h(&s.base01));
+    put("created.border",         h(&s.base0b));
+    put("deleted",                h(&s.base08));
+    put("deleted.background",     h(&s.base01));
+    put("deleted.border",         h(&s.base08));
+    put("error",                  h(&s.base08));
+    put("error.background",       h(&s.base01));
+    put("error.border",           h(&s.base08));
+    put("hidden",                 h(&s.base03));
+    put("hidden.background",      h(&s.base01));
+    put("hidden.border",          h(&s.base02));
+    put("hint",                   h(&s.base04));
+    put("hint.background",        h(&s.base01));
+    put("hint.border",            h(&s.base02));
+    put("ignored",                h(&s.base03));
+    put("ignored.background",     h(&s.base01));
+    put("ignored.border",         h(&s.base02));
+    put("info",                   h(&s.base0d));
+    put("info.background",        h(&s.base01));
+    put("info.border",            h(&s.base0d));
+    put("modified",               h(&s.base0a));
+    put("modified.background",    h(&s.base01));
+    put("modified.border",        h(&s.base0a));
+    put("predictive",             h(&s.base03));
+    put("predictive.background",  h(&s.base01));
+    put("predictive.border",      h(&s.base02));
+    put("renamed",                h(&s.base0d));
+    put("renamed.background",     h(&s.base01));
+    put("renamed.border",         h(&s.base0d));
+    put("success",                h(&s.base0b));
+    put("success.background",     h(&s.base01));
+    put("success.border",         h(&s.base0b));
+    put("unreachable",            h(&s.base03));
+    put("unreachable.background", h(&s.base01));
+    put("unreachable.border",     h(&s.base02));
+    put("warning",                h(&s.base09));
+    put("warning.background",     h(&s.base01));
+    put("warning.border",         h(&s.base09));
+    drop(put);
+
+    // Players (cursor / block selection colours).
+    let player = |cur: &str, bg: &str, sel: String| {
+        serde_json::json!({ "cursor": h(cur), "background": h(bg), "selection": sel })
+    };
+    style.insert("players".to_string(), JsonValue::Array(vec![
+        player(&s.base05, &s.base0d, ha(&s.base02, "80")),
+        player(&s.base0b, &s.base0b, ha(&s.base0b, "40")),
+        player(&s.base0e, &s.base0e, ha(&s.base0e, "40")),
+        player(&s.base09, &s.base09, ha(&s.base09, "40")),
+    ]));
+
+    // Syntax — each entry is {"color": "#..."} with optional style/weight.
+    let mut syntax = serde_json::Map::new();
+    let syn = |c: &str| serde_json::json!({ "color": h(c) });
+    let syn_italic = |c: &str| serde_json::json!({ "color": h(c), "font_style": "italic" });
+    let syn_bold = |c: &str| serde_json::json!({ "color": h(c), "font_weight": 700 });
+    let mut puts = |k: &str, v: JsonValue| { syntax.insert(k.to_string(), v); };
+    puts("attribute",            syn(&s.base0a));
+    puts("boolean",              syn(&s.base09));
+    puts("comment",              syn_italic(&s.base03));
+    puts("comment.doc",          syn_italic(&s.base04));
+    puts("constant",             syn(&s.base09));
+    puts("constructor",          syn(&s.base0a));
+    puts("embedded",             syn(&s.base05));
+    puts("emphasis",             syn_italic(&s.base0d));
+    puts("emphasis.strong",      syn_bold(&s.base0d));
+    puts("enum",                 syn(&s.base0a));
+    puts("function",             syn(&s.base0d));
+    puts("hint",                 syn(&s.base04));
+    puts("keyword",              syn(&s.base0e));
+    puts("label",                syn(&s.base0d));
+    puts("link_text",            syn_italic(&s.base0c));
+    puts("link_uri",             syn(&s.base0c));
+    puts("number",               syn(&s.base09));
+    puts("operator",             syn(&s.base05));
+    puts("predictive",           syn(&s.base03));
+    puts("preproc",              syn(&s.base0e));
+    puts("primary",              syn(&s.base05));
+    puts("property",             syn(&s.base0d));
+    puts("punctuation",          syn(&s.base05));
+    puts("punctuation.bracket",  syn(&s.base05));
+    puts("punctuation.delimiter", syn(&s.base05));
+    puts("punctuation.list_marker", syn(&s.base0c));
+    puts("punctuation.special",  syn(&s.base0f));
+    puts("string",               syn(&s.base0b));
+    puts("string.escape",        syn(&s.base0c));
+    puts("string.regex",         syn(&s.base0c));
+    puts("string.special",       syn(&s.base0f));
+    puts("string.special.symbol", syn(&s.base0f));
+    puts("tag",                  syn(&s.base08));
+    puts("text.literal",         syn(&s.base0b));
+    puts("title",                syn_bold(&s.base0d));
+    puts("type",                 syn(&s.base0a));
+    puts("variable",             syn(&s.base05));
+    puts("variable.special",     syn(&s.base08));
+    puts("variant",              syn(&s.base0a));
+    drop(puts);
+    style.insert("syntax".to_string(), JsonValue::Object(syntax));
+
+    serde_json::json!({
+        "$schema": "https://zed.dev/schema/themes/v0.2.0.json",
+        "name": "coat",
+        "author": s.author,
+        "themes": [
+            {
+                "name": "coat",
+                "appearance": if s.is_dark() { "dark" } else { "light" },
+                "style": JsonValue::Object(style),
+            }
+        ]
+    })
+}
+
+/// Shared Zed apply logic. Works on any platform.
+/// Writes the theme family to `themes_dir/coat.json` and merges
+/// `settings.json` to select the "coat" theme (and font, if given).
+pub fn apply_zed_shared(
+    scheme: &Scheme,
+    settings_path: &Path,
+    themes_dir: &Path,
+    font: Option<&str>,
+) -> Result<()> {
+    // 1. Write the theme family JSON.
+    ensure_dir(themes_dir)?;
+    let theme = build_zed_theme(scheme);
+    let theme_path = themes_dir.join("coat.json");
+    let theme_str = serde_json::to_string_pretty(&theme)
+        .context("Failed to serialize Zed theme")?;
+    fs::write(&theme_path, theme_str)
+        .with_context(|| format!("Failed to write {}", theme_path.display()))?;
+    println!("  ✓ {}", theme_path.display());
+
+    // 2. Merge settings.json — select the theme and (optionally) set the font.
+    let mut settings: serde_json::Map<String, JsonValue> = if settings_path.exists() {
+        let content = fs::read_to_string(settings_path)
+            .with_context(|| format!("Failed to read {}", settings_path.display()))?;
+        serde_json::from_str(&content).unwrap_or_default()
+    } else {
+        if let Some(parent) = settings_path.parent() {
+            ensure_dir(parent)?;
+        }
+        serde_json::Map::new()
+    };
+
+    settings.insert("theme".to_string(), JsonValue::String("coat".to_string()));
+    if let Some(f) = font {
+        if !f.is_empty() {
+            settings.insert("buffer_font_family".to_string(), JsonValue::String(f.to_string()));
+        }
+    }
+
+    let json_str = serde_json::to_string_pretty(&settings)
+        .context("Failed to serialize Zed settings.json")?;
+    fs::write(settings_path, json_str)
+        .with_context(|| format!("Failed to write {}", settings_path.display()))?;
+    println!("  ✓ {}", settings_path.display());
+    Ok(())
+}
+
+fn apply_zed(scheme: &Scheme, config: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    let settings_path = home.join(".config/zed/settings.json");
+    let themes_dir = home.join(".config/zed/themes");
+    let font = Some(config.font_monospace()).filter(|f| !f.is_empty());
+    apply_zed_shared(scheme, &settings_path, &themes_dir, font)
+}
+
 // ── Docs strings ───────────────────────────────────────────────────────────
 
 pub fn module_docs(name: &str) {
@@ -1056,6 +1331,13 @@ pub fn module_docs(name: &str) {
             println!("The theme is automatically activated.\n");
             println!("If it doesn't appear, reload VSCode:");
             println!("  Ctrl+Shift+P → Reload Window");
+        }
+        "zed" => {
+            println!("The 'coat' theme is written to ~/.config/zed/themes/coat.json");
+            println!("and selected automatically in settings.json.\n");
+            println!("Zed hot-reloads themes — no restart needed.\n");
+            println!("If it doesn't switch, set it manually:");
+            println!("  Ctrl+Shift+P → \"theme selector: toggle\" → coat");
         }
         "gtk" => {
             println!("Theme is applied via gsettings automatically.\n");

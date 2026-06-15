@@ -94,6 +94,7 @@ On Windows, `coat set <scheme>` themes the OS directly — no config file requir
 - Dark/light mode
 - Windows Terminal color scheme
 - VSCode color customizations
+- Zed theme (if Zed is installed)
 
 ```powershell
 coat set nord
@@ -107,7 +108,7 @@ If run as administrator, also themes the logon screen.
 | Category | Modules |
 |---|---|
 | Terminals | fish, foot, kitty |
-| Editors | helix, vscode |
+| Editors | helix, vscode, zed |
 | WM / Compositors | i3, sway, labwc |
 | Bars | waybar |
 | Screen locker | swaylock |

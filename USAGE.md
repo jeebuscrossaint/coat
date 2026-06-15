@@ -115,6 +115,10 @@ Reload: `:config-reload`
 
 Merges colors directly into `~/.config/Code/User/settings.json` (Linux) or `%APPDATA%\Code\User\settings.json` (Windows) via `workbench.colorCustomizations` and `editor.tokenColorCustomizations`. No extension install needed — changes take effect immediately.
 
+### zed
+
+Writes a theme family to `~/.config/zed/themes/coat.json` (Linux) or `%APPDATA%\Zed\themes\coat.json` (Windows) and selects it by merging `"theme": "coat"` into `settings.json`. Zed hot-reloads themes, so no restart is needed. If the theme doesn't switch, pick it via `Ctrl+Shift+P → "theme selector: toggle" → coat`.
+
 ### i3
 
 Writes `~/.config/i3/coat-theme.conf`. `i3-msg reload` is run automatically.
@@ -256,6 +260,7 @@ In Vesktop/Vencord settings → Themes → enable **coat**.
 - Dark/light mode (`Themes\Personalize`)
 - Windows Terminal — injects a `"coat"` entry into `settings.json`
 - VSCode — merges into `%APPDATA%\Code\User\settings.json`
+- Zed — writes `%APPDATA%\Zed\themes\coat.json` and selects it in `settings.json` (only if Zed's config dir exists)
 
 Run as administrator to also theme the logon screen.
 
