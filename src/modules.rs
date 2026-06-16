@@ -201,6 +201,19 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
     let name = module_aliases(name).unwrap_or(name);
     let ctx = build_context(scheme, config);
 
+    // On Windows, cross-platform apps live at native locations (%APPDATA%, …)
+    // rather than the XDG paths the Linux module functions assume. Route them
+    // to the Windows-specific apply functions so `coat apply <app>` works too.
+    #[cfg(windows)]
+    {
+        match name {
+            "vscode"   => return crate::windows::apply_vscode(scheme),
+            "zed"      => return crate::windows::apply_zed(scheme),
+            "vesktop"  => return crate::windows::apply_discord(scheme, config),
+            _ => {}
+        }
+    }
+
     match name {
         "bat"        => apply_bat(&tera, &ctx, scheme, config),
         "btop"       => apply_btop(&tera, &ctx, scheme, config),
@@ -820,16 +833,104 @@ fn build_qt_conf(colors_path: &Path, config: &CoatConfig) -> String {
     out
 }
 
+// ── JSONC-safe settings reading ───────────────────────────────────────────
+
+/// Strip `//` line comments, `/* */` block comments, and trailing commas from a
+/// JSONC document so `serde_json` can parse it. String literals are preserved
+/// verbatim. Editors like VSCode and Zed use JSONC for their settings files.
+fn strip_jsonc(input: &str) -> String {
+    let bytes = input.as_bytes();
+    let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    let mut in_string = false;
+    let mut escaped = false;
+
+    while i < bytes.len() {
+        let c = bytes[i];
+        if in_string {
+            out.push(c);
+            if escaped {
+                escaped = false;
+            } else if c == b'\\' {
+                escaped = true;
+            } else if c == b'"' {
+                in_string = false;
+            }
+            i += 1;
+            continue;
+        }
+        match c {
+            b'"' => {
+                in_string = true;
+                out.push(c);
+                i += 1;
+            }
+            b'/' if i + 1 < bytes.len() && bytes[i + 1] == b'/' => {
+                i += 2;
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    i += 1;
+                }
+            }
+            b'/' if i + 1 < bytes.len() && bytes[i + 1] == b'*' => {
+                i += 2;
+                while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    i += 1;
+                }
+                i += 2; // skip the closing */
+            }
+            b'}' | b']' => {
+                // Drop any trailing comma (and intervening whitespace) before a
+                // closing bracket — JSONC allows it, strict JSON does not.
+                while matches!(out.last(), Some(b' ' | b'\t' | b'\r' | b'\n')) {
+                    out.pop();
+                }
+                if out.last() == Some(&b',') {
+                    out.pop();
+                }
+                out.push(c);
+                i += 1;
+            }
+            _ => {
+                out.push(c);
+                i += 1;
+            }
+        }
+    }
+
+    String::from_utf8(out).unwrap_or_else(|_| input.to_string())
+}
+
+/// Read an existing settings file as a JSON object, tolerating JSONC.
+/// Returns an error (rather than an empty map) if the file can't be parsed,
+/// so a malformed file is never silently overwritten and its contents lost.
+pub fn read_json_settings(path: &Path) -> Result<serde_json::Map<String, JsonValue>> {
+    let content = fs::read_to_string(path)
+        .with_context(|| format!("Failed to read {}", path.display()))?;
+    if content.trim().is_empty() {
+        return Ok(serde_json::Map::new());
+    }
+    let cleaned = strip_jsonc(&content);
+    let value: JsonValue = serde_json::from_str(&cleaned).with_context(|| {
+        format!(
+            "Failed to parse {} as JSON — refusing to overwrite it",
+            path.display()
+        )
+    })?;
+    match value {
+        JsonValue::Object(m) => Ok(m),
+        _ => bail!("{} is not a JSON object", path.display()),
+    }
+}
+
 // ── VSCode — handled directly (JSON merge) ────────────────────────────────
 
 /// Shared VSCode apply logic. Works on any `path` (Linux or Windows).
 /// `font` is optional; pass `None` to skip font injection.
 pub fn apply_vscode_shared(scheme: &Scheme, path: &Path, font: Option<&str>) -> Result<()> {
-    // Read existing settings or start fresh
+    // Read existing settings or start fresh (JSONC-tolerant; never clobbers
+    // a file it can't parse).
     let mut settings: serde_json::Map<String, JsonValue> = if path.exists() {
-        let content = fs::read_to_string(path)
-            .with_context(|| format!("Failed to read {}", path.display()))?;
-        serde_json::from_str(&content).unwrap_or_default()
+        read_json_settings(path)?
     } else {
         if let Some(parent) = path.parent() {
             ensure_dir(parent)?;
@@ -1228,10 +1329,9 @@ pub fn apply_zed_shared(
     println!("  ✓ {}", theme_path.display());
 
     // 2. Merge settings.json — select the theme and (optionally) set the font.
+    //    JSONC-tolerant; never clobbers a file it can't parse.
     let mut settings: serde_json::Map<String, JsonValue> = if settings_path.exists() {
-        let content = fs::read_to_string(settings_path)
-            .with_context(|| format!("Failed to read {}", settings_path.display()))?;
-        serde_json::from_str(&content).unwrap_or_default()
+        read_json_settings(settings_path)?
     } else {
         if let Some(parent) = settings_path.parent() {
             ensure_dir(parent)?;

@@ -233,11 +233,9 @@ fn build_wt_scheme(scheme: &Scheme) -> serde_json::Value {
 }
 
 fn apply_windows_terminal_to(path: &std::path::Path, scheme: &Scheme) -> Result<()> {
-    let content = fs::read_to_string(path)
-        .with_context(|| format!("Failed to read {}", path.display()))?;
-
+    // JSONC-tolerant read; errors out instead of clobbering an unparseable file.
     let mut settings: serde_json::Map<String, JsonValue> =
-        serde_json::from_str(&content).unwrap_or_default();
+        crate::modules::read_json_settings(path)?;
 
     // Ensure "schemes" array exists
     let schemes_arr = settings
