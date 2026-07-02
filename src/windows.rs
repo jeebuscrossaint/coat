@@ -139,18 +139,47 @@ fn set_dark_mode(_dark: bool) -> Result<()> {
 
 /// Restart explorer.exe so the taskbar re-reads AccentPalette from the registry.
 /// The desktop/taskbar will disappear for ~1 second while it restarts.
+///
+/// On Windows 11 the Start menu and search box run as separate processes
+/// (StartMenuExperienceHost.exe and SearchHost.exe) that hook into explorer.
+/// If explorer is force-killed on its own, those hosts survive but lose their
+/// connection to the new shell — Start opens but search input does nothing.
+/// To avoid that we refresh those hosts too; they respawn on demand when the
+/// user next opens Start/search, cleanly re-attached to the fresh explorer.
 fn restart_explorer() {
     #[cfg(windows)]
     {
+        use std::process::Command;
+        use std::time::Duration;
+
+        // Best-effort kill of a process image; a missing image just no-ops.
+        let kill = |image: &str| {
+            let _ = Command::new("taskkill").args(["/f", "/im", image]).output();
+        };
+
         print!("  Restarting Explorer... ");
-        // Kill the running instance
-        let _ = std::process::Command::new("taskkill")
-            .args(["/f", "/im", "explorer.exe"])
-            .output();
-        // Give it a moment to fully exit
-        std::thread::sleep(std::time::Duration::from_millis(600));
-        // Restart — Windows may auto-restart it, but be explicit to be safe
-        let _ = std::process::Command::new("explorer.exe").spawn();
+
+        // 1. Kill the shell so it re-reads AccentPalette on relaunch.
+        kill("explorer.exe");
+
+        // 2. Let it fully exit before relaunching so we don't race a shell that
+        //    is still tearing down.
+        std::thread::sleep(Duration::from_millis(800));
+
+        // 3. Relaunch the shell explicitly (Windows does not reliably auto-restart
+        //    it when killed from a non-interactive process).
+        let _ = Command::new("explorer.exe").spawn();
+
+        // 4. Give the new shell a moment to initialise, then clear the Start and
+        //    search hosts so they re-attach to it. Without this the search box
+        //    stays unresponsive after the restart. The hosts respawn on demand
+        //    the next time the user opens Start/search. Covers Win11
+        //    (SearchHost.exe) and Win10 (SearchUI.exe).
+        std::thread::sleep(Duration::from_millis(600));
+        kill("StartMenuExperienceHost.exe");
+        kill("SearchHost.exe");
+        kill("SearchUI.exe");
+
         println!("✓");
     }
 }
