@@ -544,13 +544,16 @@ fn apply_mpv(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> 
 
 fn firefox_profile_dir() -> Option<PathBuf> {
     let home = dirs::home_dir()?;
-    // Check XDG path first, then legacy ~/.mozilla path
-    let ini_path = [
+    // Linux: XDG path first, then legacy ~/.mozilla.
+    let mut candidates = vec![
         home.join(".config/mozilla/firefox/profiles.ini"),
         home.join(".mozilla/firefox/profiles.ini"),
-    ]
-    .into_iter()
-    .find(|p| p.exists())?;
+    ];
+    // Windows: Firefox stores profiles under %APPDATA%\Mozilla\Firefox.
+    if let Ok(appdata) = std::env::var("APPDATA") {
+        candidates.push(PathBuf::from(appdata).join(r"Mozilla\Firefox\profiles.ini"));
+    }
+    let ini_path = candidates.into_iter().find(|p| p.exists())?;
     let content = fs::read_to_string(&ini_path).ok()?;
 
     // Parse all sections into (name, key→value) pairs
