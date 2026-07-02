@@ -137,48 +137,86 @@ fn set_dark_mode(_dark: bool) -> Result<()> {
     Ok(())
 }
 
-/// Restart explorer.exe so the taskbar re-reads AccentPalette from the registry.
-/// The desktop/taskbar will disappear for ~1 second while it restarts.
+/// Is at least one explorer.exe process currently running?
+#[cfg(windows)]
+fn explorer_running() -> bool {
+    std::process::Command::new("tasklist")
+        .args(["/fi", "IMAGENAME eq explorer.exe", "/nh"])
+        .output()
+        .map(|o| {
+            String::from_utf8_lossy(&o.stdout)
+                .to_lowercase()
+                .contains("explorer.exe")
+        })
+        .unwrap_or(false)
+}
+
+/// Restart explorer.exe so the taskbar re-reads AccentPalette from the registry
+/// (broadcasting WM_SETTINGCHANGE alone no longer refreshes the taskbar tint on
+/// Windows 10 22H2+/11, so a shell restart is still required).
 ///
-/// On Windows 11 the Start menu and search box run as separate processes
-/// (StartMenuExperienceHost.exe and SearchHost.exe) that hook into explorer.
-/// If explorer is force-killed on its own, those hosts survive but lose their
-/// connection to the new shell — Start opens but search input does nothing.
-/// To avoid that we refresh those hosts too; they respawn on demand when the
-/// user next opens Start/search, cleanly re-attached to the fresh explorer.
+/// The desktop/taskbar disappears for ~1 second while it restarts.
+///
+/// We exit the shell *gracefully* — the same way the taskbar's hidden
+/// "Exit Explorer" command (Ctrl+Shift+right-click) does — by posting message
+/// 0x5B4 (WM_USER+436) to the `Shell_TrayWnd` window. Unlike `taskkill /f`, this
+/// lets Explorer save shell state and tear down its hosted Start/Search windows
+/// cleanly, so they re-attach on relaunch. Force-killing explorer orphans those
+/// hosts (StartMenuExperienceHost.exe / SearchHost.exe), which is what left the
+/// taskbar search box unresponsive after a theme change. Force kill is kept only
+/// as a fallback, with a host refresh limited to that path.
 fn restart_explorer() {
     #[cfg(windows)]
     {
         use std::process::Command;
         use std::time::Duration;
 
-        // Best-effort kill of a process image; a missing image just no-ops.
-        let kill = |image: &str| {
-            let _ = Command::new("taskkill").args(["/f", "/im", image]).output();
-        };
-
         print!("  Restarting Explorer... ");
 
-        // 1. Kill the shell so it re-reads AccentPalette on relaunch.
-        kill("explorer.exe");
+        // 1. Graceful "Exit Explorer": PostMessage(Shell_TrayWnd, 0x5B4).
+        //    Done via a PowerShell P/Invoke shim (no extra crate dependency).
+        let ps = r#"$s='[DllImport("user32.dll",SetLastError=true,CharSet=CharSet.Auto)] public static extern IntPtr FindWindow(string c,string w); [DllImport("user32.dll")] public static extern int PostMessage(IntPtr h,uint m,IntPtr wp,IntPtr lp);'; $t=Add-Type -MemberDefinition $s -Name Shell -Namespace CoatWin -PassThru; $h=$t::FindWindow('Shell_TrayWnd',$null); if($h -ne [IntPtr]::Zero){[void]$t::PostMessage($h,0x5B4,[IntPtr]::Zero,[IntPtr]::Zero)}"#;
+        let posted = Command::new("powershell")
+            .args(["-NoProfile", "-NonInteractive", "-Command", ps])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false);
 
-        // 2. Let it fully exit before relaunching so we don't race a shell that
-        //    is still tearing down.
-        std::thread::sleep(Duration::from_millis(800));
+        // 2. Wait (up to ~5s) for the shell to actually exit on its own.
+        let mut exited = false;
+        if posted {
+            for _ in 0..25 {
+                std::thread::sleep(Duration::from_millis(200));
+                if !explorer_running() {
+                    exited = true;
+                    break;
+                }
+            }
+        }
 
-        // 3. Relaunch the shell explicitly (Windows does not reliably auto-restart
-        //    it when killed from a non-interactive process).
+        // 3. Fallback: if the graceful exit didn't take, force it. This path can
+        //    orphan the Start/Search hosts, so refresh them afterwards.
+        let forced = !exited;
+        if forced {
+            let _ = Command::new("taskkill").args(["/f", "/im", "explorer.exe"]).output();
+            std::thread::sleep(Duration::from_millis(800));
+        }
+
+        // 4. Relaunch the shell (a clean "Exit Explorer" does not auto-restart it).
         let _ = Command::new("explorer.exe").spawn();
 
-        // 4. Give the new shell a moment to initialise, then clear the Start and
-        //    search hosts so they re-attach to it. Without this the search box
-        //    stays unresponsive after the restart. The hosts respawn on demand
-        //    the next time the user opens Start/search. Covers Win11
-        //    (SearchHost.exe) and Win10 (SearchUI.exe).
-        std::thread::sleep(Duration::from_millis(600));
-        kill("StartMenuExperienceHost.exe");
-        kill("SearchHost.exe");
-        kill("SearchUI.exe");
+        // 5. Only after a forced kill: clear the Start/Search hosts so they
+        //    re-attach to the fresh shell (they respawn on next use). Covers
+        //    Win11 (SearchHost.exe) and Win10 (SearchUI.exe).
+        if forced {
+            std::thread::sleep(Duration::from_millis(600));
+            let kill = |image: &str| {
+                let _ = Command::new("taskkill").args(["/f", "/im", image]).output();
+            };
+            kill("StartMenuExperienceHost.exe");
+            kill("SearchHost.exe");
+            kill("SearchUI.exe");
+        }
 
         println!("✓");
     }
