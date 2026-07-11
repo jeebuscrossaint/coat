@@ -223,6 +223,58 @@ pub fn find_scheme(name: &str, prefer_base24: bool) -> Result<Scheme> {
     bail!("Scheme '{}' not found in {}", name, sdir.display())
 }
 
+/// Pick a random scheme from the library, optionally restricted to a variant
+/// ("dark" or "light"). Returns the loaded scheme.
+pub fn pick_random_scheme(variant_filter: Option<&str>, prefer_base24: bool) -> Result<Scheme> {
+    let sdir = schemes_dir()?;
+    let dirs_to_scan = if prefer_base24 {
+        [sdir.join("base24"), sdir.join("base16")]
+    } else {
+        [sdir.join("base16"), sdir.join("base24")]
+    };
+
+    let mut candidates: Vec<PathBuf> = Vec::new();
+    for dir in &dirs_to_scan {
+        if !dir.is_dir() {
+            continue;
+        }
+        for entry in WalkDir::new(dir).max_depth(1).into_iter().filter_map(|e| e.ok()) {
+            let path = entry.path();
+            if path.extension().and_then(|s| s.to_str()) != Some("yaml") {
+                continue;
+            }
+            match variant_filter {
+                None => candidates.push(path.to_path_buf()),
+                Some(vf) => {
+                    // Only load the file when we need to inspect its variant.
+                    if let Ok(scheme) = Scheme::load_file(path) {
+                        if scheme.variant.to_lowercase().contains(vf) {
+                            candidates.push(path.to_path_buf());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if candidates.is_empty() {
+        match variant_filter {
+            Some(vf) => bail!("No {} schemes found in {}", vf, sdir.display()),
+            None => bail!("No schemes found in {} — run 'coat clone'", sdir.display()),
+        }
+    }
+
+    // Cheap entropy without an extra dependency: RandomState seeds a hasher
+    // with process-random keys; finishing it yields a well-mixed value.
+    use std::hash::{BuildHasher, Hasher};
+    let seed = std::collections::hash_map::RandomState::new()
+        .build_hasher()
+        .finish();
+    let idx = (seed % candidates.len() as u64) as usize;
+
+    Scheme::load_file(&candidates[idx])
+}
+
 pub fn list_schemes(
     variant_filter: Option<&str>,
     search_term: Option<&str>,
@@ -298,6 +350,26 @@ pub fn list_schemes(
     }
 
     Ok(())
+}
+
+/// Print a scheme's header line and full color swatch preview.
+/// Used by `random --dry` to preview without applying.
+pub fn preview_scheme(scheme: &Scheme) {
+    print!("\x1b[1m{}\x1b[0m", scheme.name);
+    if !scheme.variant.is_empty() {
+        print!(" [{}]", scheme.variant);
+    }
+    if scheme.is_base24 {
+        print!(" [Base24]");
+    }
+    println!();
+    if !scheme.author.is_empty() {
+        println!("  Author: {}", scheme.author);
+    }
+    if !scheme.slug.is_empty() {
+        println!("  Slug:   {}", scheme.slug);
+    }
+    print_color_preview(scheme);
 }
 
 fn print_color_block(hex: &str) {

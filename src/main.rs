@@ -9,7 +9,10 @@ mod windows;
 use anyhow::{Context, Result};
 use config::CoatConfig;
 use modules::{apply_module, make_tera, module_docs, module_aliases, ALL_MODULES};
-use scheme::{find_scheme, list_schemes, schemes_clone, schemes_exists, schemes_update};
+use scheme::{
+    find_scheme, list_schemes, pick_random_scheme, preview_scheme, schemes_clone, schemes_exists,
+    schemes_update, Scheme,
+};
 use std::fs;
 
 fn print_usage(prog: &str) {
@@ -21,17 +24,22 @@ fn print_usage(prog: &str) {
     println!("  list [OPTIONS]      List available color schemes");
     println!("  search <term>       Search schemes by name or author");
     println!("  set <scheme>        Switch to a scheme and apply everywhere");
+    println!("  random [OPTIONS]    Switch to a random scheme and apply everywhere");
     println!("  apply [app]         Apply current scheme to all apps or one specific app");
     println!("  docs <app>          Show setup instructions for an app");
     println!("  help                Show this help message");
     println!();
-    println!("List/Search Options:");
-    println!("  --dark              Show only dark variant schemes");
-    println!("  --light             Show only light variant schemes");
-    println!("  --no-preview        Skip color swatches");
+    println!("List/Search/Random Options:");
+    println!("  --dark              Show/pick only dark variant schemes");
+    println!("  --light             Show/pick only light variant schemes");
+    println!("  --no-preview        Skip color swatches (list/search only)");
+    println!("  --dry               Preview a random pick without applying (random only)");
     println!();
     println!("Examples:");
     println!("  {} set gruvbox       Switch to gruvbox and apply everywhere", prog);
+    println!("  {} random            Switch to a random scheme and apply everywhere", prog);
+    println!("  {} random --dark     Switch to a random dark scheme", prog);
+    println!("  {} random --dry      Preview a random scheme without applying", prog);
     println!("  {} apply             Apply current scheme to all enabled apps", prog);
     println!("  {} apply kitty       Apply current scheme only to kitty", prog);
     println!("  {} list --dark       List dark schemes", prog);
@@ -149,6 +157,43 @@ fn update_scheme_in_config(name: &str) -> Result<()> {
     Ok(())
 }
 
+/// Persist `scheme` as the current scheme and apply it everywhere.
+/// Shared by `set` and `random`.
+fn set_and_apply(scheme: &Scheme) -> Result<()> {
+    // Persist the new scheme name into coat.yaml
+    update_scheme_in_config(&scheme.slug)?;
+    println!();
+
+    let config = CoatConfig::load().context("Failed to load coat.yaml")?;
+
+    // Platform-specific theming
+    #[cfg(windows)]
+    {
+        windows::apply_all(scheme, &config)?;
+    }
+
+    #[cfg(not(windows))]
+    {
+        if config.enabled.is_empty() {
+            println!("No modules enabled. Add apps to coat.yaml and run 'coat apply'.");
+        } else {
+            println!("Applying to {} enabled module(s)...\n", config.enabled.len());
+            let tera = make_tera().context("Failed to build template engine")?;
+            let mut applied = 0;
+            for app in &config.enabled {
+                print!("  {}... ", app);
+                match apply_module(app, scheme, &config, &tera) {
+                    Ok(_)  => { println!("✓"); applied += 1; }
+                    Err(e) => println!("✗ {}", e),
+                }
+            }
+            println!("\nDone — {}/{} applied.", applied, config.enabled.len());
+        }
+    }
+
+    Ok(())
+}
+
 fn cmd_set(args: &[String]) -> Result<()> {
     if args.is_empty() {
         eprintln!("Error: set requires a scheme name\n");
@@ -166,38 +211,38 @@ fn cmd_set(args: &[String]) -> Result<()> {
 
     println!("Setting scheme: {}\n", scheme.name);
 
-    // Persist the new scheme name into coat.yaml
-    update_scheme_in_config(&scheme.slug)?;
+    set_and_apply(&scheme)
+}
+
+fn cmd_random(args: &[String]) -> Result<()> {
+    // Optional variant filter, mirroring list/search flags.
+    let variant_filter = args.iter().find_map(|a| match a.as_str() {
+        "--dark"  => Some("dark"),
+        "--light" => Some("light"),
+        _         => None,
+    });
+    // --dry previews the pick without persisting or applying it.
+    let dry = args.iter().any(|a| a == "--dry" || a == "--dry-run");
+
+    ensure_schemes()?;
+
+    let prefer_base24 = CoatConfig::load().map(|c| c.prefer_base24).unwrap_or(false);
+    let scheme = pick_random_scheme(variant_filter, prefer_base24)
+        .context("Failed to pick a random scheme")?;
+
+    if dry {
+        println!("🎲 Random preview (not applied — run 'coat random' to apply):\n");
+        preview_scheme(&scheme);
+        return Ok(());
+    }
+
+    println!("🎲 Randomly selected: {} by {}", scheme.name, scheme.author);
+    if !scheme.variant.is_empty() {
+        println!("   Variant: {}", scheme.variant);
+    }
     println!();
 
-    let config = CoatConfig::load().context("Failed to load coat.yaml")?;
-
-    // Platform-specific theming
-    #[cfg(windows)]
-    {
-        windows::apply_all(&scheme, &config)?;
-    }
-
-    #[cfg(not(windows))]
-    {
-        if config.enabled.is_empty() {
-            println!("No modules enabled. Add apps to coat.yaml and run 'coat apply'.");
-        } else {
-            println!("Applying to {} enabled module(s)...\n", config.enabled.len());
-            let tera = make_tera().context("Failed to build template engine")?;
-            let mut applied = 0;
-            for app in &config.enabled {
-                print!("  {}... ", app);
-                match apply_module(app, &scheme, &config, &tera) {
-                    Ok(_)  => { println!("✓"); applied += 1; }
-                    Err(e) => println!("✗ {}", e),
-                }
-            }
-            println!("\nDone — {}/{} applied.", applied, config.enabled.len());
-        }
-    }
-
-    Ok(())
+    set_and_apply(&scheme)
 }
 
 fn cmd_list(args: &[String]) -> Result<()> {
@@ -274,6 +319,7 @@ fn main() {
             "list"            => cmd_list(&args[2..]),
             "search"          => cmd_search(&args[2..]),
             "set"             => cmd_set(&args[2..]),
+            "random"          => cmd_random(&args[2..]),
             "apply"           => cmd_apply(&args[2..], prog),
             "docs"            => cmd_docs(&args[2..], prog),
             "help" | "--help" => { print_usage(prog); Ok(()) }

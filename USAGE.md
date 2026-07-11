@@ -13,7 +13,12 @@ coat search catppuccin
 # 3a. One-shot: switch scheme and apply everywhere
 coat set catppuccin-mocha
 
-# 3b. Or: edit coat.yaml manually, then apply
+# 3b. Feeling lucky: switch to a random scheme (add --dark/--light to constrain,
+#     or --dry to preview the pick without applying)
+coat random
+coat random --dry
+
+# 3c. Or: edit coat.yaml manually, then apply
 coat apply
 ```
 

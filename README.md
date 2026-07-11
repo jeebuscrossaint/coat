@@ -47,6 +47,11 @@ coat search gruvbox
 # Switch scheme and apply everywhere in one shot
 coat set catppuccin-mocha
 
+# Switch to a random scheme and apply everywhere
+coat random
+coat random --dark      # restrict to dark schemes
+coat random --dry       # preview a random pick without applying
+
 # Apply current scheme from coat.yaml to all enabled apps
 coat apply
 
