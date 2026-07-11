@@ -216,31 +216,31 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
     }
 
     match name {
-        "bat"        => apply_bat(&tera, &ctx, scheme, config),
-        "btop"       => apply_btop(&tera, &ctx, scheme, config),
-        "dunst"      => apply_dunst(&tera, &ctx, scheme, config),
-        "firefox"    => apply_firefox(&tera, &ctx, scheme, config),
-        "fish"       => apply_fish(&tera, &ctx, scheme, config),
-        "foot"       => apply_foot(&tera, &ctx, scheme, config),
-        "fuzzel"     => apply_fuzzel(&tera, &ctx, scheme, config),
-        "gtk"        => apply_gtk(&tera, &ctx, scheme, config),
-        "helix"      => apply_helix(&tera, &ctx, scheme, config),
-        "i3"         => apply_i3(&tera, &ctx, scheme, config),
-        "kde"        => apply_kde(&tera, &ctx, scheme, config),
-        "kitty"      => apply_kitty(&tera, &ctx, scheme, config),
-        "labwc"      => apply_labwc(&tera, &ctx, scheme, config),
-        "lf"         => apply_lf(&tera, &ctx, scheme, config),
-        "mpv"        => apply_mpv(&tera, &ctx, scheme, config),
+        "bat"        => apply_bat(tera, &ctx, scheme, config),
+        "btop"       => apply_btop(tera, &ctx, scheme, config),
+        "dunst"      => apply_dunst(tera, &ctx, scheme, config),
+        "firefox"    => apply_firefox(tera, &ctx, scheme, config),
+        "fish"       => apply_fish(tera, &ctx, scheme, config),
+        "foot"       => apply_foot(tera, &ctx, scheme, config),
+        "fuzzel"     => apply_fuzzel(tera, &ctx, scheme, config),
+        "gtk"        => apply_gtk(tera, &ctx, scheme, config),
+        "helix"      => apply_helix(tera, &ctx, scheme, config),
+        "i3"         => apply_i3(tera, &ctx, scheme, config),
+        "kde"        => apply_kde(tera, &ctx, scheme, config),
+        "kitty"      => apply_kitty(tera, &ctx, scheme, config),
+        "labwc"      => apply_labwc(tera, &ctx, scheme, config),
+        "lf"         => apply_lf(tera, &ctx, scheme, config),
+        "mpv"        => apply_mpv(tera, &ctx, scheme, config),
         "qt"         => apply_qt(scheme, config),
-        "ranger"     => apply_ranger(&tera, &ctx, scheme, config),
-        "rofi"       => apply_rofi(&tera, &ctx, scheme, config),
-        "sway"       => apply_sway(&tera, &ctx, scheme, config),
-        "swaylock"   => apply_swaylock(&tera, &ctx, scheme, config),
-        "vesktop"    => apply_vesktop(&tera, &ctx, scheme, config),
+        "ranger"     => apply_ranger(tera, &ctx, scheme, config),
+        "rofi"       => apply_rofi(tera, &ctx, scheme, config),
+        "sway"       => apply_sway(tera, &ctx, scheme, config),
+        "swaylock"   => apply_swaylock(tera, &ctx, scheme, config),
+        "vesktop"    => apply_vesktop(tera, &ctx, scheme, config),
         "vscode"     => apply_vscode(scheme, config),
-        "waybar"     => apply_waybar(&tera, &ctx, scheme, config),
-        "xresources" => apply_xresources(&tera, &ctx, scheme, config),
-        "zathura"    => apply_zathura(&tera, &ctx, scheme, config),
+        "waybar"     => apply_waybar(tera, &ctx, scheme, config),
+        "xresources" => apply_xresources(tera, &ctx, scheme, config),
+        "zathura"    => apply_zathura(tera, &ctx, scheme, config),
         "zed"        => apply_zed(scheme, config),
         other        => bail!("Unknown module: {}", other),
     }
@@ -1098,6 +1098,10 @@ fn apply_vscode(scheme: &Scheme, config: &CoatConfig) -> Result<()> {
 
 /// Build a Zed theme-family JSON document for the given scheme.
 /// Produces a single inner theme named "coat" following the v0.2.0 schema.
+// `drop(put)` / `drop(puts)` below release each closure's `&mut` borrow of the
+// map it fills, so the map can be moved/inserted afterward — intentional, not a
+// no-op, despite clippy flagging the type as non-Drop.
+#[allow(clippy::drop_non_drop)]
 fn build_zed_theme(s: &Scheme) -> JsonValue {
     let h = |c: &str| format!("#{}", c);
     let ha = |c: &str, a: &str| format!("#{}{}", c, a);

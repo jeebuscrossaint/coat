@@ -314,8 +314,8 @@ fn main() {
         cmd_info()
     } else {
         match args[1].as_str() {
-            "clone"           => schemes_clone().map_err(|e| e),
-            "update"          => schemes_update().map_err(|e| e),
+            "clone"           => schemes_clone(),
+            "update"          => schemes_update(),
             "list"            => cmd_list(&args[2..]),
             "search"          => cmd_search(&args[2..]),
             "set"             => cmd_set(&args[2..]),

@@ -63,8 +63,7 @@ impl Scheme {
 
     fn derive_slug(name: &str) -> String {
         name.to_lowercase()
-            .replace(' ', "-")
-            .replace('_', "-")
+            .replace([' ', '_'], "-")
     }
 
     fn from_raw(raw: RawScheme) -> Self {

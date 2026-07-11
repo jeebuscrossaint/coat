@@ -8,19 +8,9 @@ use std::path::PathBuf;
 use crate::config::CoatConfig;
 use crate::scheme::Scheme;
 
-// ── Palette shading ────────────────────────────────────────────────────────
+// ── Accent palette ───────────────────────────────────────────────────────
 
-/// Blend `color` toward white (positive t) or black (negative t), t in [0,1].
-fn shade(r: u8, g: u8, b: u8, toward_white: bool, t: f32) -> (u8, u8, u8) {
-    let blend = |c: u8, target: u8| -> u8 {
-        (c as f32 + (target as f32 - c as f32) * t).round() as u8
-    };
-    let target = if toward_white { 255 } else { 0 };
-    (blend(r, target), blend(g, target), blend(b, target))
-}
-
-/// Build the 8-shade AccentPalette (RGBA × 8 = 32 bytes) from a base color.
-/// Build the 8-slot AccentPalette.
+/// Build the 8-slot AccentPalette (RGBA × 8 = 32 bytes) from three RGB colors.
 /// Byte order: [R, G, B, alpha] where alpha is ignored by Windows.
 ///
 /// Slot semantics (AveYo's research):
@@ -33,19 +23,19 @@ fn shade(r: u8, g: u8, b: u8, toward_white: bool, t: f32) -> (u8, u8, u8) {
 ///   6 = Taskbar background                     ← bg (base00)
 ///   7 = Unused                                 ← bg (base00)
 fn build_accent_palette(
-    ar: u8, ag: u8, ab: u8,   // accent color  (base0D)
-    br: u8, bg: u8, bb: u8,   // background    (base00)
-    b1r: u8, b1g: u8, b1b: u8, // lighter bg   (base01)
+    accent: (u8, u8, u8), // base0D
+    bg: (u8, u8, u8),     // base00
+    bg1: (u8, u8, u8),    // base01
 ) -> [u8; 32] {
     let slots: [(u8, u8, u8); 8] = [
-        (ar,  ag,  ab),   // 0 accent — links / action center
-        (ar,  ag,  ab),   // 1 accent — taskbar icon underline
-        (ar,  ag,  ab),   // 2 accent — Start button hover
-        (ar,  ag,  ab),   // 3 accent — settings icons (the main accent slot)
-        (b1r, b1g, b1b),  // 4 base01 — active taskbar button / Start bg
-        (br,  bg,  bb),   // 5 base00 — taskbar front
-        (br,  bg,  bb),   // 6 base00 — taskbar background
-        (br,  bg,  bb),   // 7 base00 — unused
+        accent,  // 0 accent — links / action center
+        accent,  // 1 accent — taskbar icon underline
+        accent,  // 2 accent — Start button hover
+        accent,  // 3 accent — settings icons (the main accent slot)
+        bg1,     // 4 base01 — active taskbar button / Start bg
+        bg,      // 5 base00 — taskbar front
+        bg,      // 6 base00 — taskbar background
+        bg,      // 7 base00 — unused
     ];
     let mut out = [0u8; 32];
     for (i, (r, g, b)) in slots.iter().enumerate() {
@@ -73,7 +63,7 @@ fn set_accent_color(scheme: &Scheme) -> Result<()> {
     let abgr_bg:       u32 = 0xFF000000 | ((b0 as u32) << 16) | ((g0 as u32) << 8) | (r0 as u32);
     let abgr_inactive: u32 = 0xFF000000 | ((b1 as u32) << 16) | ((g1 as u32) << 8) | (r1 as u32);
 
-    let palette = build_accent_palette(r, g, b, r0, g0, b0, r1, g1, b1);
+    let palette = build_accent_palette((r, g, b), (r0, g0, b0), (r1, g1, b1));
 
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
 
@@ -454,7 +444,7 @@ fn try_set_elevated(scheme: &Scheme, dark: bool) {
     let abgr:          u32 = 0xFF000000 | ((b  as u32) << 16) | ((g  as u32) << 8) | (r  as u32);
     let abgr_bg:       u32 = 0xFF000000 | ((b0 as u32) << 16) | ((g0 as u32) << 8) | (r0 as u32);
     let abgr_inactive: u32 = 0xFF000000 | ((b1 as u32) << 16) | ((g1 as u32) << 8) | (r1 as u32);
-    let palette = build_accent_palette(r, g, b, r0, g0, b0, r1, g1, b1);
+    let palette = build_accent_palette((r, g, b), (r0, g0, b0), (r1, g1, b1));
     let light: u32 = if dark { 0 } else { 1 };
     let mut any_failed = false;
 
@@ -483,7 +473,7 @@ fn try_set_elevated(scheme: &Scheme, dark: bool) {
         pers.set_value("EnableTransparency", &1u32)?;
         Ok(())
     };
-    if let Err(_) = hku_accent() { any_failed = true; }
+    if hku_accent().is_err() { any_failed = true; }
 
     // HKLM\...\Dwm: ForceEffectMode=1 keeps taskbar dark while transparency is on
     let hklm_dwm = || -> std::io::Result<()> {
@@ -492,7 +482,7 @@ fn try_set_elevated(scheme: &Scheme, dark: bool) {
         key.set_value("ForceEffectMode", &1u32)?;
         Ok(())
     };
-    if let Err(_) = hklm_dwm() { any_failed = true; }
+    if hklm_dwm().is_err() { any_failed = true; }
 
     if any_failed {
         println!("  (some logon/HKLM keys skipped — re-run as administrator for full effect)");
@@ -530,6 +520,17 @@ pub fn apply_all(scheme: &Scheme, config: &CoatConfig) -> Result<()> {
 
     println!("Applying Zed colors...");
     apply_zed(scheme)?;
+    println!();
+
+    println!("Applying Firefox theme...");
+    match crate::modules::make_tera() {
+        Ok(tera) => {
+            if let Err(e) = crate::modules::apply_module("firefox", scheme, config, &tera) {
+                eprintln!("  ✗ firefox: {}", e);
+            }
+        }
+        Err(e) => eprintln!("  ✗ firefox (template engine): {}", e),
+    }
     println!();
 
     println!("Applying Discord theme (Vencord/BetterDiscord)...");
