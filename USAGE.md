@@ -279,6 +279,21 @@ After applying, Explorer/taskbar picks up changes live. Some accent color change
 
 ---
 
+## Firefox
+
+`coat apply firefox` writes `userChrome.css` (browser UI) and `userContent.css`
+(`about:` / new-tab pages) into your default profile's `chrome/` folder and
+enables `toolkit.legacyUserProfileCustomizations.stylesheets` in `user.js`.
+
+Because Firefox reads these stylesheets **only at startup**, you must fully quit
+and relaunch Firefox after applying (make sure no `firefox.exe` lingers). If
+colors still don't appear, confirm in `about:config` that
+`toolkit.legacyUserProfileCustomizations.stylesheets` is `true`, and set any
+active color **theme add-on** in `about:addons` back to *System theme (auto)* or
+*Default* so it doesn't override the CSS.
+
+---
+
 ## Commands
 
 | Command | Description |

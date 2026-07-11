@@ -1,0 +1,41 @@
+/* coat — {{ scheme_name }} — userContent.css
+ *
+ * Themes Firefox's own built-in pages (about:home, about:newtab, about:config,
+ * about:preferences, view-source, …). Regular web sites are NOT touched — that
+ * is by design. Requires the same pref as userChrome.css:
+ *   toolkit.legacyUserProfileCustomizations.stylesheets = true
+ *
+ * @-moz-document is enabled in userContent.css (the one place it still works).
+ */
+
+/* New-tab / home / private-browsing / blank pages */
+@-moz-document url("about:newtab"), url("about:home"), url("about:blank"),
+               url("about:privatebrowsing") {
+  :root,
+  body,
+  .activity-stream {
+    background-color: #{{ base00 | lower_hex }} !important;
+    color: #{{ base05 | lower_hex }} !important;
+  }
+  a { color: #{{ base0D | lower_hex }} !important; }
+}
+
+/* Generic in-content pages (about:config, about:support, about:preferences, …)
+ * driven by Firefox's shared in-content design-system variables. */
+@-moz-document url-prefix("about:") {
+  :root {
+    color-scheme: {% if is_dark %}dark{% else %}light{% endif %} !important;
+    --in-content-page-background: #{{ base00 | lower_hex }} !important;
+    --in-content-page-color: #{{ base05 | lower_hex }} !important;
+    --in-content-text-color: #{{ base05 | lower_hex }} !important;
+    --in-content-box-background: #{{ base01 | lower_hex }} !important;
+    --in-content-box-background-odd: #{{ base01 | lower_hex }} !important;
+    --in-content-box-background-hover: #{{ base02 | lower_hex }} !important;
+    --in-content-border-color: #{{ base02 | lower_hex }} !important;
+    --in-content-link-color: #{{ base0D | lower_hex }} !important;
+    --in-content-link-color-hover: #{{ base0C | lower_hex }} !important;
+    --in-content-primary-button-background: #{{ base0D | lower_hex }} !important;
+    --in-content-primary-button-text-color: #{{ base00 | lower_hex }} !important;
+    --in-content-accent-color: #{{ base0D | lower_hex }} !important;
+  }
+}

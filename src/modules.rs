@@ -22,6 +22,7 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("btop",      "btop.tera"),
     tpl!("dunst",     "dunst.tera"),
     tpl!("firefox",   "firefox.tera"),
+    tpl!("firefox_content", "firefox_content.tera"),
     tpl!("fish",      "fish.tera"),
     tpl!("foot",      "foot.tera"),
     tpl!("fuzzel",    "fuzzel.tera"),
@@ -623,10 +624,11 @@ fn apply_firefox(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig)
         return Ok(());
     };
 
-    // Write userChrome.css
+    // Write userChrome.css (browser UI) and userContent.css (about:/new-tab pages)
     let chrome_dir = profile.join("chrome");
     ensure_dir(&chrome_dir)?;
     render_to(tera, "firefox", ctx, &chrome_dir.join("userChrome.css"))?;
+    render_to(tera, "firefox_content", ctx, &chrome_dir.join("userContent.css"))?;
 
     // Ensure toolkit.legacyUserProfileCustomizations.stylesheets is enabled
     let user_js = profile.join("user.js");
@@ -1376,10 +1378,10 @@ pub fn module_docs(name: &str) {
             println!("  include ~/.config/mpv/coat-theme.conf");
         }
         "firefox" => {
-            println!("userChrome.css is written automatically.\n");
+            println!("userChrome.css and userContent.css are written automatically.\n");
             println!("If colors don't appear, enable custom CSS in about:config:\n");
             println!("  toolkit.legacyUserProfileCustomizations.stylesheets = true\n");
-            println!("Then restart Firefox.");
+            println!("Then restart Firefox (fully quit — check no firefox.exe lingers).");
         }
         "fish" => {
             println!("To activate the fish theme:\n");
