@@ -3,11 +3,30 @@ use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 use tera::{Tera, Value};
 
 use crate::config::CoatConfig;
 use crate::scheme::Scheme;
+
+/// When true, the per-file/per-note chatter below is swallowed — the caller
+/// (a progress spinner) is showing a single clean status line per app instead.
+pub static QUIET: AtomicBool = AtomicBool::new(false);
+
+pub fn set_quiet(quiet: bool) {
+    QUIET.store(quiet, Ordering::Relaxed);
+}
+
+/// Like `println!`, but suppressed while a progress spinner owns the terminal.
+#[macro_export]
+macro_rules! detail {
+    ($($arg:tt)*) => {
+        if !$crate::modules::QUIET.load(std::sync::atomic::Ordering::Relaxed) {
+            println!($($arg)*);
+        }
+    };
+}
 
 // ── Template source (embedded at compile time) ─────────────────────────────
 
@@ -172,13 +191,22 @@ fn render_to(tera: &Tera, name: &str, ctx: &tera::Context, dest: &Path) -> Resul
         .with_context(|| format!("Failed to render template '{}'", name))?;
     fs::write(dest, &content)
         .with_context(|| format!("Failed to write {}", dest.display()))?;
-    println!("  ✓ {}", dest.display());
+    detail!("  ✓ {}", dest.display());
     Ok(())
 }
 
+/// Run a shell command with its stdio fully silenced — these are best-effort
+/// reload hooks (bat cache rebuilds, dunst restarts, ...) whose own chatter
+/// isn't ours to show inside a clean per-app status line.
 fn run(cmd: &str) {
-    if let Err(e) = Command::new("sh").args(["-c", cmd]).status() {
-        eprintln!("  warning: {}", e);
+    let result = Command::new("sh")
+        .args(["-c", cmd])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+    if let Err(e) = result {
+        detail!("  warning: {}", e);
     }
 }
 
@@ -252,7 +280,7 @@ fn apply_bat(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> 
     let home = home_dir()?;
     let dest = home.join(".config/bat/themes/coat.tmTheme");
     render_to(tera, "bat", ctx, &dest)?;
-    println!("    Run: bat cache --build");
+    detail!("    Run: bat cache --build");
     run("bat cache --build 2>/dev/null");
     Ok(())
 }
@@ -483,7 +511,7 @@ fn update_kdeglobals(scheme: &Scheme) -> Result<()> {
     ensure_dir(path.parent().unwrap_or(std::path::Path::new("/")))?;
     fs::write(&path, &out)
         .with_context(|| format!("Failed to write {}", path.display()))?;
-    println!("  ✓ {}", path.display());
+    detail!("  ✓ {}", path.display());
     Ok(())
 }
 
@@ -521,7 +549,15 @@ fn apply_kitty(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -
         "kitty @ --to unix:/tmp/kitty set-colors --all --configured {} 2>/dev/null",
         path_str
     );
-    if Command::new("sh").args(["-c", &live_cmd]).status().map(|s| !s.success()).unwrap_or(true) {
+    let live_ok = Command::new("sh")
+        .args(["-c", &live_cmd])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false);
+    if !live_ok {
         run("pkill -SIGUSR1 kitty 2>/dev/null");
     }
     Ok(())
@@ -539,7 +575,7 @@ fn apply_mpv(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> 
     let home = home_dir()?;
     let dest = home.join(".config/mpv/coat-theme.conf");
     render_to(tera, "mpv", ctx, &dest)?;
-    println!("    Add to ~/.config/mpv/mpv.conf: include ~/.config/mpv/coat-theme.conf");
+    detail!("    Add to ~/.config/mpv/mpv.conf: include ~/.config/mpv/coat-theme.conf");
     Ok(())
 }
 
@@ -620,8 +656,7 @@ fn firefox_profile_dir() -> Option<PathBuf> {
 
 fn apply_firefox(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let Some(profile) = firefox_profile_dir() else {
-        eprintln!("  ✗ Firefox profile not found — is Firefox installed?");
-        return Ok(());
+        bail!("Firefox profile not found — is Firefox installed?");
     };
 
     // Write userChrome.css (browser UI) and userContent.css (about:/new-tab pages)
@@ -646,10 +681,10 @@ fn apply_firefox(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig)
         );
         fs::write(&user_js, appended)
             .with_context(|| format!("Failed to write {}", user_js.display()))?;
-        println!("  ✓ {}", user_js.display());
+        detail!("  ✓ {}", user_js.display());
     }
 
-    println!("    Restart Firefox for changes to take effect.");
+    detail!("    Restart Firefox for changes to take effect.");
     Ok(())
 }
 
@@ -657,7 +692,7 @@ fn apply_lf(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> R
     let home = home_dir()?;
     let dest = home.join(".config/lf/colors");
     render_to(tera, "lf", ctx, &dest)?;
-    println!("    Add to ~/.config/lf/lfrc: set color true");
+    detail!("    Add to ~/.config/lf/lfrc: set color true");
     Ok(())
 }
 
@@ -665,7 +700,7 @@ fn apply_ranger(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) 
     let home = home_dir()?;
     let dest = home.join(".config/ranger/colorschemes/coat.py");
     render_to(tera, "ranger", ctx, &dest)?;
-    println!("    Add to ~/.config/ranger/rc.conf: set colorscheme coat");
+    detail!("    Add to ~/.config/ranger/rc.conf: set colorscheme coat");
     Ok(())
 }
 
@@ -757,23 +792,21 @@ fn apply_qt(scheme: &Scheme, config: &CoatConfig) -> Result<()> {
         let colors_content = build_qt_colors(scheme, config);
         fs::write(&scheme_path, &colors_content)
             .with_context(|| format!("Failed to write {}", scheme_path.display()))?;
-        println!("  ✓ {}", scheme_path.display());
+        detail!("  ✓ {}", scheme_path.display());
 
         // Write main conf
         let conf_path = dir.join(conf_name);
         let conf_content = build_qt_conf(&scheme_path, config);
         fs::write(&conf_path, &conf_content)
             .with_context(|| format!("Failed to write {}", conf_path.display()))?;
-        println!("  ✓ {}", conf_path.display());
+        detail!("  ✓ {}", conf_path.display());
         applied += 1;
     }
 
     if applied == 0 {
-        eprintln!("  ✗ Neither qt5ct nor qt6ct config directory found.");
-        eprintln!("    Install qt5ct or qt6ct and run it once to initialise.");
-    } else {
-        println!("    Set QT_QPA_PLATFORMTHEME=qt5ct (or qt6ct) in your environment.");
+        bail!("Neither qt5ct nor qt6ct config directory found — install and run one once to initialise");
     }
+    detail!("    Set QT_QPA_PLATFORMTHEME=qt5ct (or qt6ct) in your environment.");
     Ok(())
 }
 
@@ -1083,7 +1116,7 @@ pub fn apply_vscode_shared(scheme: &Scheme, path: &Path, font: Option<&str>) -> 
         .context("Failed to serialize settings.json")?;
     fs::write(path, json_str)
         .with_context(|| format!("Failed to write {}", path.display()))?;
-    println!("  ✓ {}", path.display());
+    detail!("  ✓ {}", path.display());
     Ok(())
 }
 
@@ -1335,7 +1368,7 @@ pub fn apply_zed_shared(
         .context("Failed to serialize Zed theme")?;
     fs::write(&theme_path, theme_str)
         .with_context(|| format!("Failed to write {}", theme_path.display()))?;
-    println!("  ✓ {}", theme_path.display());
+    detail!("  ✓ {}", theme_path.display());
 
     // 2. Merge settings.json — select the theme and (optionally) set the font.
     //    JSONC-tolerant; never clobbers a file it can't parse.
@@ -1359,7 +1392,7 @@ pub fn apply_zed_shared(
         .context("Failed to serialize Zed settings.json")?;
     fs::write(settings_path, json_str)
         .with_context(|| format!("Failed to write {}", settings_path.display()))?;
-    println!("  ✓ {}", settings_path.display());
+    detail!("  ✓ {}", settings_path.display());
     Ok(())
 }
 

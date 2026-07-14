@@ -1,12 +1,34 @@
 /// Windows-specific theming: accent color, dark/light mode, Windows Terminal.
 /// Compiled only on Windows — Linux builds ignore this entire file.
 use anyhow::{Context, Result};
+use console::style;
+use indicatif::{ProgressBar, ProgressStyle};
 use serde_json::Value as JsonValue;
 use std::fs;
 use std::path::PathBuf;
+use std::time::Duration;
 
 use crate::config::CoatConfig;
+use crate::detail;
 use crate::scheme::Scheme;
+
+/// Run one apply step behind a spinner that freezes into a ✓/✗ result line.
+fn step<F: FnOnce() -> Result<()>>(label: &str, f: F) {
+    let pb = ProgressBar::new_spinner();
+    pb.set_style(
+        ProgressStyle::with_template("{spinner:.cyan} {msg}")
+            .unwrap()
+            .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏ "),
+    );
+    pb.set_message(label.to_string());
+    pb.enable_steady_tick(Duration::from_millis(80));
+    let result = f();
+    pb.finish_and_clear();
+    match result {
+        Ok(_) => println!("{} {}", style("✓").green(), label),
+        Err(e) => println!("{} {}  {}", style("✗").red(), label, style(e.to_string()).red()),
+    }
+}
 
 // ── Accent palette ───────────────────────────────────────────────────────
 
@@ -91,7 +113,7 @@ fn set_accent_color(scheme: &Scheme) -> Result<()> {
     cp.set_value("MenuHilight",      &format!("{} {} {}", r, g, b))?;
     cp.set_value("ActiveBorder",     &format!("{} {} {}", r, g, b))?;
 
-    println!("  ✓ Windows accent color → #{:02X}{:02X}{:02X}", r, g, b);
+    detail!("  ✓ Windows accent color → #{:02X}{:02X}{:02X}", r, g, b);
     Ok(())
 }
 
@@ -115,7 +137,7 @@ fn set_dark_mode(dark: bool) -> Result<()> {
     key.set_value("ColorPrevalence", &1u32)?;   // show accent on Start/taskbar/action center
     key.set_value("EnableTransparency", &1u32)?; // needed for active taskbar button highlight
     key.set_value("EnabledBlurBehind", &0u32)?;
-    println!(
+    detail!(
         "  ✓ Windows mode → {}",
         if dark { "dark" } else { "light" }
     );
@@ -159,9 +181,6 @@ fn restart_explorer() {
     #[cfg(windows)]
     {
         use std::process::Command;
-        use std::time::Duration;
-
-        print!("  Restarting Explorer... ");
 
         // 1. Graceful "Exit Explorer": PostMessage(Shell_TrayWnd, 0x5B4).
         //    Done via a PowerShell P/Invoke shim (no extra crate dependency).
@@ -207,8 +226,6 @@ fn restart_explorer() {
             kill("SearchHost.exe");
             kill("SearchUI.exe");
         }
-
-        println!("✓");
     }
 }
 
@@ -315,7 +332,7 @@ fn apply_windows_terminal_to(path: &std::path::Path, scheme: &Scheme) -> Result<
         .context("Failed to serialize Windows Terminal settings")?;
     fs::write(path, out)
         .with_context(|| format!("Failed to write {}", path.display()))?;
-    println!("  ✓ {}", path.display());
+    detail!("  ✓ {}", path.display());
     Ok(())
 }
 
@@ -347,8 +364,8 @@ fn discord_theme_paths() -> Vec<std::path::PathBuf> {
 pub fn apply_discord(scheme: &Scheme, config: &CoatConfig) -> Result<()> {
     let paths = discord_theme_paths();
     if paths.is_empty() {
-        println!("  (no Discord mod found — skipping)");
-        println!("  Supported: Vencord, BetterDiscord, Vesktop");
+        detail!("  (no Discord mod found — skipping)");
+        detail!("  Supported: Vencord, BetterDiscord, Vesktop");
         return Ok(());
     }
     for dir in &paths {
@@ -357,7 +374,7 @@ pub fn apply_discord(scheme: &Scheme, config: &CoatConfig) -> Result<()> {
         let dest = dir.join("coat.theme.css");
         crate::modules::apply_vesktop_shared(scheme, config, &dest)?;
     }
-    println!("  Enable the 'coat' theme in your Discord mod's theme settings.");
+    detail!("  Enable the 'coat' theme in your Discord mod's theme settings.");
     Ok(())
 }
 
@@ -397,20 +414,20 @@ pub fn apply_mode(scheme: &Scheme) -> Result<()> {
 pub fn apply_terminal(scheme: &Scheme) -> Result<()> {
     let paths = windows_terminal_paths();
     if paths.is_empty() {
-        println!("  (Windows Terminal not found — skipping)");
+        detail!("  (Windows Terminal not found — skipping)");
         return Ok(());
     }
     for path in &paths {
         apply_windows_terminal_to(path, scheme)?;
     }
-    println!("    Add \"colorScheme\": \"coat\" to your Windows Terminal profile.");
+    detail!("    Add \"colorScheme\": \"coat\" to your Windows Terminal profile.");
     Ok(())
 }
 
 pub fn apply_vscode(scheme: &Scheme) -> Result<()> {
     // Re-use the same JSON building logic from modules.rs but on the Windows path
     let Some(path) = vscode_settings_path_windows() else {
-        println!("  (VSCode not found at %APPDATA%\\Code — skipping)");
+        detail!("  (VSCode not found at %APPDATA%\\Code — skipping)");
         return Ok(());
     };
     // Delegate to the shared VSCode apply function in modules.rs (no font on Windows)
@@ -419,12 +436,12 @@ pub fn apply_vscode(scheme: &Scheme) -> Result<()> {
 
 pub fn apply_zed(scheme: &Scheme) -> Result<()> {
     let Some((settings, themes)) = zed_paths_windows() else {
-        println!("  (Zed not found at %APPDATA%\\Zed — skipping)");
+        detail!("  (Zed not found at %APPDATA%\\Zed — skipping)");
         return Ok(());
     };
     // Only apply if Zed's config dir already exists — avoids creating it blind.
     if !settings.parent().map(|p| p.is_dir()).unwrap_or(false) {
-        println!("  (Zed not found at %APPDATA%\\Zed — skipping)");
+        detail!("  (Zed not found at %APPDATA%\\Zed — skipping)");
         return Ok(());
     }
     // Delegate to the shared Zed apply function in modules.rs (no font on Windows)
@@ -485,9 +502,9 @@ fn try_set_elevated(scheme: &Scheme, dark: bool) {
     if hklm_dwm().is_err() { any_failed = true; }
 
     if any_failed {
-        println!("  (some logon/HKLM keys skipped — re-run as administrator for full effect)");
+        detail!("  (some logon/HKLM keys skipped — re-run as administrator for full effect)");
     } else {
-        println!("  ✓ Logon screen + HKLM keys");
+        detail!("  ✓ Logon screen + HKLM keys");
     }
 }
 
@@ -498,49 +515,30 @@ fn try_set_elevated(_scheme: &Scheme, _dark: bool) {}
 pub fn apply_all(scheme: &Scheme, config: &CoatConfig) -> Result<()> {
     println!("Applying Windows theme: {}\n", scheme.name);
 
-    println!("Applying accent color...");
-    apply_accent(scheme)?;
-    println!();
+    crate::modules::set_quiet(true);
 
-    println!("Applying dark/light mode...");
-    apply_mode(scheme)?;
-    println!();
+    step("Accent color", || apply_accent(scheme));
+    step("Dark/light mode", || apply_mode(scheme));
+    step("Logon/HKLM keys (best-effort, needs admin)", || {
+        try_set_elevated(scheme, scheme.is_dark());
+        Ok(())
+    });
+    step("Windows Terminal", || apply_terminal(scheme));
+    step("VSCode", || apply_vscode(scheme));
+    step("Zed", || apply_zed(scheme));
+    step("Firefox", || {
+        let tera = crate::modules::make_tera()?;
+        crate::modules::apply_module("firefox", scheme, config, &tera)
+    });
+    step("Discord (Vencord/BetterDiscord)", || apply_discord(scheme, config));
+    step("Explorer restart", || {
+        restart_explorer();
+        Ok(())
+    });
 
-    println!("Applying logon/HKLM keys (best-effort, needs admin)...");
-    try_set_elevated(scheme, scheme.is_dark());
-    println!();
+    crate::modules::set_quiet(false);
 
-    println!("Applying Windows Terminal color scheme...");
-    apply_terminal(scheme)?;
     println!();
-
-    println!("Applying VSCode colors...");
-    apply_vscode(scheme)?;
-    println!();
-
-    println!("Applying Zed colors...");
-    apply_zed(scheme)?;
-    println!();
-
-    println!("Applying Firefox theme...");
-    match crate::modules::make_tera() {
-        Ok(tera) => {
-            if let Err(e) = crate::modules::apply_module("firefox", scheme, config, &tera) {
-                eprintln!("  ✗ firefox: {}", e);
-            }
-        }
-        Err(e) => eprintln!("  ✗ firefox (template engine): {}", e),
-    }
-    println!();
-
-    println!("Applying Discord theme (Vencord/BetterDiscord)...");
-    apply_discord(scheme, config)?;
-    println!();
-
-    println!("Restarting Explorer (taskbar will flicker briefly)...");
-    restart_explorer();
-    println!();
-
-    println!("✓ Done!");
+    println!("{}", style("Done!").green().bold());
     Ok(())
 }

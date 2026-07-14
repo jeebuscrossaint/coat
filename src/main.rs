@@ -8,12 +8,53 @@ mod windows;
 
 use anyhow::{Context, Result};
 use config::CoatConfig;
+use console::style;
+use indicatif::{ProgressBar, ProgressStyle};
 use modules::{apply_module, make_tera, module_docs, module_aliases, ALL_MODULES};
 use scheme::{
     find_scheme, list_schemes, pick_random_scheme, preview_scheme, schemes_clone, schemes_exists,
     schemes_update, Scheme,
 };
 use std::fs;
+use std::time::Duration;
+use tera::Tera;
+
+/// A spinner that ticks in place, then freezes into a static ✓/✗ result line.
+fn spinner(label: &str) -> ProgressBar {
+    let pb = ProgressBar::new_spinner();
+    pb.set_style(
+        ProgressStyle::with_template("{spinner:.cyan} {msg}")
+            .unwrap()
+            .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏ "),
+    );
+    pb.set_message(label.to_string());
+    pb.enable_steady_tick(Duration::from_millis(80));
+    pb
+}
+
+/// Apply `scheme` to each named app, showing one spinner line per app that
+/// freezes into a ✓/✗ result once that app is done. Returns the number
+/// that applied successfully.
+fn apply_with_spinner(apps: &[String], scheme: &Scheme, config: &CoatConfig, tera: &Tera) -> usize {
+    modules::set_quiet(true);
+    let mut applied = 0;
+    for app in apps {
+        let pb = spinner(&format!("Applying to {}...", app));
+        let result = apply_module(app, scheme, config, tera);
+        pb.finish_and_clear();
+        match result {
+            Ok(_) => {
+                println!("{} {}", style("✓").green(), app);
+                applied += 1;
+            }
+            Err(e) => {
+                println!("{} {}  {}", style("✗").red(), app, style(e.to_string()).red());
+            }
+        }
+    }
+    modules::set_quiet(false);
+    applied
+}
 
 fn print_usage(prog: &str) {
     println!("coat - color scheme configurator\n");
@@ -82,33 +123,28 @@ fn cmd_apply(args: &[String], _prog: &str) -> Result<()> {
 
     let tera = make_tera().context("Failed to build template engine")?;
 
-    if let Some(app) = specific_app {
-        println!("Target: {} only\n", app);
-        println!("Applying to {}...", app);
-        match apply_module(app, &scheme, &config, &tera) {
-            Ok(_) => println!("\n✓ Successfully applied scheme to {}!", app),
-            Err(e) => eprintln!("\n✗ Failed to apply scheme to {}: {}", app, e),
-        }
-    } else {
-        if config.enabled.is_empty() {
-            println!("No modules enabled in coat.yaml.");
-            return Ok(());
-        }
-        let mut applied = 0;
-        for app in &config.enabled {
-            println!("Applying to {}...", app);
-            match apply_module(app, &scheme, &config, &tera) {
-                Ok(_) => applied += 1,
-                Err(e) => eprintln!("  ✗ {}: {}", app, e),
+    let apps: Vec<String> = match specific_app {
+        Some(app) => vec![app.to_string()],
+        None => {
+            if config.enabled.is_empty() {
+                println!("No modules enabled in coat.yaml.");
+                return Ok(());
             }
-            println!();
+            config.enabled.clone()
         }
-        println!(
-            "Successfully applied scheme to {} application{}!",
-            applied,
-            if applied == 1 { "" } else { "s" }
-        );
-    }
+    };
+
+    let total = apps.len();
+    let applied = apply_with_spinner(&apps, &scheme, &config, &tera);
+
+    println!();
+    println!(
+        "{} scheme to {}/{} application{}!",
+        if applied == total { "Applied" } else { "Partially applied" },
+        applied,
+        total,
+        if total == 1 { "" } else { "s" }
+    );
 
     Ok(())
 }
@@ -177,17 +213,16 @@ fn set_and_apply(scheme: &Scheme) -> Result<()> {
         if config.enabled.is_empty() {
             println!("No modules enabled. Add apps to coat.yaml and run 'coat apply'.");
         } else {
-            println!("Applying to {} enabled module(s)...\n", config.enabled.len());
             let tera = make_tera().context("Failed to build template engine")?;
-            let mut applied = 0;
-            for app in &config.enabled {
-                print!("  {}... ", app);
-                match apply_module(app, scheme, &config, &tera) {
-                    Ok(_)  => { println!("✓"); applied += 1; }
-                    Err(e) => println!("✗ {}", e),
-                }
-            }
-            println!("\nDone — {}/{} applied.", applied, config.enabled.len());
+            let total = config.enabled.len();
+            let applied = apply_with_spinner(&config.enabled, scheme, &config, &tera);
+            println!();
+            println!(
+                "Applied scheme to {}/{} application{}!",
+                applied,
+                total,
+                if total == 1 { "" } else { "s" }
+            );
         }
     }
 
