@@ -1,8 +1,9 @@
 use anyhow::{bail, Context, Result};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::UNIX_EPOCH;
 use walkdir::WalkDir;
 
 #[derive(Debug, Deserialize)]
@@ -21,7 +22,7 @@ struct RawScheme {
 
 /// A loaded Base16/Base24 color scheme.
 /// All color fields are uppercase 6-char hex WITHOUT '#'.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Scheme {
     pub name: String,
     pub slug: String,
@@ -175,6 +176,148 @@ pub fn schemes_update() -> Result<()> {
     Ok(())
 }
 
+// ── Scheme index cache ───────────────────────────────────────────────────────
+//
+// `list`/`search`/variant-`random` need every scheme's metadata, which used to
+// mean opening and YAML-parsing all ~500 files on every invocation. Instead we
+// parse once, cache the parsed schemes as JSON, and gate the cache on a cheap
+// (file count, newest mtime) signature. Statting the files to compute that
+// signature is ~10x cheaper than parsing them, so the common "nothing changed"
+// case reads a single JSON file. The cache is purely an optimization: any
+// read/parse/signature mismatch falls back to a full scan that rewrites it.
+
+const CACHE_VERSION: u32 = 1;
+
+#[derive(Serialize, Deserialize)]
+struct SchemeCache {
+    version: u32,
+    file_count: usize,
+    max_mtime: u64,
+    schemes: Vec<Scheme>,
+}
+
+fn cache_path() -> Option<PathBuf> {
+    dirs::cache_dir().map(|d| d.join("coat").join("scheme-index.json"))
+}
+
+/// Cheap fingerprint of the library: (number of `.yaml` files, newest mtime in
+/// whole seconds). Reads metadata only — never file contents.
+fn library_signature(dirs: &[PathBuf]) -> (usize, u64) {
+    let mut count = 0usize;
+    let mut max_mtime = 0u64;
+    for dir in dirs {
+        if !dir.is_dir() {
+            continue;
+        }
+        for entry in WalkDir::new(dir).max_depth(1).into_iter().filter_map(|e| e.ok()) {
+            if entry.path().extension().and_then(|s| s.to_str()) != Some("yaml") {
+                continue;
+            }
+            count += 1;
+            if let Ok(modified) = entry.metadata().map(|m| m.modified()) {
+                if let Ok(t) = modified {
+                    let secs = t.duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+                    max_mtime = max_mtime.max(secs);
+                }
+            }
+        }
+    }
+    (count, max_mtime)
+}
+
+/// Parse every `.yaml` scheme under `dirs` (base16 before base24), spreading the
+/// work across available cores. Unparseable files are skipped, matching the
+/// prior per-file `if let Ok(..)` behavior.
+fn parse_all(dirs: &[PathBuf]) -> Vec<Scheme> {
+    let mut paths: Vec<PathBuf> = Vec::new();
+    for dir in dirs {
+        if !dir.is_dir() {
+            continue;
+        }
+        for entry in WalkDir::new(dir).max_depth(1).into_iter().filter_map(|e| e.ok()) {
+            let path = entry.path();
+            if path.extension().and_then(|s| s.to_str()) == Some("yaml") {
+                paths.push(path.to_path_buf());
+            }
+        }
+    }
+
+    let threads = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(1)
+        .min(paths.len());
+
+    // Small library or single core: not worth the thread setup.
+    if threads <= 1 || paths.len() < 32 {
+        return paths.iter().filter_map(|p| Scheme::load_file(p).ok()).collect();
+    }
+
+    // Contiguous chunks keep the base16-before-base24 ordering when concatenated.
+    let chunk_size = paths.len().div_ceil(threads);
+    let mut out: Vec<Scheme> = Vec::with_capacity(paths.len());
+    std::thread::scope(|s| {
+        let handles: Vec<_> = paths
+            .chunks(chunk_size)
+            .map(|chunk| s.spawn(move || chunk.iter().filter_map(|p| Scheme::load_file(p).ok()).collect::<Vec<_>>()))
+            .collect();
+        for h in handles {
+            if let Ok(mut v) = h.join() {
+                out.append(&mut v);
+            }
+        }
+    });
+    out
+}
+
+/// Load every scheme in the library (base16 then base24), backed by the on-disk
+/// index cache. Rebuilds the cache transparently when it is missing or stale.
+pub fn load_all_schemes() -> Result<Vec<Scheme>> {
+    let sdir = schemes_dir()?;
+    let dirs = [sdir.join("base16"), sdir.join("base24")];
+    let (count, max_mtime) = library_signature(&dirs);
+
+    // Fast path: a present, current cache.
+    if let Some(cp) = cache_path() {
+        if let Ok(bytes) = fs::read(&cp) {
+            if let Ok(cache) = serde_json::from_slice::<SchemeCache>(&bytes) {
+                if cache.version == CACHE_VERSION
+                    && cache.file_count == count
+                    && cache.max_mtime == max_mtime
+                {
+                    return Ok(cache.schemes);
+                }
+            }
+        }
+    }
+
+    // Slow path: parse everything and refresh the cache (best-effort write).
+    let schemes = parse_all(&dirs);
+    if let Some(cp) = cache_path() {
+        let cache = SchemeCache {
+            version: CACHE_VERSION,
+            file_count: count,
+            max_mtime,
+            schemes: schemes.clone(),
+        };
+        if let Ok(json) = serde_json::to_vec(&cache) {
+            if let Some(parent) = cp.parent() {
+                let _ = fs::create_dir_all(parent);
+            }
+            let _ = fs::write(&cp, json);
+        }
+    }
+    Ok(schemes)
+}
+
+/// Cheap process-seeded random index in `0..len`. `len` must be non-zero.
+fn random_index(len: usize) -> usize {
+    use std::hash::{BuildHasher, Hasher};
+    let seed = std::collections::hash_map::RandomState::new()
+        .build_hasher()
+        .finish();
+    (seed % len as u64) as usize
+}
+
 pub fn find_scheme(name: &str, prefer_base24: bool) -> Result<Scheme> {
     let sdir = schemes_dir()?;
 
@@ -224,53 +367,43 @@ pub fn find_scheme(name: &str, prefer_base24: bool) -> Result<Scheme> {
 
 /// Pick a random scheme from the library, optionally restricted to a variant
 /// ("dark" or "light"). Returns the loaded scheme.
-pub fn pick_random_scheme(variant_filter: Option<&str>, prefer_base24: bool) -> Result<Scheme> {
+pub fn pick_random_scheme(variant_filter: Option<&str>, _prefer_base24: bool) -> Result<Scheme> {
     let sdir = schemes_dir()?;
-    let dirs_to_scan = if prefer_base24 {
-        [sdir.join("base24"), sdir.join("base16")]
-    } else {
-        [sdir.join("base16"), sdir.join("base24")]
-    };
 
+    // With a variant filter we need each scheme's variant, so pick from the
+    // cached index (already parsed) rather than re-reading every file.
+    if let Some(vf) = variant_filter {
+        let mut candidates: Vec<Scheme> = load_all_schemes()?
+            .into_iter()
+            .filter(|s| s.variant.to_lowercase().contains(vf))
+            .collect();
+        if candidates.is_empty() {
+            bail!("No {} schemes found in {}", vf, sdir.display());
+        }
+        let idx = random_index(candidates.len());
+        return Ok(candidates.swap_remove(idx));
+    }
+
+    // No filter: collect paths (cheap, no parsing) and load exactly one. The
+    // selection is uniform, so directory order doesn't matter here.
     let mut candidates: Vec<PathBuf> = Vec::new();
-    for dir in &dirs_to_scan {
+    for dir in &[sdir.join("base16"), sdir.join("base24")] {
         if !dir.is_dir() {
             continue;
         }
         for entry in WalkDir::new(dir).max_depth(1).into_iter().filter_map(|e| e.ok()) {
             let path = entry.path();
-            if path.extension().and_then(|s| s.to_str()) != Some("yaml") {
-                continue;
-            }
-            match variant_filter {
-                None => candidates.push(path.to_path_buf()),
-                Some(vf) => {
-                    // Only load the file when we need to inspect its variant.
-                    if let Ok(scheme) = Scheme::load_file(path) {
-                        if scheme.variant.to_lowercase().contains(vf) {
-                            candidates.push(path.to_path_buf());
-                        }
-                    }
-                }
+            if path.extension().and_then(|s| s.to_str()) == Some("yaml") {
+                candidates.push(path.to_path_buf());
             }
         }
     }
 
     if candidates.is_empty() {
-        match variant_filter {
-            Some(vf) => bail!("No {} schemes found in {}", vf, sdir.display()),
-            None => bail!("No schemes found in {} — run 'coat clone'", sdir.display()),
-        }
+        bail!("No schemes found in {} — run 'coat clone'", sdir.display());
     }
 
-    // Cheap entropy without an extra dependency: RandomState seeds a hasher
-    // with process-random keys; finishing it yields a well-mixed value.
-    use std::hash::{BuildHasher, Hasher};
-    let seed = std::collections::hash_map::RandomState::new()
-        .build_hasher()
-        .finish();
-    let idx = (seed % candidates.len() as u64) as usize;
-
+    let idx = random_index(candidates.len());
     Scheme::load_file(&candidates[idx])
 }
 
@@ -279,40 +412,25 @@ pub fn list_schemes(
     search_term: Option<&str>,
     show_preview: bool,
 ) -> Result<()> {
-    let sdir = schemes_dir()?;
-    let dirs_to_scan = [sdir.join("base16"), sdir.join("base24")];
+    let mut schemes = load_all_schemes()?;
 
-    let mut schemes: Vec<Scheme> = Vec::new();
-
-    for dir in &dirs_to_scan {
-        if !dir.is_dir() {
-            continue;
+    schemes.retain(|scheme| {
+        if let Some(vf) = variant_filter {
+            if !scheme.variant.to_lowercase().contains(vf) {
+                return false;
+            }
         }
-        for entry in WalkDir::new(dir).max_depth(1).into_iter().filter_map(|e| e.ok()) {
-            let path = entry.path();
-            if path.extension().and_then(|s| s.to_str()) != Some("yaml") {
-                continue;
+        if let Some(term) = search_term {
+            let t = term.to_lowercase();
+            if !scheme.name.to_lowercase().contains(&t)
+                && !scheme.author.to_lowercase().contains(&t)
+                && !scheme.slug.to_lowercase().contains(&t)
+            {
+                return false;
             }
-            let Ok(scheme) = Scheme::load_file(path) else {
-                continue;
-            };
-            if let Some(vf) = variant_filter {
-                if !scheme.variant.to_lowercase().contains(vf) {
-                    continue;
-                }
-            }
-            if let Some(term) = search_term {
-                let t = term.to_lowercase();
-                if !scheme.name.to_lowercase().contains(&t)
-                    && !scheme.author.to_lowercase().contains(&t)
-                    && !scheme.slug.to_lowercase().contains(&t)
-                {
-                    continue;
-                }
-            }
-            schemes.push(scheme);
         }
-    }
+        true
+    });
 
     schemes.sort_by(|a, b| a.name.cmp(&b.name));
 

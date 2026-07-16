@@ -195,16 +195,19 @@ fn render_to(tera: &Tera, name: &str, ctx: &tera::Context, dest: &Path) -> Resul
     Ok(())
 }
 
-/// Run a shell command with its stdio fully silenced — these are best-effort
-/// reload hooks (bat cache rebuilds, dunst restarts, ...) whose own chatter
-/// isn't ours to show inside a clean per-app status line.
+/// Fire off a shell command with its stdio fully silenced and DON'T wait for it —
+/// these are best-effort reload hooks (bat cache rebuilds, dunst restarts, ...)
+/// whose own chatter isn't ours to show inside a clean per-app status line, and
+/// which can each take hundreds of ms. Spawning instead of blocking lets the
+/// reloads finish in the background (reparented to init once coat exits) so
+/// `apply` returns as soon as the config files are written.
 fn run(cmd: &str) {
     let result = Command::new("sh")
         .args(["-c", cmd])
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
-        .status();
+        .spawn();
     if let Err(e) = result {
         detail!("  warning: {}", e);
     }
