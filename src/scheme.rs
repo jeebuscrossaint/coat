@@ -62,9 +62,25 @@ impl Scheme {
         s.trim_start_matches('#').to_uppercase()
     }
 
+    /// Slugify a scheme name: lowercase, and collapse every run of
+    /// non-alphanumeric characters into a single hyphen (trimming the ends).
+    /// This makes derived slugs match the tinted-theming filenames — e.g.
+    /// "Gruvbox dark, hard" → "gruvbox-dark-hard", not "gruvbox-dark,-hard".
     fn derive_slug(name: &str) -> String {
-        name.to_lowercase()
-            .replace([' ', '_'], "-")
+        let mut slug = String::with_capacity(name.len());
+        let mut pending_dash = false;
+        for c in name.to_lowercase().chars() {
+            if c.is_ascii_alphanumeric() {
+                if pending_dash && !slug.is_empty() {
+                    slug.push('-');
+                }
+                slug.push(c);
+                pending_dash = false;
+            } else {
+                pending_dash = true;
+            }
+        }
+        slug
     }
 
     fn from_raw(raw: RawScheme) -> Self {
@@ -186,7 +202,9 @@ pub fn schemes_update() -> Result<()> {
 // case reads a single JSON file. The cache is purely an optimization: any
 // read/parse/signature mismatch falls back to a full scan that rewrites it.
 
-const CACHE_VERSION: u32 = 1;
+// Bump when the parsed `Scheme` shape or slug derivation changes, so stale
+// caches from older builds are discarded rather than trusted.
+const CACHE_VERSION: u32 = 2;
 
 #[derive(Serialize, Deserialize)]
 struct SchemeCache {
@@ -316,6 +334,87 @@ fn random_index(len: usize) -> usize {
         .build_hasher()
         .finish();
     (seed % len as u64) as usize
+}
+
+/// Classic iterative Levenshtein edit distance (two-row variant), on chars.
+fn levenshtein(a: &str, b: &str) -> usize {
+    let a: Vec<char> = a.chars().collect();
+    let b: Vec<char> = b.chars().collect();
+    if a.is_empty() {
+        return b.len();
+    }
+    let mut prev: Vec<usize> = (0..=b.len()).collect();
+    let mut cur = vec![0usize; b.len() + 1];
+    for i in 1..=a.len() {
+        cur[0] = i;
+        for j in 1..=b.len() {
+            let cost = if a[i - 1] == b[j - 1] { 0 } else { 1 };
+            cur[j] = (prev[j] + 1).min(cur[j - 1] + 1).min(prev[j - 1] + cost);
+        }
+        std::mem::swap(&mut prev, &mut cur);
+    }
+    prev[b.len()]
+}
+
+/// Distance of `query` to a candidate id: 0 on substring match, otherwise the
+/// smaller of the full-string edit distance and the distance to the candidate's
+/// leading prefix of the query's length (so "gruvboxx" still finds the many
+/// "gruvbox-*" slugs via their shared prefix rather than being swamped by the
+/// long tails).
+fn match_score(query: &str, cand: &str) -> usize {
+    if cand.contains(query) {
+        return 0;
+    }
+    let prefix_len = query.chars().count().min(cand.chars().count());
+    let prefix: String = cand.chars().take(prefix_len).collect();
+    levenshtein(query, cand).min(levenshtein(query, &prefix))
+}
+
+/// Up to `limit` scheme slugs closest to `query`, for "did you mean?" hints.
+/// Returns nothing when no candidate is within a query-length-scaled threshold,
+/// so a truly bogus name yields no misleading suggestions.
+pub fn suggest_schemes(query: &str, limit: usize) -> Vec<String> {
+    let q = query.to_lowercase();
+    if q.is_empty() {
+        return Vec::new();
+    }
+    let schemes = match load_all_schemes() {
+        Ok(s) => s,
+        Err(_) => return Vec::new(),
+    };
+
+    let mut scored: Vec<(usize, String)> = schemes
+        .iter()
+        .filter(|s| !s.slug.is_empty())
+        .map(|s| {
+            let d = match_score(&q, &s.slug).min(match_score(&q, &s.name.to_lowercase()));
+            (d, s.slug.clone())
+        })
+        .collect();
+
+    scored.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
+
+    let max_dist = (q.len() / 2).max(2);
+    let mut seen = std::collections::HashSet::new();
+    scored
+        .into_iter()
+        .filter(|(d, _)| *d <= max_dist)
+        .filter(|(_, slug)| seen.insert(slug.clone()))
+        .take(limit)
+        .map(|(_, slug)| slug)
+        .collect()
+}
+
+/// Every distinct scheme slug, sorted — used by shell completion.
+pub fn all_slugs() -> Result<Vec<String>> {
+    let mut v: Vec<String> = load_all_schemes()?
+        .into_iter()
+        .map(|s| s.slug)
+        .filter(|s| !s.is_empty())
+        .collect();
+    v.sort();
+    v.dedup();
+    Ok(v)
 }
 
 pub fn find_scheme(name: &str, prefer_base24: bool) -> Result<Scheme> {
@@ -469,67 +568,75 @@ pub fn list_schemes(
     Ok(())
 }
 
-/// Print a scheme's header line and full color swatch preview.
-/// Used by `random --dry` to preview without applying.
-pub fn preview_scheme(scheme: &Scheme) {
-    print!("\x1b[1m{}\x1b[0m", scheme.name);
+/// Build the bold name/author/slug header block for a scheme.
+pub fn header_string(scheme: &Scheme) -> String {
+    let mut s = format!("\x1b[1m{}\x1b[0m", scheme.name);
     if !scheme.variant.is_empty() {
-        print!(" [{}]", scheme.variant);
+        s.push_str(&format!(" [{}]", scheme.variant));
     }
     if scheme.is_base24 {
-        print!(" [Base24]");
+        s.push_str(" [Base24]");
     }
-    println!();
+    s.push('\n');
     if !scheme.author.is_empty() {
-        println!("  Author: {}", scheme.author);
+        s.push_str(&format!("  Author: {}\n", scheme.author));
     }
     if !scheme.slug.is_empty() {
-        println!("  Slug:   {}", scheme.slug);
+        s.push_str(&format!("  Slug:   {}\n", scheme.slug));
     }
-    print_color_preview(scheme);
+    s
 }
 
-fn print_color_block(hex: &str) {
+fn color_block(hex: &str) -> String {
     let (r, g, b) = Scheme::hex_to_rgb(hex);
-    print!("\x1b[48;2;{};{};{}m  \x1b[0m {:<7} ", r, g, b, hex);
+    format!("\x1b[48;2;{};{};{}m  \x1b[0m {:<7} ", r, g, b, hex)
 }
 
-fn print_color_preview(scheme: &Scheme) {
-    println!("\nColor Preview:");
-    println!("─────────────────────────────────────────────────────");
-    println!("Backgrounds & Foregrounds:");
-    print_color_block(&scheme.base00);
-    print_color_block(&scheme.base01);
-    print_color_block(&scheme.base02);
-    print_color_block(&scheme.base03);
-    println!();
-    print_color_block(&scheme.base04);
-    print_color_block(&scheme.base05);
-    print_color_block(&scheme.base06);
-    print_color_block(&scheme.base07);
-    println!("\n");
-    println!("Accent Colors:");
-    print_color_block(&scheme.base08);
-    print_color_block(&scheme.base09);
-    print_color_block(&scheme.base0a);
-    print_color_block(&scheme.base0b);
-    println!();
-    print_color_block(&scheme.base0c);
-    print_color_block(&scheme.base0d);
-    print_color_block(&scheme.base0e);
-    print_color_block(&scheme.base0f);
-    println!();
+/// Print the swatch grid to stdout (header printed separately by the caller).
+pub fn print_color_preview(scheme: &Scheme) {
+    print!("{}", color_preview_string(scheme));
+}
+
+/// Build the full color-swatch grid for a scheme as a string, so it can be
+/// printed directly or composed into an interactive frame (`coat browse`).
+pub fn color_preview_string(scheme: &Scheme) -> String {
+    let mut s = String::new();
+    s.push_str("\nColor Preview:\n");
+    s.push_str("─────────────────────────────────────────────────────\n");
+    s.push_str("Backgrounds & Foregrounds:\n");
+    s.push_str(&color_block(&scheme.base00));
+    s.push_str(&color_block(&scheme.base01));
+    s.push_str(&color_block(&scheme.base02));
+    s.push_str(&color_block(&scheme.base03));
+    s.push('\n');
+    s.push_str(&color_block(&scheme.base04));
+    s.push_str(&color_block(&scheme.base05));
+    s.push_str(&color_block(&scheme.base06));
+    s.push_str(&color_block(&scheme.base07));
+    s.push_str("\n\n");
+    s.push_str("Accent Colors:\n");
+    s.push_str(&color_block(&scheme.base08));
+    s.push_str(&color_block(&scheme.base09));
+    s.push_str(&color_block(&scheme.base0a));
+    s.push_str(&color_block(&scheme.base0b));
+    s.push('\n');
+    s.push_str(&color_block(&scheme.base0c));
+    s.push_str(&color_block(&scheme.base0d));
+    s.push_str(&color_block(&scheme.base0e));
+    s.push_str(&color_block(&scheme.base0f));
+    s.push('\n');
     if scheme.is_base24 && !scheme.base10.is_empty() {
-        println!("\nBase24 Extended Colors:");
-        print_color_block(&scheme.base10);
-        print_color_block(&scheme.base11);
-        print_color_block(&scheme.base12);
-        print_color_block(&scheme.base13);
-        println!();
-        print_color_block(&scheme.base14);
-        print_color_block(&scheme.base15);
-        print_color_block(&scheme.base16_color);
-        print_color_block(&scheme.base17);
-        println!();
+        s.push_str("\nBase24 Extended Colors:\n");
+        s.push_str(&color_block(&scheme.base10));
+        s.push_str(&color_block(&scheme.base11));
+        s.push_str(&color_block(&scheme.base12));
+        s.push_str(&color_block(&scheme.base13));
+        s.push('\n');
+        s.push_str(&color_block(&scheme.base14));
+        s.push_str(&color_block(&scheme.base15));
+        s.push_str(&color_block(&scheme.base16_color));
+        s.push_str(&color_block(&scheme.base17));
+        s.push('\n');
     }
+    s
 }

@@ -1,5 +1,6 @@
 #![recursion_limit = "512"]
 
+mod browse;
 mod config;
 mod modules;
 mod scheme;
@@ -12,8 +13,8 @@ use console::style;
 use indicatif::{ProgressBar, ProgressStyle};
 use modules::{apply_module, make_tera, module_docs, module_aliases, ALL_MODULES};
 use scheme::{
-    find_scheme, list_schemes, pick_random_scheme, preview_scheme, schemes_clone, schemes_exists,
-    schemes_update, Scheme,
+    find_scheme, list_schemes, pick_random_scheme, print_color_preview, schemes_clone,
+    schemes_exists, schemes_update, Scheme,
 };
 use std::fs;
 use std::time::Duration;
@@ -32,27 +33,27 @@ fn spinner(label: &str) -> ProgressBar {
     pb
 }
 
-/// Apply `scheme` to each named app, showing one spinner line per app that
-/// freezes into a ✓/✗ result once that app is done. Returns the number
-/// that applied successfully.
+/// Apply `scheme` to every named app under a single spinner that names the app
+/// currently being written, then clears itself. Only failures are printed —
+/// successes are left to the caller's one-line summary, so a 20-app apply stays
+/// two lines instead of twenty. Returns the number that applied successfully.
 fn apply_with_spinner(apps: &[String], scheme: &Scheme, config: &CoatConfig, tera: &Tera) -> usize {
     modules::set_quiet(true);
+    let pb = spinner("Applying...");
     let mut applied = 0;
+    let mut failures: Vec<(String, String)> = Vec::new();
     for app in apps {
-        let pb = spinner(&format!("Applying to {}...", app));
-        let result = apply_module(app, scheme, config, tera);
-        pb.finish_and_clear();
-        match result {
-            Ok(_) => {
-                println!("{} {}", style("✓").green(), app);
-                applied += 1;
-            }
-            Err(e) => {
-                println!("{} {}  {}", style("✗").red(), app, style(e.to_string()).red());
-            }
+        pb.set_message(format!("Applying to {}...", app));
+        match apply_module(app, scheme, config, tera) {
+            Ok(_) => applied += 1,
+            Err(e) => failures.push((app.clone(), e.to_string())),
         }
     }
+    pb.finish_and_clear();
     modules::set_quiet(false);
+    for (app, err) in &failures {
+        println!("{} {}  {}", style("✗").red(), app, style(err).red());
+    }
     applied
 }
 
@@ -63,28 +64,33 @@ fn print_usage(prog: &str) {
     println!("  clone               Clone the schemes repository");
     println!("  update              Update the schemes repository");
     println!("  list [OPTIONS]      List available color schemes");
+    println!("  browse [OPTIONS]    Scroll through schemes interactively, apply on Enter");
     println!("  search <term>       Search schemes by name or author");
     println!("  set <scheme>        Switch to a scheme and apply everywhere");
-    println!("  random [OPTIONS]    Switch to a random scheme and apply everywhere");
+    println!("  random [OPTIONS]    Pick a random scheme, preview it, and apply");
     println!("  apply [app]         Apply current scheme to all apps or one specific app");
     println!("  docs <app>          Show setup instructions for an app");
+    println!("  completions <shell> Install shell completions (fish)");
     println!("  help                Show this help message");
     println!();
-    println!("List/Search/Random Options:");
+    println!("List/Search/Browse/Random Options:");
     println!("  --dark              Show/pick only dark variant schemes");
     println!("  --light             Show/pick only light variant schemes");
     println!("  --no-preview        Skip color swatches (list/search only)");
     println!("  --dry               Preview a random pick without applying (random only)");
+    println!("  --yes, -y           Apply a random pick without prompting (random only)");
     println!();
     println!("Examples:");
     println!("  {} set gruvbox       Switch to gruvbox and apply everywhere", prog);
-    println!("  {} random            Switch to a random scheme and apply everywhere", prog);
-    println!("  {} random --dark     Switch to a random dark scheme", prog);
+    println!("  {} browse            Scroll schemes interactively and apply one", prog);
+    println!("  {} browse --dark     Browse only dark schemes", prog);
+    println!("  {} random            Pick a random scheme, preview, then confirm", prog);
+    println!("  {} random --dark     Pick a random dark scheme", prog);
+    println!("  {} random -y         Pick and apply a random scheme, no prompt", prog);
     println!("  {} random --dry      Preview a random scheme without applying", prog);
     println!("  {} apply             Apply current scheme to all enabled apps", prog);
     println!("  {} apply kitty       Apply current scheme only to kitty", prog);
     println!("  {} list --dark       List dark schemes", prog);
-    println!("  {} search gruvbox    Search for gruvbox schemes", prog);
 }
 
 fn ensure_schemes() -> Result<()> {
@@ -119,7 +125,7 @@ fn cmd_apply(args: &[String], _prog: &str) -> Result<()> {
     println!("Loading scheme: {}", config.scheme);
     let scheme = find_scheme(&config.scheme, config.prefer_base24)
         .with_context(|| format!("Failed to load scheme '{}'", config.scheme))?;
-    println!("Applying scheme: {}\n", scheme.name);
+    println!("Applying scheme: {}", scheme.name);
 
     let tera = make_tera().context("Failed to build template engine")?;
 
@@ -216,7 +222,6 @@ fn set_and_apply(scheme: &Scheme) -> Result<()> {
             let tera = make_tera().context("Failed to build template engine")?;
             let total = config.enabled.len();
             let applied = apply_with_spinner(&config.enabled, scheme, &config, &tera);
-            println!();
             println!(
                 "Applied scheme to {}/{} application{}!",
                 applied,
@@ -241,12 +246,59 @@ fn cmd_set(args: &[String]) -> Result<()> {
 
     // Validate the scheme exists before touching anything
     let prefer_base24 = CoatConfig::load().map(|c| c.prefer_base24).unwrap_or(false);
-    let scheme = find_scheme(name, prefer_base24)
-        .with_context(|| format!("Scheme '{}' not found", name))?;
+    let scheme = match find_scheme(name, prefer_base24) {
+        Ok(s) => s,
+        Err(_) => {
+            eprintln!("Scheme '{}' not found.", name);
+            let suggestions = scheme::suggest_schemes(name, 5);
+            if !suggestions.is_empty() {
+                eprintln!("\nDid you mean:");
+                for s in &suggestions {
+                    eprintln!("  {}", s);
+                }
+            } else {
+                eprintln!("\nRun 'coat browse' or 'coat list' to see available schemes.");
+            }
+            std::process::exit(1);
+        }
+    };
 
     println!("Setting scheme: {}\n", scheme.name);
 
     set_and_apply(&scheme)
+}
+
+/// What the user chose at the `random` apply prompt.
+enum RandomChoice {
+    Apply,
+    Reroll,
+    Quit,
+}
+
+/// Prompt after previewing a random pick. Single keypress, no Enter needed.
+/// Falls back to Apply when stdin isn't a terminal (e.g. piped/scripted).
+fn prompt_random() -> Result<RandomChoice> {
+    use console::{Key, Term};
+    let term = Term::stdout();
+    if !term.is_term() {
+        return Ok(RandomChoice::Apply);
+    }
+    print!("Apply? [Y]es · [r]eroll · [n]o: ");
+    std::io::Write::flush(&mut std::io::stdout())?;
+    loop {
+        let c = match term.read_key()? {
+            Key::Enter => 'y',
+            Key::Escape => 'n',
+            Key::Char(c) => c.to_ascii_lowercase(),
+            _ => continue,
+        };
+        match c {
+            'y' => { println!("yes\n"); return Ok(RandomChoice::Apply); }
+            'r' => { println!("reroll\n"); return Ok(RandomChoice::Reroll); }
+            'n' | 'q' => { println!("no"); return Ok(RandomChoice::Quit); }
+            _ => continue,
+        }
+    }
 }
 
 fn cmd_random(args: &[String]) -> Result<()> {
@@ -258,26 +310,58 @@ fn cmd_random(args: &[String]) -> Result<()> {
     });
     // --dry previews the pick without persisting or applying it.
     let dry = args.iter().any(|a| a == "--dry" || a == "--dry-run");
+    // --yes / -y skips the confirmation prompt and applies immediately.
+    let auto = args.iter().any(|a| a == "--yes" || a == "-y");
 
     ensure_schemes()?;
 
     let prefer_base24 = CoatConfig::load().map(|c| c.prefer_base24).unwrap_or(false);
-    let scheme = pick_random_scheme(variant_filter, prefer_base24)
-        .context("Failed to pick a random scheme")?;
 
-    if dry {
-        println!("🎲 Random preview (not applied — run 'coat random' to apply):\n");
-        preview_scheme(&scheme);
-        return Ok(());
+    loop {
+        let scheme = pick_random_scheme(variant_filter, prefer_base24)
+            .context("Failed to pick a random scheme")?;
+
+        println!("🎲 Randomly selected: {} by {}", scheme.name, scheme.author);
+        if !scheme.variant.is_empty() {
+            println!("   Variant: {}", scheme.variant);
+        }
+        print_color_preview(&scheme);
+        println!();
+
+        if dry {
+            println!("(preview only — not applied)");
+            return Ok(());
+        }
+        if auto {
+            return set_and_apply(&scheme);
+        }
+        match prompt_random()? {
+            RandomChoice::Apply => return set_and_apply(&scheme),
+            RandomChoice::Reroll => continue,
+            RandomChoice::Quit => { println!("Not applied."); return Ok(()); }
+        }
     }
+}
 
-    println!("🎲 Randomly selected: {} by {}", scheme.name, scheme.author);
-    if !scheme.variant.is_empty() {
-        println!("   Variant: {}", scheme.variant);
+fn cmd_browse(args: &[String]) -> Result<()> {
+    let variant_filter = args.iter().find_map(|a| match a.as_str() {
+        "--dark"  => Some("dark"),
+        "--light" => Some("light"),
+        _         => None,
+    });
+
+    ensure_schemes()?;
+
+    match browse::browse(variant_filter)? {
+        Some(scheme) => {
+            println!("Setting scheme: {}\n", scheme.name);
+            set_and_apply(&scheme)
+        }
+        None => {
+            println!("No scheme selected.");
+            Ok(())
+        }
     }
-    println!();
-
-    set_and_apply(&scheme)
 }
 
 fn cmd_list(args: &[String]) -> Result<()> {
@@ -314,6 +398,71 @@ fn cmd_search(args: &[String]) -> Result<()> {
         }
     }
     list_schemes(variant_filter, Some(term), show_preview)
+}
+
+/// The completion script, kept as a static file so packagers can install it
+/// too; embedded here so `coat completions` works from a bare `cargo install`.
+const FISH_COMPLETIONS: &str = include_str!("../completions/coat.fish");
+
+fn cmd_completions(args: &[String]) -> Result<()> {
+    // `--print`/`--stdout` emits the script instead of installing it, for
+    // packagers or anyone routing it elsewhere.
+    let print_only = args.iter().any(|a| a == "--print" || a == "--stdout");
+    let shell = args
+        .iter()
+        .find(|a| !a.starts_with('-'))
+        .map(|s| s.as_str());
+
+    match shell {
+        Some("fish") => {
+            if print_only {
+                print!("{}", FISH_COMPLETIONS);
+                return Ok(());
+            }
+            let dir = dirs::config_dir()
+                .context("Cannot determine config directory")?
+                .join("fish/completions");
+            fs::create_dir_all(&dir)
+                .with_context(|| format!("Failed to create {}", dir.display()))?;
+            let path = dir.join("coat.fish");
+            fs::write(&path, FISH_COMPLETIONS)
+                .with_context(|| format!("Failed to write {}", path.display()))?;
+            println!("Installed fish completions → {}", path.display());
+            println!("Start a new shell (or run 'exec fish') to pick them up.");
+            Ok(())
+        }
+        Some(other) => {
+            eprintln!("Unsupported shell: {}\n", other);
+            eprintln!("Supported shells: fish");
+            std::process::exit(1);
+        }
+        None => {
+            eprintln!("Usage: coat completions <shell> [--print]\n");
+            eprintln!("Supported shells: fish");
+            std::process::exit(1);
+        }
+    }
+}
+
+/// Hidden helper used by shell completions to enumerate dynamic candidates.
+/// Deliberately silent and side-effect free — never clones the library.
+fn cmd_complete(args: &[String]) -> Result<()> {
+    match args.first().map(|s| s.as_str()) {
+        Some("schemes") => {
+            if schemes_exists() {
+                for slug in scheme::all_slugs().unwrap_or_default() {
+                    println!("{}", slug);
+                }
+            }
+        }
+        Some("modules") => {
+            for m in ALL_MODULES {
+                println!("{}", m);
+            }
+        }
+        _ => {}
+    }
+    Ok(())
 }
 
 fn cmd_docs(args: &[String], prog: &str) -> Result<()> {
@@ -355,8 +504,11 @@ fn main() {
             "search"          => cmd_search(&args[2..]),
             "set"             => cmd_set(&args[2..]),
             "random"          => cmd_random(&args[2..]),
+            "browse"          => cmd_browse(&args[2..]),
             "apply"           => cmd_apply(&args[2..], prog),
             "docs"            => cmd_docs(&args[2..], prog),
+            "completions"     => cmd_completions(&args[2..]),
+            "__complete"      => cmd_complete(&args[2..]),
             "help" | "--help" => { print_usage(prog); Ok(()) }
             other             => {
                 eprintln!("Unknown command: {}\n", other);

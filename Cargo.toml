@@ -2,6 +2,16 @@
 name = "coat"
 version = "0.1.0"
 edition = "2021"
+# Ship the completion script inside the published crate/source tarball so
+# packagers can install it; `cargo install` won't place it for you.
+include = ["src/**/*", "templates/**/*", "completions/**/*", "README.md", "USAGE.md", "LICENSE"]
+
+# cargo-deb: install the fish completions to the system vendor dir.
+[package.metadata.deb]
+assets = [
+    ["target/release/coat", "usr/bin/", "755"],
+    ["completions/coat.fish", "usr/share/fish/vendor_completions.d/coat.fish", "644"],
+]
 
 [[bin]]
 name = "coat"

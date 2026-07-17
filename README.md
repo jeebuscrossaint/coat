@@ -44,12 +44,17 @@ coat clone
 coat list --dark
 coat search gruvbox
 
-# Switch scheme and apply everywhere in one shot
-coat set catppuccin-mocha
+# Scroll through schemes interactively (↑/↓ or j/k, / to filter, Enter applies)
+coat browse
+coat browse --light
 
-# Switch to a random scheme and apply everywhere
+# Switch scheme and apply everywhere in one shot
+coat set catppuccin-mocha   # suggests close matches on a typo
+
+# Pick a random scheme — previews it, then prompts [Y]es / [r]eroll / [n]o
 coat random
 coat random --dark      # restrict to dark schemes
+coat random -y          # apply immediately, skip the prompt
 coat random --dry       # preview a random pick without applying
 
 # Apply current scheme from coat.yaml to all enabled apps
@@ -58,6 +63,21 @@ coat apply
 # Apply to a single app
 coat apply kitty
 ```
+
+## Shell completions
+
+Fish completions cover subcommands, flags, and (dynamically) scheme and module
+names. Install them with:
+
+```bash
+coat completions fish            # → ~/.config/fish/completions/coat.fish
+coat completions fish --print    # print to stdout instead of installing
+```
+
+The script also lives at [`completions/coat.fish`](completions/coat.fish) so
+distro packages can install it automatically (e.g. cargo-deb drops it in
+`/usr/share/fish/vendor_completions.d/`). Note that a plain `cargo install`
+places only the binary — run `coat completions fish` once afterward.
 
 ## Configuration
 
