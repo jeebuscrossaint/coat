@@ -133,7 +133,7 @@ If run as administrator, also themes the logon screen.
 | Category | Modules |
 |---|---|
 | Terminals | fish, foot, kitty |
-| Editors | helix, vscode, zed |
+| Editors | helix, vscode, code-oss, zed |
 | WM / Compositors | i3, sway, labwc |
 | Bars | waybar |
 | Screen locker | swaylock |

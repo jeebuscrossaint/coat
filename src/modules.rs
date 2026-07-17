@@ -216,15 +216,16 @@ fn run(cmd: &str) {
 // ── Module dispatch ────────────────────────────────────────────────────────
 
 pub const ALL_MODULES: &[&str] = &[
-    "bat", "btop", "dunst", "firefox", "fish", "foot", "fuzzel", "gtk", "helix",
-    "i3", "kde", "kitty", "labwc", "lf", "mpv", "qt", "ranger", "rofi", "sway",
-    "swaylock", "vesktop", "vscode", "waybar", "xresources", "zathura", "zed",
+    "bat", "btop", "code-oss", "dunst", "firefox", "fish", "foot", "fuzzel", "gtk",
+    "helix", "i3", "kde", "kitty", "labwc", "lf", "mpv", "qt", "ranger", "rofi",
+    "sway", "swaylock", "vesktop", "vscode", "waybar", "xresources", "zathura", "zed",
 ];
 
 pub fn module_aliases(name: &str) -> Option<&'static str> {
     match name {
         "vencord" | "discord" => Some("vesktop"),
         "plasma" | "kde-plasma" => Some("kde"),
+        "codeoss" | "code_oss" | "vscode-oss" => Some("code-oss"),
         _ => None,
     }
 }
@@ -249,6 +250,7 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
     match name {
         "bat"        => apply_bat(tera, &ctx, scheme, config),
         "btop"       => apply_btop(tera, &ctx, scheme, config),
+        "code-oss"   => apply_code_oss(scheme, config),
         "dunst"      => apply_dunst(tera, &ctx, scheme, config),
         "firefox"    => apply_firefox(tera, &ctx, scheme, config),
         "fish"       => apply_fish(tera, &ctx, scheme, config),
@@ -1123,11 +1125,21 @@ pub fn apply_vscode_shared(scheme: &Scheme, path: &Path, font: Option<&str>) -> 
     Ok(())
 }
 
-fn apply_vscode(scheme: &Scheme, config: &CoatConfig) -> Result<()> {
+/// Apply to a VSCode-family editor whose user config lives at
+/// `~/.config/<dir>/User/settings.json` (e.g. "Code", "Code - OSS").
+fn apply_vscode_variant(scheme: &Scheme, config: &CoatConfig, dir: &str) -> Result<()> {
     let home = home_dir()?;
-    let settings_path = home.join(".config/Code/User/settings.json");
+    let settings_path = home.join(".config").join(dir).join("User/settings.json");
     let font = Some(config.font_monospace()).filter(|f| !f.is_empty());
     apply_vscode_shared(scheme, &settings_path, font)
+}
+
+fn apply_vscode(scheme: &Scheme, config: &CoatConfig) -> Result<()> {
+    apply_vscode_variant(scheme, config, "Code")
+}
+
+fn apply_code_oss(scheme: &Scheme, config: &CoatConfig) -> Result<()> {
+    apply_vscode_variant(scheme, config, "Code - OSS")
 }
 
 // ── Zed — handled directly (theme JSON + settings.json merge) ──────────────
@@ -1475,6 +1487,12 @@ pub fn module_docs(name: &str) {
         "vscode" => {
             println!("The theme is automatically activated.\n");
             println!("If it doesn't appear, reload VSCode:");
+            println!("  Ctrl+Shift+P → Reload Window");
+        }
+        "code-oss" => {
+            println!("Colors are written to ~/.config/Code - OSS/User/settings.json.\n");
+            println!("The theme is automatically activated.\n");
+            println!("If it doesn't appear, reload the window:");
             println!("  Ctrl+Shift+P → Reload Window");
         }
         "zed" => {
