@@ -9,8 +9,23 @@ color={{ base00 }}{{ opacity_popups_hex }}
 
 # General settings
 show-failed-attempts
-indicator-radius=100
-indicator-thickness=7
+indicator-radius=110
+indicator-thickness=8
+indicator-caps-lock
+
+# ── Effects (requires the swaylock-effects fork: `paru -S swaylock-effects`) ──
+# Blurred screenshot of the desktop as the lock background, a centered clock,
+# a soft vignette + fade-in. Plain swaylock ERRORS on these lines, so only
+# regenerate this file once swaylock-effects is installed.
+screenshots
+effect-blur=7x5
+effect-vignette=0.4:0.4
+fade-in=0.3
+clock
+timestr=%H:%M
+datestr=%A, %B %d
+{% if font_monospace %}font={{ font_monospace }}
+{% endif %}
 
 # Ring colors
 ring-color={{ base03 }}

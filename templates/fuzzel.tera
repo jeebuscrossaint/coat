@@ -7,18 +7,22 @@
 layer=overlay
 width=30
 lines=7
-border-width=1
-border-radius=0
-prompt=
-icons-enabled=no
+border-width=2
+border-radius=14
+horizontal-pad=20
+vertical-pad=16
+inner-pad=10
+prompt="❯   "
+icons-enabled=yes
+icon-theme=WhiteSur-dark
 show-actions=no
 counter=no
 
 [colors]
-background={{ base00 }}ff
+background={{ base00 }}f0
 text={{ base05 }}ff
 match={{ base0D }}ff
-selection={{ base01 }}ff
+selection={{ base02 }}ff
 selection-text={{ base05 }}ff
 selection-match={{ base0D }}ff
-border={{ base01 }}ff
+border={{ base0D }}ff
