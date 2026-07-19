@@ -14,6 +14,11 @@ vim.g.colors_name = "coat"
 vim.o.termguicolors = true
 vim.o.background = "{% if is_dark %}dark{% else %}light{% endif %}"
 
+-- GUI font (Neovide, neovim-qt, …). Terminal Neovim ignores this and uses the
+-- terminal's font. Pulled from coat's font config so it stays in sync system-wide.
+{% if font_monospace %}vim.o.guifont = "{{ font_monospace }}:h{{ font_size_terminal }}"
+{% endif %}
+
 -- base16 palette (from the active coat scheme) --------------------------------
 local c = {
   base00 = "#{{ base00 }}", -- default background
