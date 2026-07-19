@@ -47,6 +47,7 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("fuzzel",    "fuzzel.tera"),
     tpl!("gtk",       "gtk.tera"),
     tpl!("helix",     "helix.tera"),
+    tpl!("hyprland",  "hyprland.tera"),
     tpl!("i3",        "i3.tera"),
     tpl!("kde",       "kde.tera"),
     tpl!("kitty",     "kitty.tera"),
@@ -218,7 +219,7 @@ fn run(cmd: &str) {
 
 pub const ALL_MODULES: &[&str] = &[
     "bat", "btop", "code-oss", "dunst", "firefox", "fish", "foot", "fuzzel", "gtk",
-    "helix", "i3", "kde", "kitty", "labwc", "lf", "mpv", "neovim", "qt", "ranger", "rofi",
+    "helix", "hyprland", "i3", "kde", "kitty", "labwc", "lf", "mpv", "neovim", "qt", "ranger", "rofi",
     "sway", "swaylock", "vesktop", "vscode", "waybar", "xresources", "zathura", "zed",
 ];
 
@@ -228,6 +229,7 @@ pub fn module_aliases(name: &str) -> Option<&'static str> {
         "plasma" | "kde-plasma" => Some("kde"),
         "codeoss" | "code_oss" | "vscode-oss" => Some("code-oss"),
         "nvim" | "vim" => Some("neovim"),
+        "hypr" => Some("hyprland"),
         _ => None,
     }
 }
@@ -260,6 +262,7 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "fuzzel"     => apply_fuzzel(tera, &ctx, scheme, config),
         "gtk"        => apply_gtk(tera, &ctx, scheme, config),
         "helix"      => apply_helix(tera, &ctx, scheme, config),
+        "hyprland"   => apply_hyprland(tera, &ctx, scheme, config),
         "i3"         => apply_i3(tera, &ctx, scheme, config),
         "kde"        => apply_kde(tera, &ctx, scheme, config),
         "kitty"      => apply_kitty(tera, &ctx, scheme, config),
@@ -364,6 +367,15 @@ fn apply_helix(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -
     let home = home_dir()?;
     let dest = home.join(".config/helix/themes/coat.toml");
     render_to(tera, "helix", ctx, &dest)
+}
+
+fn apply_hyprland(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    let dest = home.join(".config/hypr/coat-theme.conf");
+    render_to(tera, "hyprland", ctx, &dest)?;
+    // Live-reload a running Hyprland session (best-effort, silenced).
+    run("hyprctl reload 2>/dev/null");
+    Ok(())
 }
 
 fn apply_i3(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
@@ -1475,6 +1487,11 @@ pub fn module_docs(name: &str) {
             println!("Add to ~/.config/helix/config.toml:\n");
             println!("  theme = \"coat\"\n");
             println!("Then restart helix or run :config-reload");
+        }
+        "hyprland" => {
+            println!("Add to ~/.config/hypr/hyprland.conf:\n");
+            println!("  source = ~/.config/hypr/coat-theme.conf\n");
+            println!("Sets border + shadow colors. coat runs `hyprctl reload` automatically.");
         }
         "neovim" => {
             println!("A colorscheme is written to:");
