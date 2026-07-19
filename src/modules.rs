@@ -54,6 +54,7 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("labwc",     "labwc.tera"),
     tpl!("lf",        "lf.tera"),
     tpl!("mpv",       "mpv.tera"),
+    tpl!("neovim",    "neovim.tera"),
     tpl!("ranger",    "ranger.tera"),
     tpl!("rofi",      "rofi.tera"),
     tpl!("sway",      "sway.tera"),
@@ -217,7 +218,7 @@ fn run(cmd: &str) {
 
 pub const ALL_MODULES: &[&str] = &[
     "bat", "btop", "code-oss", "dunst", "firefox", "fish", "foot", "fuzzel", "gtk",
-    "helix", "i3", "kde", "kitty", "labwc", "lf", "mpv", "qt", "ranger", "rofi",
+    "helix", "i3", "kde", "kitty", "labwc", "lf", "mpv", "neovim", "qt", "ranger", "rofi",
     "sway", "swaylock", "vesktop", "vscode", "waybar", "xresources", "zathura", "zed",
 ];
 
@@ -226,6 +227,7 @@ pub fn module_aliases(name: &str) -> Option<&'static str> {
         "vencord" | "discord" => Some("vesktop"),
         "plasma" | "kde-plasma" => Some("kde"),
         "codeoss" | "code_oss" | "vscode-oss" => Some("code-oss"),
+        "nvim" | "vim" => Some("neovim"),
         _ => None,
     }
 }
@@ -264,6 +266,7 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "labwc"      => apply_labwc(tera, &ctx, scheme, config),
         "lf"         => apply_lf(tera, &ctx, scheme, config),
         "mpv"        => apply_mpv(tera, &ctx, scheme, config),
+        "neovim"     => apply_neovim(tera, &ctx, scheme, config),
         "qt"         => apply_qt(scheme, config),
         "ranger"     => apply_ranger(tera, &ctx, scheme, config),
         "rofi"       => apply_rofi(tera, &ctx, scheme, config),
@@ -581,6 +584,21 @@ fn apply_mpv(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> 
     let dest = home.join(".config/mpv/coat-theme.conf");
     render_to(tera, "mpv", ctx, &dest)?;
     detail!("    Add to ~/.config/mpv/mpv.conf: include ~/.config/mpv/coat-theme.conf");
+    Ok(())
+}
+
+fn apply_neovim(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    // Write a standard colorscheme onto Neovim's default runtimepath
+    // ($XDG_DATA_HOME/nvim/site is always on 'rtp'), so any config can do
+    // `:colorscheme coat` regardless of where its own files live.
+    let data = std::env::var_os("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| home.join(".local/share"));
+    let dest = data.join("nvim/site/colors/coat.lua");
+    render_to(tera, "neovim", ctx, &dest)?;
+    detail!("    Set in your Neovim config: vim.cmd.colorscheme(\"coat\")");
+    detail!("    (Running Neovim instances: run  :colorscheme coat  to reload.)");
     Ok(())
 }
 
@@ -1457,6 +1475,13 @@ pub fn module_docs(name: &str) {
             println!("Add to ~/.config/helix/config.toml:\n");
             println!("  theme = \"coat\"\n");
             println!("Then restart helix or run :config-reload");
+        }
+        "neovim" => {
+            println!("A colorscheme is written to:");
+            println!("  $XDG_DATA_HOME/nvim/site/colors/coat.lua (default ~/.local/share/nvim/site/...)\n");
+            println!("It sits on Neovim's runtimepath automatically, so just add to your config:\n");
+            println!("  vim.cmd.colorscheme(\"coat\")   -- or in Vimscript:  colorscheme coat\n");
+            println!("In an already-open Neovim, reload it with:  :colorscheme coat");
         }
         "i3" => {
             println!("Add to ~/.config/i3/config:\n");
