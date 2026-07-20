@@ -1521,9 +1521,8 @@ pub fn module_docs(name: &str) {
             println!("Or test with: rofi -show drun -theme coat");
         }
         "ashell" => {
-            println!("coat writes ~/.config/ashell/config.toml (colors + module layout).");
-            println!("ashell hot-reloads it automatically — no restart needed.");
-            println!("Edit module layout in coat's templates/ashell.tera, then `coat apply ashell`.");
+            println!("coat generates ~/.config/ashell/config.toml (full config: layout + theme).");
+            println!("ashell hot-reloads automatically. Edit layout in templates/ashell.tera.");
         }
         "bat" => {
             println!("Add to ~/.config/bat/config:\n");
