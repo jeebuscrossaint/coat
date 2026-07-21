@@ -54,33 +54,34 @@ interval = 3600
 enable_tooltips = true
 
 # ── appearance (colors/font/opacity from the active coat scheme) ────────────
+# ashell 0.9.0 schema: color keys are `*_color`, background is a nested table,
+# bar look is `style` + top-level `opacity`. ashell SILENTLY IGNORES unknown
+# keys and falls back to its built-in Tokyo Night defaults (bg #1a1b26) — so
+# every key name below must match 0.9.0 exactly or the theme won't apply.
 [appearance]
 font_name = "{{ font_monospace }}"
 scale_factor = 1.2
-background = "#{{ base00 }}"
-text = "#{{ base05 }}"
+style = "Islands"
+opacity = 0.9
+primary_color = "#{{ base0D }}"
+success_color = "#{{ base0B }}"
+warning_color = "#{{ base0A }}"
+danger_color = "#{{ base08 }}"
+text_color = "#{{ base05 }}"
 workspace_colors = ["#{{ base0D }}", "#{{ base0C }}", "#{{ base0E }}", "#{{ base0B }}", "#{{ base0A }}"]
 
-[appearance.bar]
-surface = "transparent"
-opacity = 0.9
-margin = "sm"
+[appearance.background_color]
+base = "#{{ base00 }}"
+weak = "#{{ base01 }}"
+strong = "#{{ base02 }}"
+text = "#{{ base05 }}"
 
-[appearance.primary]
+[appearance.primary_color]
 base = "#{{ base0D }}"
 strong = "#{{ base0C }}"
 weak = "#{{ base03 }}"
 text = "#{{ base00 }}"
 
-[appearance.secondary]
-base = "#{{ base0E }}"
-
-[appearance.success]
-base = "#{{ base0B }}"
-
-[appearance.danger]
-base = "#{{ base08 }}"
-
 [appearance.menu]
 opacity = 0.96
-backdrop_blur = true
+backdrop = 0.5
