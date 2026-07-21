@@ -37,7 +37,6 @@ macro_rules! tpl {
 }
 
 static TEMPLATES: &[(&str, &str)] = &[
-    tpl!("ashell",    "ashell.tera"),
     tpl!("bat",       "bat.tera"),
     tpl!("btop",      "btop.tera"),
     tpl!("dunst",     "dunst.tera"),
@@ -219,7 +218,7 @@ fn run(cmd: &str) {
 // ── Module dispatch ────────────────────────────────────────────────────────
 
 pub const ALL_MODULES: &[&str] = &[
-    "ashell", "bat", "btop", "code-oss", "dunst", "firefox", "fish", "foot", "fuzzel", "gtk",
+    "bat", "btop", "code-oss", "dunst", "firefox", "fish", "foot", "fuzzel", "gtk",
     "helix", "hyprland", "i3", "kde", "kitty", "labwc", "lf", "mpv", "neovim", "qt", "ranger", "rofi",
     "sway", "swaylock", "vesktop", "vscode", "waybar", "xresources", "zathura", "zed",
 ];
@@ -253,7 +252,6 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
     }
 
     match name {
-        "ashell"     => apply_ashell(tera, &ctx, scheme, config),
         "bat"        => apply_bat(tera, &ctx, scheme, config),
         "btop"       => apply_btop(tera, &ctx, scheme, config),
         "code-oss"   => apply_code_oss(scheme, config),
@@ -288,16 +286,6 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
 }
 
 // ── Individual module functions ────────────────────────────────────────────
-
-fn apply_ashell(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    let dest = home.join(".config/ashell/config.toml");
-    render_to(tera, "ashell", ctx, &dest)?;
-    // ashell's file-watch doesn't fire through the stow symlink, so restart it
-    // to pick up the new theme (detached so it survives coat exiting).
-    run("pkill -x ashell 2>/dev/null; sleep 0.3; setsid ashell >/dev/null 2>&1 &");
-    Ok(())
-}
 
 fn apply_bat(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
@@ -1521,10 +1509,6 @@ pub fn module_docs(name: &str) {
             println!("Add to ~/.config/rofi/config.rasi:\n");
             println!("  @theme \"coat\"\n");
             println!("Or test with: rofi -show drun -theme coat");
-        }
-        "ashell" => {
-            println!("coat generates ~/.config/ashell/config.toml (full config: layout + theme).");
-            println!("ashell hot-reloads automatically. Edit layout in templates/ashell.tera.");
         }
         "bat" => {
             println!("Add to ~/.config/bat/config:\n");
