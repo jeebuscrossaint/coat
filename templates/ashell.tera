@@ -63,7 +63,7 @@ workspace_colors = ["#{{ base0D }}", "#{{ base0C }}", "#{{ base0E }}", "#{{ base
 
 [appearance.bar]
 surface = "transparent"
-opacity = {{ opacity_popups }}
+opacity = 0.9
 margin = "sm"
 
 [appearance.primary]

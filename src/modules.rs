@@ -293,7 +293,9 @@ fn apply_ashell(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) 
     let home = home_dir()?;
     let dest = home.join(".config/ashell/config.toml");
     render_to(tera, "ashell", ctx, &dest)?;
-    // ashell watches its config and hot-reloads, so no restart needed.
+    // ashell's file-watch doesn't fire through the stow symlink, so restart it
+    // to pick up the new theme (detached so it survives coat exiting).
+    run("pkill -x ashell 2>/dev/null; sleep 0.3; setsid ashell >/dev/null 2>&1 &");
     Ok(())
 }
 
