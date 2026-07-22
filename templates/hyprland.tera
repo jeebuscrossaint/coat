@@ -15,3 +15,14 @@ decoration {
         color = rgba({{ base00 | lower_hex }}ee)
     }
 }
+
+# gloview overview colours (Mission-Control plugin) — track the active scheme.
+# Format is 0xAARRGGBB, so the leading byte is alpha and the rest is the coat hex.
+plugin {
+    gloview {
+        backdrop_color      = 0x73{{ base00 | lower_hex }}   # dim/tint over the desktop
+        strip_active_border = 0xf0{{ base0D | lower_hex }}   # active workspace card border
+        select_border       = 0xf0{{ base0D | lower_hex }}   # keyboard-selected preview
+        hover_border        = 0xf0{{ base0C | lower_hex }}   # hovered preview
+    }
+}
