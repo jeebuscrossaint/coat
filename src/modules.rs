@@ -614,8 +614,17 @@ fn apply_neovim(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) 
     Ok(())
 }
 
-fn firefox_profile_dir() -> Option<PathBuf> {
-    let home = dirs::home_dir()?;
+/// All default profile directories coat should theme.
+///
+/// A machine can have several Firefox installs (stable, Developer Edition,
+/// Nightly), each pinned to its own profile via an `[Install*] Default=` entry
+/// in profiles.ini. We theme *every* such profile so whichever Firefox you open
+/// picks up the current scheme. Falls back to the `Default=1` profile, then the
+/// first profile, when no `[Install*]` sections exist.
+fn firefox_profile_dirs() -> Vec<PathBuf> {
+    let Some(home) = dirs::home_dir() else {
+        return Vec::new();
+    };
     // Linux: XDG path first, then legacy ~/.mozilla.
     let mut candidates = vec![
         home.join(".config/mozilla/firefox/profiles.ini"),
@@ -625,8 +634,12 @@ fn firefox_profile_dir() -> Option<PathBuf> {
     if let Ok(appdata) = std::env::var("APPDATA") {
         candidates.push(PathBuf::from(appdata).join(r"Mozilla\Firefox\profiles.ini"));
     }
-    let ini_path = candidates.into_iter().find(|p| p.exists())?;
-    let content = fs::read_to_string(&ini_path).ok()?;
+    let Some(ini_path) = candidates.into_iter().find(|p| p.exists()) else {
+        return Vec::new();
+    };
+    let Ok(content) = fs::read_to_string(&ini_path) else {
+        return Vec::new();
+    };
 
     // Parse all sections into (name, key→value) pairs
     let mut sections: Vec<(String, HashMap<String, String>)> = Vec::new();
@@ -649,74 +662,92 @@ fn firefox_profile_dir() -> Option<PathBuf> {
         sections.push((cur_name, cur_map));
     }
 
-    // [Install*] Default= is the most reliable pointer to the default profile
-    let mut path_str: Option<String> = None;
-    let mut relative = true;
+    // Resolve a profile path relative to profiles.ini (or absolute as-is).
+    let resolve = |path: &str, relative: bool| -> Option<PathBuf> {
+        if relative {
+            ini_path.parent().map(|d| d.join(path))
+        } else {
+            Some(PathBuf::from(path))
+        }
+    };
+
+    // Prefer every [Install*] Default= — one per installed Firefox edition.
+    // Install paths are always relative to profiles.ini.
+    let mut dirs: Vec<PathBuf> = Vec::new();
     for (sec, map) in &sections {
         if sec.starts_with("Install") {
             if let Some(p) = map.get("Default") {
-                path_str = Some(p.clone());
-                break;
+                if let Some(dir) = resolve(p, true) {
+                    if !dirs.contains(&dir) {
+                        dirs.push(dir);
+                    }
+                }
             }
         }
     }
+    if !dirs.is_empty() {
+        return dirs;
+    }
+
     // Fall back to [Profile*] with Default=1
-    if path_str.is_none() {
-        for (sec, map) in &sections {
-            if sec.starts_with("Profile") && map.get("Default").map(|s| s == "1").unwrap_or(false) {
-                path_str = map.get("Path").cloned();
-                relative = map.get("IsRelative").map(|s| s == "1").unwrap_or(true);
-                break;
+    for (sec, map) in &sections {
+        if sec.starts_with("Profile") && map.get("Default").map(|s| s == "1").unwrap_or(false) {
+            if let Some(p) = map.get("Path") {
+                let rel = map.get("IsRelative").map(|s| s == "1").unwrap_or(true);
+                if let Some(dir) = resolve(p, rel) {
+                    return vec![dir];
+                }
             }
         }
     }
     // Fall back to first profile
-    if path_str.is_none() {
-        for (sec, map) in &sections {
-            if sec.starts_with("Profile") {
-                path_str = map.get("Path").cloned();
-                relative = map.get("IsRelative").map(|s| s == "1").unwrap_or(true);
-                break;
+    for (sec, map) in &sections {
+        if sec.starts_with("Profile") {
+            if let Some(p) = map.get("Path") {
+                let rel = map.get("IsRelative").map(|s| s == "1").unwrap_or(true);
+                if let Some(dir) = resolve(p, rel) {
+                    return vec![dir];
+                }
             }
         }
     }
 
-    let p = path_str?;
-    if relative {
-        Some(ini_path.parent()?.join(&p))
-    } else {
-        Some(PathBuf::from(&p))
-    }
+    Vec::new()
 }
 
 fn apply_firefox(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let Some(profile) = firefox_profile_dir() else {
+    let profiles = firefox_profile_dirs();
+    if profiles.is_empty() {
         bail!("Firefox profile not found — is Firefox installed?");
-    };
+    }
 
-    // Write userChrome.css (browser UI) and userContent.css (about:/new-tab pages)
-    let chrome_dir = profile.join("chrome");
-    ensure_dir(&chrome_dir)?;
-    render_to(tera, "firefox", ctx, &chrome_dir.join("userChrome.css"))?;
-    render_to(tera, "firefox_content", ctx, &chrome_dir.join("userContent.css"))?;
+    // Theme every default profile (stable, Developer Edition, Nightly, …) so
+    // whichever Firefox you launch shows the current scheme.
+    for profile in &profiles {
+        // Write userChrome.css (browser UI) and userContent.css (about:/new-tab)
+        let chrome_dir = profile.join("chrome");
+        ensure_dir(&chrome_dir)?;
+        render_to(tera, "firefox", ctx, &chrome_dir.join("userChrome.css"))?;
+        render_to(tera, "firefox_content", ctx, &chrome_dir.join("userContent.css"))?;
 
-    // Ensure toolkit.legacyUserProfileCustomizations.stylesheets is enabled
-    let user_js = profile.join("user.js");
-    let existing = if user_js.exists() {
-        fs::read_to_string(&user_js).unwrap_or_default()
-    } else {
-        String::new()
-    };
-    let pref = "toolkit.legacyUserProfileCustomizations.stylesheets";
-    if !existing.contains(pref) {
-        let appended = format!(
-            "{}user_pref(\"{}\", true);\n",
-            if existing.ends_with('\n') || existing.is_empty() { existing } else { existing + "\n" },
-            pref
-        );
-        fs::write(&user_js, appended)
-            .with_context(|| format!("Failed to write {}", user_js.display()))?;
-        detail!("  ✓ {}", user_js.display());
+        // Ensure toolkit.legacyUserProfileCustomizations.stylesheets is enabled
+        let user_js = profile.join("user.js");
+        let existing = if user_js.exists() {
+            fs::read_to_string(&user_js).unwrap_or_default()
+        } else {
+            String::new()
+        };
+        let pref = "toolkit.legacyUserProfileCustomizations.stylesheets";
+        if !existing.contains(pref) {
+            let appended = format!(
+                "{}user_pref(\"{}\", true);\n",
+                if existing.ends_with('\n') || existing.is_empty() { existing } else { existing + "\n" },
+                pref
+            );
+            fs::write(&user_js, appended)
+                .with_context(|| format!("Failed to write {}", user_js.display()))?;
+            detail!("  ✓ {}", user_js.display());
+        }
     }
 
     detail!("    Restart Firefox for changes to take effect.");
