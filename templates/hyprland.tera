@@ -30,7 +30,7 @@ $base0F = rgba({{ base0F | lower_hex }}ff)
 # Hyprland can't concatenate an alpha suffix onto a $var (rgba(${x}ee) fails),
 # so any colour that needs a non-opaque alpha is pre-composed here. Add your own
 # variant if a section needs a different alpha.
-$coat_shadow      = rgba({{ base00 | lower_hex }}ee)   # window shadow @ ~93%
+$coat_shadow      = rgba({{ base00 | lower_hex }}bb)   # window shadow @ ~73% (softer)
 $coat_ov_backdrop = 0x73{{ base00 | lower_hex }}       # gloview backdrop dim (0xAARRGGBB)
 $coat_ov_accent   = 0xf0{{ base0D | lower_hex }}       # gloview active/selected border
 $coat_ov_accent2  = 0xf0{{ base0C | lower_hex }}       # gloview hover border
