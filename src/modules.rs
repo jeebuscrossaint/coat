@@ -37,6 +37,7 @@ macro_rules! tpl {
 }
 
 static TEMPLATES: &[(&str, &str)] = &[
+    tpl!("avizo",     "avizo.tera"),
     tpl!("bat",       "bat.tera"),
     tpl!("btop",      "btop.tera"),
     tpl!("dunst",     "dunst.tera"),
@@ -218,7 +219,7 @@ fn run(cmd: &str) {
 // ── Module dispatch ────────────────────────────────────────────────────────
 
 pub const ALL_MODULES: &[&str] = &[
-    "bat", "btop", "code-oss", "dunst", "firefox", "fish", "foot", "fuzzel", "gtk",
+    "avizo", "bat", "btop", "code-oss", "dunst", "firefox", "fish", "foot", "fuzzel", "gtk",
     "helix", "hyprland", "i3", "kde", "kitty", "labwc", "lf", "mpv", "neovim", "qt", "ranger", "rofi",
     "sway", "swaylock", "vesktop", "vscode", "waybar", "xresources", "zathura", "zed",
 ];
@@ -252,6 +253,7 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
     }
 
     match name {
+        "avizo"      => apply_avizo(tera, &ctx, scheme, config),
         "bat"        => apply_bat(tera, &ctx, scheme, config),
         "btop"       => apply_btop(tera, &ctx, scheme, config),
         "code-oss"   => apply_code_oss(scheme, config),
@@ -286,6 +288,16 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
 }
 
 // ── Individual module functions ────────────────────────────────────────────
+
+fn apply_avizo(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    let dest = home.join(".config/avizo/config.ini");
+    render_to(tera, "avizo", ctx, &dest)?;
+    // avizo-service reads its config at startup, so restart it if it's running
+    // (pkill succeeds only when it killed something → no duplicate on a TTY).
+    run("pkill -x avizo-service 2>/dev/null && avizo-service &");
+    Ok(())
+}
 
 fn apply_bat(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
@@ -1585,6 +1597,14 @@ pub fn module_docs(name: &str) {
             println!("Test with: swaylock\n");
             println!("To bind to a key, add to Sway config:");
             println!("  bindsym $mod+l exec swaylock");
+        }
+        "avizo" => {
+            println!("coat owns ~/.config/avizo/config.ini (colours + layout).\n");
+            println!("avizo-service is restarted automatically if it's running.\n");
+            println!("Start it in your compositor, e.g. Hyprland:");
+            println!("  exec-once = avizo-service\n");
+            println!("Trigger the OSD with the avizo wrappers, e.g.:");
+            println!("  volumectl up   |   lightctl -D intel_backlight up");
         }
         "dunst" => {
             println!("Dunst is restarted automatically to apply the theme.\n");
