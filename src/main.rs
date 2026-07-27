@@ -3,6 +3,7 @@
 mod browse;
 mod config;
 mod modules;
+mod normalize;
 mod scheme;
 #[cfg(windows)]
 mod windows;
@@ -492,6 +493,12 @@ fn cmd_docs(args: &[String], prog: &str) -> Result<()> {
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let prog = args[0].as_str();
+
+    // Must run before any scheme is loaded — `Scheme::load_file` consults this.
+    // A missing or unparseable config simply leaves normalization off.
+    if let Ok(cfg) = CoatConfig::load() {
+        normalize::init(cfg.normalize.clone());
+    }
 
     let result = if args.len() < 2 {
         // No command: show config summary

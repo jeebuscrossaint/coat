@@ -26,11 +26,58 @@ pub struct OpacityConfig {
     pub popups: Option<f64>,
 }
 
+/// Material-You-style perceptual regularization (see `normalize.rs`).
+/// Off by default — enabling it changes every colour coat writes.
+#[derive(Debug, Deserialize, Clone)]
+pub struct NormalizeConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    /// 0.0 = untouched scheme, 1.0 = fully standardized.
+    #[serde(default = "default_strength")]
+    pub strength: f64,
+    /// Also retone the base00..base07 greyscale ramp, not just the accents.
+    #[serde(default = "default_true")]
+    pub ramp: bool,
+    /// Minimum hue separation between accents, in degrees. 0 disables.
+    #[serde(default = "default_min_hue_sep")]
+    pub min_hue_sep: f64,
+    /// WCAG contrast ratio base05 must clear against base00. <= 1.0 disables.
+    #[serde(default = "default_contrast_floor")]
+    pub contrast_floor: f64,
+}
+
+fn default_strength() -> f64 {
+    0.6
+}
+fn default_true() -> bool {
+    true
+}
+fn default_min_hue_sep() -> f64 {
+    20.0
+}
+fn default_contrast_floor() -> f64 {
+    7.0
+}
+
+impl Default for NormalizeConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            strength: default_strength(),
+            ramp: default_true(),
+            min_hue_sep: default_min_hue_sep(),
+            contrast_floor: default_contrast_floor(),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct CoatConfig {
     pub scheme: String,
     #[serde(default)]
     pub prefer_base24: bool,
+    #[serde(default)]
+    pub normalize: NormalizeConfig,
     #[serde(default)]
     pub enabled: Vec<String>,
     #[serde(default)]

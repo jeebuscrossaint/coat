@@ -128,12 +128,18 @@ impl Scheme {
         }
     }
 
+    /// The single funnel every scheme load passes through — `find_scheme`,
+    /// `pick_random_scheme`, `load_all_schemes` and the browse/list previews all
+    /// end up here. Normalization is applied at this one point so previews can
+    /// never disagree with what `coat apply` actually writes.
     pub fn load_file(path: &Path) -> Result<Self> {
         let content = fs::read_to_string(path)
             .with_context(|| format!("Failed to read {}", path.display()))?;
         let raw: RawScheme = serde_yaml::from_str(&content)
             .with_context(|| format!("Failed to parse {}", path.display()))?;
-        Ok(Self::from_raw(raw))
+        let mut scheme = Self::from_raw(raw);
+        crate::normalize::apply(&mut scheme);
+        Ok(scheme)
     }
 
     pub fn is_dark(&self) -> bool {
