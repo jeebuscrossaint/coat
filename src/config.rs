@@ -38,6 +38,18 @@ pub struct NormalizeConfig {
     /// Also retone the base00..base07 greyscale ramp, not just the accents.
     #[serde(default = "default_true")]
     pub ramp: bool,
+    /// Stretches the ramp away from mid-grey. 1.0 = tuned baseline; above that
+    /// pushes base00 blacker and base07 whiter.
+    #[serde(default = "default_ramp_contrast")]
+    pub ramp_contrast: f64,
+    /// Target lightness for base08..base0E, 0..1. Unset picks a sensible value
+    /// from the scheme's polarity (0.72 dark / 0.52 light).
+    #[serde(default)]
+    pub accent_lightness: Option<f64>,
+    /// Chroma (saturation) ceiling for accents. Higher = more vivid; anything
+    /// past the sRGB gamut is mapped back down per-hue.
+    #[serde(default = "default_accent_chroma")]
+    pub accent_chroma: f64,
     /// Minimum hue separation between accents, in degrees. 0 disables.
     #[serde(default = "default_min_hue_sep")]
     pub min_hue_sep: f64,
@@ -58,6 +70,12 @@ fn default_min_hue_sep() -> f64 {
 fn default_contrast_floor() -> f64 {
     7.0
 }
+fn default_ramp_contrast() -> f64 {
+    1.0
+}
+fn default_accent_chroma() -> f64 {
+    0.13
+}
 
 impl Default for NormalizeConfig {
     fn default() -> Self {
@@ -65,6 +83,9 @@ impl Default for NormalizeConfig {
             enabled: false,
             strength: default_strength(),
             ramp: default_true(),
+            ramp_contrast: default_ramp_contrast(),
+            accent_lightness: None,
+            accent_chroma: default_accent_chroma(),
             min_hue_sep: default_min_hue_sep(),
             contrast_floor: default_contrast_floor(),
         }

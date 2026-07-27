@@ -186,8 +186,64 @@ const ACCENT_C: f64 = 0.13;
 /// base0F is the odd one out (brown / "deprecated" slot): muted on purpose.
 const BASE0F_C: f64 = 0.075;
 
+/// Smallest lightness gap kept between adjacent ramp slots. Without this, a high
+/// `ramp_contrast` shoves the top of the ramp into the 1.0 ceiling and base06 /
+/// base07 collapse into the same white.
+const RAMP_MIN_STEP: f64 = 0.022;
+
 fn lerp(a: f64, b: f64, t: f64) -> f64 {
     a + (b - a) * t
+}
+
+/// Stretch the ramp away from mid-grey: blacks blacker, whites whiter.
+///
+/// `k = 1.0` is the tuned baseline. Above that, every slot moves away from 0.5
+/// proportionally, so the two ends hit 0.0/1.0 first — which is the point. The
+/// clamp would flatten the ends into each other, so a second pass re-imposes a
+/// minimum step, walking inward from whichever end got pinned.
+fn expand_ramp(base: [f64; 8], k: f64) -> [f64; 8] {
+    let mut t = base;
+    for v in t.iter_mut() {
+        *v = (0.5 + (*v - 0.5) * k).clamp(0.0, 1.0);
+    }
+
+    // `base` is monotonic; keep whichever direction it runs (dark ramps ascend,
+    // light ramps descend) and re-separate anything the clamp squashed.
+    let ascending = base[7] > base[0];
+    if ascending {
+        for i in 1..8 {
+            if t[i] < t[i - 1] + RAMP_MIN_STEP {
+                t[i] = t[i - 1] + RAMP_MIN_STEP;
+            }
+        }
+        // Overflowed the top: push the whole tail back down from 1.0.
+        if t[7] > 1.0 {
+            t[7] = 1.0;
+            for i in (0..7).rev() {
+                if t[i] > t[i + 1] - RAMP_MIN_STEP {
+                    t[i] = t[i + 1] - RAMP_MIN_STEP;
+                }
+            }
+        }
+    } else {
+        for i in 1..8 {
+            if t[i] > t[i - 1] - RAMP_MIN_STEP {
+                t[i] = t[i - 1] - RAMP_MIN_STEP;
+            }
+        }
+        if t[7] < 0.0 {
+            t[7] = 0.0;
+            for i in (0..7).rev() {
+                if t[i] < t[i + 1] + RAMP_MIN_STEP {
+                    t[i] = t[i + 1] + RAMP_MIN_STEP;
+                }
+            }
+        }
+    }
+    for v in t.iter_mut() {
+        *v = v.clamp(0.0, 1.0);
+    }
+    t
 }
 
 /// Shortest-path interpolation around the hue circle.
@@ -301,8 +357,13 @@ pub fn apply(s: &mut Scheme) {
     }
 
     let dark = s.is_dark();
-    let ramp = if dark { RAMP_DARK } else { RAMP_LIGHT };
-    let accent_l = if dark { ACCENT_L_DARK } else { ACCENT_L_LIGHT };
+    let base_ramp = if dark { RAMP_DARK } else { RAMP_LIGHT };
+    let ramp = expand_ramp(base_ramp, cfg.ramp_contrast.max(0.0));
+    let accent_l = cfg
+        .accent_lightness
+        .unwrap_or(if dark { ACCENT_L_DARK } else { ACCENT_L_LIGHT })
+        .clamp(0.0, 1.0);
+    let accent_c = cfg.accent_chroma.max(0.0);
 
     // ── 1. The greyscale ramp (base00..base07) ──────────────────────────────
     if cfg.ramp {
@@ -352,11 +413,13 @@ pub fn apply(s: &mut Scheme) {
             &mut s.base0e,
         ];
         for slot in accents {
-            *slot = retone(slot, accent_l, ACCENT_C, strength);
+            *slot = retone(slot, accent_l, accent_c, strength);
         }
     }
-    // base0F (brown) stays deliberately duller and a touch darker.
-    s.base0f = retone(&s.base0f, accent_l * 0.86, BASE0F_C, strength);
+    // base0F (brown) stays deliberately duller and a touch darker — scaled off
+    // the configured chroma so raising `accent_chroma` lifts it proportionally.
+    let base0f_c = BASE0F_C * (accent_c / ACCENT_C);
+    s.base0f = retone(&s.base0f, accent_l * 0.86, base0f_c, strength);
 
     // ── 3. Hue repulsion — the "distinct" guarantee ─────────────────────────
     if cfg.min_hue_sep > 0.0 {
@@ -415,7 +478,7 @@ pub fn apply(s: &mut Scheme) {
         &mut s.base17,
     ] {
         if !slot.is_empty() {
-            *slot = retone(slot, bright_l, ACCENT_C, strength);
+            *slot = retone(slot, bright_l, accent_c, strength);
         }
     }
 
@@ -487,6 +550,48 @@ mod tests {
                 w,
                 sorted
             );
+        }
+    }
+
+    #[test]
+    fn ramp_expansion_darkens_blacks_and_brightens_whites() {
+        let out = expand_ramp(RAMP_DARK, 1.4);
+        assert!(out[0] < RAMP_DARK[0], "base00 did not get darker");
+        assert!(out[7] > RAMP_DARK[7], "base07 did not get brighter");
+    }
+
+    #[test]
+    fn ramp_expansion_never_collapses_adjacent_slots() {
+        // Absurd contrast pins both ends; every slot must still be distinct.
+        for k in [1.0, 1.5, 2.0, 4.0, 10.0] {
+            for ramp in [RAMP_DARK, RAMP_LIGHT] {
+                let out = expand_ramp(ramp, k);
+                for i in 1..8 {
+                    let gap = (out[i] - out[i - 1]).abs();
+                    assert!(
+                        gap >= RAMP_MIN_STEP - 1e-9,
+                        "k={k} collapsed slots {} and {i}: {:?}",
+                        i - 1,
+                        out
+                    );
+                }
+                assert!(out.iter().all(|v| (0.0..=1.0).contains(v)), "out of range: {out:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn ramp_expansion_preserves_direction() {
+        assert!(expand_ramp(RAMP_DARK, 1.6)[7] > expand_ramp(RAMP_DARK, 1.6)[0]);
+        assert!(expand_ramp(RAMP_LIGHT, 1.6)[7] < expand_ramp(RAMP_LIGHT, 1.6)[0]);
+    }
+
+    #[test]
+    fn ramp_expansion_is_identity_at_one() {
+        for ramp in [RAMP_DARK, RAMP_LIGHT] {
+            for (got, want) in expand_ramp(ramp, 1.0).iter().zip(ramp.iter()) {
+                assert!((got - want).abs() < 1e-9, "{got} != {want}");
+            }
         }
     }
 
