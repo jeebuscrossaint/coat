@@ -32,9 +32,16 @@ pub struct OpacityConfig {
 pub struct NormalizeConfig {
     #[serde(default)]
     pub enabled: bool,
-    /// 0.0 = untouched scheme, 1.0 = fully standardized.
+    /// 0.0 = untouched scheme, 1.0 = fully standardized. Drives hue and chroma —
+    /// the part of a palette that reads as the scheme's identity.
     #[serde(default = "default_strength")]
     pub strength: f64,
+    /// Same scale, but for lightness only. Unset follows `strength`. Setting this
+    /// to 1.0 with a lower `strength` keeps the tonal uniformity that makes text
+    /// legible and accents evenly bright, while letting saturation stay close to
+    /// whatever the scheme author picked.
+    #[serde(default)]
+    pub lightness_strength: Option<f64>,
     /// Also retone the base00..base07 greyscale ramp, not just the accents.
     #[serde(default = "default_true")]
     pub ramp: bool,
@@ -82,6 +89,7 @@ impl Default for NormalizeConfig {
         Self {
             enabled: false,
             strength: default_strength(),
+            lightness_strength: None,
             ramp: default_true(),
             ramp_contrast: default_ramp_contrast(),
             accent_lightness: None,

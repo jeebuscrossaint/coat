@@ -300,7 +300,11 @@ fn repel_hues(hues: &mut [f64], min_sep: f64) {
 /// Move one colour toward (target_l, target_c), keeping its hue, blended by
 /// `strength`. Empty slots (base16 schemes leave base10..base17 blank) pass
 /// through untouched.
-fn retone(hex: &str, target_l: f64, target_c: f64, strength: f64) -> String {
+/// Lightness and chroma blend independently. Tone is what makes a palette
+/// legible and uniform; chroma is a big part of what makes a scheme recognizable
+/// as *itself*. Splitting the two lets a config standardize brightness fully
+/// while leaving saturation close to whatever the scheme author chose.
+fn retone(hex: &str, target_l: f64, target_c: f64, l_strength: f64, c_strength: f64) -> String {
     let Some((r, g, b)) = hex_to_rgb(hex) else {
         return hex.to_string();
     };
@@ -308,8 +312,8 @@ fn retone(hex: &str, target_l: f64, target_c: f64, strength: f64) -> String {
     // A near-greyscale source has a meaningless hue; don't invent chroma for it.
     let tc = if src.c < 0.012 { src.c } else { target_c };
     oklch_to_hex(Oklch {
-        l: lerp(src.l, target_l, strength),
-        c: lerp(src.c, tc, strength),
+        l: lerp(src.l, target_l, l_strength),
+        c: lerp(src.c, tc, c_strength),
         h: src.h,
     })
 }
@@ -351,8 +355,12 @@ pub fn apply(s: &mut Scheme) {
     if !cfg.enabled {
         return;
     }
+    // `strength` drives hue/chroma (the scheme's identity); `lightness_strength`
+    // drives tone (legibility) and defaults to following it. Only bail when both
+    // are zero — a config may standardize tone alone.
     let strength = cfg.strength.clamp(0.0, 1.0);
-    if strength <= 0.0 {
+    let l_strength = cfg.lightness_strength.unwrap_or(strength).clamp(0.0, 1.0);
+    if strength <= 0.0 && l_strength <= 0.0 {
         return;
     }
 
@@ -382,20 +390,21 @@ pub fn apply(s: &mut Scheme) {
             let c = hex_to_rgb(slot)
                 .map(|(r, g, b)| rgb_to_oklch(r, g, b).c)
                 .unwrap_or(0.0);
-            *slot = retone(slot, ramp[i], c, strength);
+            *slot = retone(slot, ramp[i], c, l_strength, strength);
         }
 
         // base24's extra backgrounds sit just past base00, same direction as the
         // ramp travels away from the foreground.
         let step = if dark { -0.045 } else { 0.030 };
         if !s.base10.is_empty() {
-            s.base10 = retone(&s.base10, (ramp[0] + step).clamp(0.0, 1.0), 0.0, strength);
+            s.base10 = retone(&s.base10, (ramp[0] + step).clamp(0.0, 1.0), 0.0, l_strength, strength);
         }
         if !s.base11.is_empty() {
             s.base11 = retone(
                 &s.base11,
                 (ramp[0] + step * 2.0).clamp(0.0, 1.0),
                 0.0,
+                l_strength,
                 strength,
             );
         }
@@ -413,13 +422,13 @@ pub fn apply(s: &mut Scheme) {
             &mut s.base0e,
         ];
         for slot in accents {
-            *slot = retone(slot, accent_l, accent_c, strength);
+            *slot = retone(slot, accent_l, accent_c, l_strength, strength);
         }
     }
     // base0F (brown) stays deliberately duller and a touch darker — scaled off
     // the configured chroma so raising `accent_chroma` lifts it proportionally.
     let base0f_c = BASE0F_C * (accent_c / ACCENT_C);
-    s.base0f = retone(&s.base0f, accent_l * 0.86, base0f_c, strength);
+    s.base0f = retone(&s.base0f, accent_l * 0.86, base0f_c, l_strength, strength);
 
     // ── 3. Hue repulsion — the "distinct" guarantee ─────────────────────────
     if cfg.min_hue_sep > 0.0 {
@@ -478,7 +487,7 @@ pub fn apply(s: &mut Scheme) {
         &mut s.base17,
     ] {
         if !slot.is_empty() {
-            *slot = retone(slot, bright_l, accent_c, strength);
+            *slot = retone(slot, bright_l, accent_c, l_strength, strength);
         }
     }
 
@@ -551,6 +560,35 @@ mod tests {
                 sorted
             );
         }
+    }
+
+    #[test]
+    fn lightness_and_chroma_blend_independently() {
+        // Full tonal snap, zero chroma snap: lightness must reach the target
+        // while chroma stays where the source had it.
+        let src = "6A8F5C";
+        let out = retone(src, 0.80, 0.30, 1.0, 0.0);
+        let (r, g, b) = hex_to_rgb(&out).unwrap();
+        let got = rgb_to_oklch(r, g, b);
+        let (sr, sg, sb) = hex_to_rgb(src).unwrap();
+        let orig = rgb_to_oklch(sr, sg, sb);
+        assert!((got.l - 0.80).abs() < 0.02, "lightness missed: {}", got.l);
+        assert!(
+            (got.c - orig.c).abs() < 0.02,
+            "chroma moved: {} -> {}",
+            orig.c,
+            got.c
+        );
+    }
+
+    #[test]
+    fn zero_lightness_strength_preserves_tone() {
+        let src = "6A8F5C";
+        let (sr, sg, sb) = hex_to_rgb(src).unwrap();
+        let orig = rgb_to_oklch(sr, sg, sb);
+        let out = retone(src, 0.95, 0.13, 0.0, 1.0);
+        let (r, g, b) = hex_to_rgb(&out).unwrap();
+        assert!((rgb_to_oklch(r, g, b).l - orig.l).abs() < 0.02);
     }
 
     #[test]
