@@ -178,7 +178,7 @@ const RAMP_LIGHT: [f64; 8] = [0.97, 0.93, 0.87, 0.74, 0.58, 0.36, 0.24, 0.15];
 
 /// Accent lightness. Accents must sit clear of the background, so a dark scheme
 /// pushes them bright and a light scheme pushes them deep.
-const ACCENT_L_DARK: f64 = 0.72;
+const ACCENT_L_DARK: f64 = 0.74;
 const ACCENT_L_LIGHT: f64 = 0.52;
 /// Shared chroma ceiling — stops one accent from shouting over the others.
 const ACCENT_C: f64 = 0.13;

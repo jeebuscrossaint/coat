@@ -36,11 +36,11 @@ pub struct NormalizeConfig {
     /// the part of a palette that reads as the scheme's identity.
     #[serde(default = "default_strength")]
     pub strength: f64,
-    /// Same scale, but for lightness only. Unset follows `strength`. Setting this
-    /// to 1.0 with a lower `strength` keeps the tonal uniformity that makes text
-    /// legible and accents evenly bright, while letting saturation stay close to
-    /// whatever the scheme author picked.
-    #[serde(default)]
+    /// Same scale, but for lightness only. Defaults to 1.0: full tonal
+    /// uniformity (even brightness, legible text) while `strength` leaves
+    /// saturation and hue closer to whatever the scheme author picked.
+    /// Explicit `null` makes it follow `strength` instead.
+    #[serde(default = "default_lightness_strength")]
     pub lightness_strength: Option<f64>,
     /// Also retone the base00..base07 greyscale ramp, not just the accents.
     #[serde(default = "default_true")]
@@ -65,23 +65,36 @@ pub struct NormalizeConfig {
     pub contrast_floor: f64,
 }
 
+// These defaults are the tuned result of working through real schemes — they
+// are meant to be good enough that `normalize: {enabled: true}` is the whole
+// config. Everything below is an escape hatch, not a required decision.
+
+/// Partial, so each scheme keeps its own saturation and hue character.
 fn default_strength() -> f64 {
-    0.6
+    0.45
 }
 fn default_true() -> bool {
     true
 }
+/// Full, so tone is uniform regardless of scheme — this is what makes accents
+/// evenly legible and is the main reason to normalize at all.
+fn default_lightness_strength() -> Option<f64> {
+    Some(1.0)
+}
 fn default_min_hue_sep() -> f64 {
     20.0
 }
+/// Dark schemes naturally land near 9:1 while light ones hit ~18:1; 12 closes
+/// that gap so a dark theme doesn't feel washed out next to a light one.
 fn default_contrast_floor() -> f64 {
-    7.0
+    12.0
 }
+/// Above 1.0 flattens tinted backgrounds into plain black/white — rarely wanted.
 fn default_ramp_contrast() -> f64 {
     1.0
 }
 fn default_accent_chroma() -> f64 {
-    0.13
+    0.14
 }
 
 impl Default for NormalizeConfig {
@@ -89,7 +102,7 @@ impl Default for NormalizeConfig {
         Self {
             enabled: false,
             strength: default_strength(),
-            lightness_strength: None,
+            lightness_strength: default_lightness_strength(),
             ramp: default_true(),
             ramp_contrast: default_ramp_contrast(),
             accent_lightness: None,
