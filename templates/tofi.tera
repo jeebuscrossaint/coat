@@ -5,10 +5,16 @@
 {% if font_monospace %}font = {{ font_monospace }}
 font-size = {{ font_size_popups }}
 {% endif %}
-# Geometry — centered box, proportioned like the fuzzel config
+# Geometry — centered box, proportioned like the fuzzel config.
+#
+# tofi has no auto-sizing: width/height are fixed, and any height beyond what
+# num-results fills is dead space. So height is sized TO the list —
+# padding-top + input row + (num-results * row) + padding-bottom, where a row
+# is roughly the font size in px plus result-spacing. Change num-results and
+# this has to move with it, or the box goes hollow at the bottom again.
 anchor = center
-width = 640
-height = 380
+width = 560
+height = 240
 horizontal = false
 corner-radius = 14
 border-width = 2
@@ -18,15 +24,19 @@ padding-bottom = 16
 padding-left = 20
 padding-right = 20
 result-spacing = 4
-num-results = 7
+num-results = 8
 min-input-width = 120
 
 prompt-text = "❯ "
 prompt-padding = 12
+# An empty input line reads as a broken window; a placeholder and a visible
+# cursor make it look like it's waiting for you.
+placeholder-text = "search…"
+text-cursor = true
 fuzzy-match = true
 history = true
 require-match = false
-terminal = kitty
+terminal = foot
 drun-launch = true
 
 # Colors
@@ -41,6 +51,9 @@ default-result-color = #{{ base05 }}
 selection-color = #{{ base0D }}
 selection-match-color = #{{ base0A }}
 selection-background = #{{ base02 }}
-selection-background-padding = 4
+# Directional: "top&bottom, left&right" (comma separated, CSS-like). Extra
+# horizontal padding so the selection reads as a row highlight instead of a
+# pill clinging to the text.
+selection-background-padding = 4, 12
 selection-background-corner-radius = 8
 text-cursor-color = #{{ base0D }}

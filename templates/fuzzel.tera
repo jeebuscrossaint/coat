@@ -3,7 +3,10 @@
 
 [main]
 {% if font_monospace %}font={{ font_monospace }}:size={{ font_size_popups }}
-{% endif %}terminal=footclient
+{% endif %}# `foot`, not `footclient`: footclient needs a `foot --server` daemon and
+# fails outright without one. Plain foot starts fast enough that the server
+# isn't worth the extra failure mode.
+terminal=foot
 layer=overlay
 width=30
 lines=7
