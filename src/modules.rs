@@ -62,6 +62,7 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("sway",      "sway.tera"),
     tpl!("swaybar",   "swaybar.tera"),
     tpl!("swaylock",  "swaylock.tera"),
+    tpl!("swayosd",   "swayosd.tera"),
     tpl!("tofi",      "tofi.tera"),
     tpl!("vesktop",   "vesktop.tera"),
     tpl!("waybar",    "waybar.tera"),
@@ -223,8 +224,8 @@ fn run(cmd: &str) {
 pub const ALL_MODULES: &[&str] = &[
     "avizo", "bat", "btop", "code-oss", "dunst", "firefox", "fish", "foot", "fuzzel", "gtk",
     "helix", "hyprland", "i3", "kde", "kitty", "labwc", "lf", "mpv", "neovim", "qt", "ranger", "rofi",
-    "sway", "swaybar", "swaylock", "tofi", "vesktop", "vscode", "waybar", "xresources",
-    "zathura", "zed",
+    "sway", "swaybar", "swaylock", "swayosd", "tofi", "vesktop", "vscode", "waybar",
+    "xresources", "zathura", "zed",
 ];
 
 pub fn module_aliases(name: &str) -> Option<&'static str> {
@@ -282,6 +283,7 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "sway"       => apply_sway(tera, &ctx, scheme, config),
         "swaybar"    => apply_swaybar(tera, &ctx, scheme, config),
         "swaylock"   => apply_swaylock(tera, &ctx, scheme, config),
+        "swayosd"    => apply_swayosd(tera, &ctx, scheme, config),
         "tofi"       => apply_tofi(tera, &ctx, scheme, config),
         "vesktop"    => apply_vesktop(tera, &ctx, scheme, config),
         "vscode"     => apply_vscode(scheme, config),
@@ -815,6 +817,17 @@ fn apply_swaylock(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig
     let home = home_dir()?;
     let dest = home.join(".config/swaylock/config");
     render_to(tera, "swaylock", ctx, &dest)
+}
+
+fn apply_swayosd(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    let dest = home.join(".config/swayosd/style.css");
+    render_to(tera, "swayosd", ctx, &dest)?;
+    // swayosd-server parses its stylesheet once at startup, so restart it if
+    // it's running (pkill succeeds only when it killed something → no
+    // duplicate server on a TTY). Same pattern as the avizo module.
+    run("pkill -x swayosd-server 2>/dev/null && swayosd-server &");
+    Ok(())
 }
 
 fn apply_tofi(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
@@ -1599,6 +1612,19 @@ pub fn module_docs(name: &str) {
             println!("The status line is swaybar's status_command, set to 'swayrbar'.");
             println!("Configure its modules in ~/.config/swayrbar/config.toml.\n");
             println!("coat runs 'swaymsg reload' automatically.");
+        }
+        "swayosd" => {
+            println!("Writes ~/.config/swayosd/style.css (GTK CSS).\n");
+            println!("No include needed — swayosd-server picks the file up at startup,");
+            println!("and coat restarts the server so a theme switch applies at once.\n");
+            println!("Run the server from your compositor config:\n");
+            println!("  exec swayosd-server\n");
+            println!("Then bind the keys, e.g. in sway:\n");
+            println!("  bindsym XF86AudioRaiseVolume exec swayosd-client --output-volume raise");
+            println!("  bindsym --release Caps_Lock exec swayosd-client --caps-lock\n");
+            println!("The caps/num/scroll-lock OSD works from a compositor bind like the");
+            println!("one above. swayosd-libinput-backend is only needed to catch those");
+            println!("keys without a bind, and it wants root plus a service manager unit.");
         }
         "tofi" => {
             println!("Writes ~/.config/tofi/config — tofi reads it on every launch,\n");

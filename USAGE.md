@@ -205,6 +205,23 @@ there is nothing to reload and no include step.
 > the geometry and behaviour keys (`drun-launch`, `fuzzy-match`, `terminal`, …)
 > as well as the colors.
 
+### swayosd
+
+Writes `~/.config/swayosd/style.css` (GTK CSS) and restarts `swayosd-server`,
+which only parses its stylesheet at startup.
+
+```
+# Run the server from your compositor config, e.g. sway
+exec swayosd-server
+```
+
+> **Note:** the caps/num/scroll-lock OSD works from an ordinary compositor bind
+> (`bindsym --release Caps_Lock exec swayosd-client --caps-lock`).
+> `swayosd-libinput-backend` is only needed to catch those keys *without* a
+> bind, and it requires root plus a service-manager unit — its shipped D-Bus
+> activation file has `Exec=/bin/false` and defers to systemd, so it does not
+> auto-activate on non-systemd systems.
+
 ### dunst
 
 Writes `~/.config/dunst/dunstrc` and restarts dunst automatically.

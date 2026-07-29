@@ -283,7 +283,7 @@ include ~/.config/sway/coat-swaybar-theme</code></pre>
 
   <!-- ── Notifications ── -->
   <div class="module-group">
-    <h3>Notifications</h3>
+    <h3>Notifications &amp; OSD</h3>
 
     <div class="module">
       <div class="module-header" onclick="toggle(this)">
@@ -299,6 +299,28 @@ include ~/.config/sway/coat-swaybar-theme</code></pre>
           <li>Background, foreground for all urgency levels</li>
           <li>Frame color: low=cyan, normal=blue, critical=red</li>
           <li>Progress bar styling, font from <code>coat.yaml</code></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">swayosd</span>
+        <span class="module-desc">SwayOSD — volume/brightness/caps-lock OSD</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes <code>~/.config/swayosd/style.css</code> (GTK CSS) and restarts <code>swayosd-server</code>, which only parses its stylesheet at startup.</p>
+        <p><strong>Run the server from your compositor config:</strong></p>
+        <pre><code>exec swayosd-server</code></pre>
+        <p>Then bind the keys, e.g. in sway:</p>
+        <pre><code>bindsym XF86AudioRaiseVolume exec swayosd-client --output-volume raise
+bindsym --release Caps_Lock exec swayosd-client --caps-lock</code></pre>
+        <p><strong>Note:</strong> the caps/num/scroll-lock OSD works from an ordinary compositor bind like the one above. <code>swayosd-libinput-backend</code> is only needed to catch those keys <em>without</em> a bind, and it requires root plus a service-manager unit — its shipped D-Bus activation file has <code>Exec=/bin/false</code> and defers to systemd, so it does not auto-activate on non-systemd systems.</p>
+        <ul>
+          <li>Window background from base01 at <code>opacity.popups</code>, accent border</li>
+          <li>Progress fill accent (base0D) over a muted track (base03)</li>
+          <li>Icon and label color base05, font from <code>coat.yaml</code></li>
         </ul>
       </div>
     </div>

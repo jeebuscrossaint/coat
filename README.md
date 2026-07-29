@@ -139,6 +139,7 @@ If run as administrator, also themes the logon screen.
 | Screen locker | swaylock |
 | Launchers | fuzzel, rofi, tofi |
 | Notifications | dunst |
+| OSD | avizo, swayosd |
 | System | gtk, qt, xresources |
 | Utilities | bat, btop, ranger, lf, zathura |
 | Other | vesktop |
