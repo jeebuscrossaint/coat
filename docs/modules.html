@@ -204,6 +204,23 @@ include ~/.config/sway/coat-swaybar-theme</code></pre>
 
     <div class="module">
       <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">swaybar</span>
+        <span class="module-desc">swaybar — sway's built-in bar, full block</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes <code>~/.config/sway/coat-bar</code>.</p>
+        <p><strong>Permanent activation (add to <code>~/.config/sway/config</code>):</strong></p>
+        <pre><code>include ~/.config/sway/coat-bar</code></pre>
+        <p>Remove every other <code>bar { }</code> block from your config first — each one creates an additional bar rather than merging with this one.</p>
+        <p><strong>Note:</strong> the whole <code>bar { }</code> block is generated, not just the colors. Sway rejects <code>include</code> inside <code>bar { }</code>, so a colors-only fragment cannot be spliced into a hand-written block.</p>
+        <p>The status line is <code>status_command swayrbar</code> — configure its modules in <code>~/.config/swayrbar/config.toml</code>.</p>
+        <p>coat runs <code>swaymsg reload</code> automatically, which also repaints the <code>sway</code> module's window colors.</p>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
         <span class="module-name">swaylock</span>
         <span class="module-desc">Swaylock — full lock screen config</span>
         <span class="module-toggle">▸</span>
@@ -247,6 +264,19 @@ include ~/.config/sway/coat-swaybar-theme</code></pre>
         <p>Writes <code>~/.config/rofi/coat.rasi</code>.</p>
         <p><strong>Permanent activation (add to <code>~/.config/rofi/config.rasi</code>):</strong></p>
         <pre><code>@import "coat.rasi"</code></pre>
+      </div>
+    </div>
+
+    <div class="module">
+      <div class="module-header" onclick="toggle(this)">
+        <span class="module-name">tofi</span>
+        <span class="module-desc">tofi — launcher config, colors and geometry</span>
+        <span class="module-toggle">▸</span>
+      </div>
+      <div class="module-body">
+        <p>Writes the entire <code>~/.config/tofi/config</code>. tofi reads it on every launch, so there is no include step and nothing to reload.</p>
+        <p>Covers colors, border and selection styling, font, geometry, and the behaviour keys (<code>drun-launch</code>, <code>fuzzy-match</code>, <code>history</code>, <code>terminal</code>).</p>
+        <p><strong>Note:</strong> coat overwrites <code>tofi/config</code> completely on each apply.</p>
       </div>
     </div>
   </div>

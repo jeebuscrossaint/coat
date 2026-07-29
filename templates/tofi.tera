@@ -1,0 +1,46 @@
+# coat theme: {{ scheme_name }}
+# {{ scheme_author }}
+{% if scheme_variant %}# variant: {{ scheme_variant }}{% endif %}
+
+{% if font_monospace %}font = {{ font_monospace }}
+font-size = {{ font_size_popups }}
+{% endif %}
+# Geometry — centered box, proportioned like the fuzzel config
+anchor = center
+width = 640
+height = 380
+horizontal = false
+corner-radius = 14
+border-width = 2
+outline-width = 0
+padding-top = 16
+padding-bottom = 16
+padding-left = 20
+padding-right = 20
+result-spacing = 4
+num-results = 7
+min-input-width = 120
+
+prompt-text = "❯ "
+prompt-padding = 12
+fuzzy-match = true
+history = true
+require-match = false
+terminal = kitty
+drun-launch = true
+
+# Colors
+background-color = #{{ base00 }}
+border-color = #{{ base0D }}
+outline-color = #{{ base00 }}
+text-color = #{{ base05 }}
+prompt-color = #{{ base0D }}
+input-color = #{{ base05 }}
+placeholder-color = #{{ base03 }}
+default-result-color = #{{ base05 }}
+selection-color = #{{ base0D }}
+selection-match-color = #{{ base0A }}
+selection-background = #{{ base02 }}
+selection-background-padding = 4
+selection-background-corner-radius = 8
+text-cursor-color = #{{ base0D }}

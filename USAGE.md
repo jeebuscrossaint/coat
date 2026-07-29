@@ -157,6 +157,26 @@ Writes `~/.config/waybar/coat-theme.css` with `@define-color` variables.
 
 Reload: `killall -SIGUSR2 waybar`
 
+### swaybar
+
+Themes sway's built-in bar. Writes `~/.config/sway/coat-bar`.
+
+```
+# Add to ~/.config/sway/config
+include ~/.config/sway/coat-bar
+```
+
+Remove every other `bar { }` block from your config first — each one creates an
+additional bar rather than merging with this one.
+
+> **Note:** the whole `bar { }` block is generated, not just the colors. Sway
+> rejects `include` inside `bar { }`, so a colors-only fragment cannot be
+> spliced into a hand-written block. The status line is `status_command
+> swayrbar`; configure its modules in `~/.config/swayrbar/config.toml`.
+
+coat runs `swaymsg reload` automatically, which also repaints the `sway`
+module's window colors.
+
 ### swaylock
 
 Writes `~/.config/swaylock/config` directly. Takes effect next time you run `swaylock`.
@@ -175,6 +195,15 @@ Writes `~/.config/rofi/coat.rasi`.
 /* Add to ~/.config/rofi/config.rasi */
 @import "coat.rasi"
 ```
+
+### tofi
+
+Writes the entire `~/.config/tofi/config`. tofi reads it on every launch, so
+there is nothing to reload and no include step.
+
+> **Note:** coat overwrites `tofi/config` completely on each apply — it carries
+> the geometry and behaviour keys (`drun-launch`, `fuzzy-match`, `terminal`, …)
+> as well as the colors.
 
 ### dunst
 

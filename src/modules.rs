@@ -60,7 +60,9 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("ranger",    "ranger.tera"),
     tpl!("rofi",      "rofi.tera"),
     tpl!("sway",      "sway.tera"),
+    tpl!("swaybar",   "swaybar.tera"),
     tpl!("swaylock",  "swaylock.tera"),
+    tpl!("tofi",      "tofi.tera"),
     tpl!("vesktop",   "vesktop.tera"),
     tpl!("waybar",    "waybar.tera"),
     tpl!("xresources","xresources.tera"),
@@ -221,7 +223,8 @@ fn run(cmd: &str) {
 pub const ALL_MODULES: &[&str] = &[
     "avizo", "bat", "btop", "code-oss", "dunst", "firefox", "fish", "foot", "fuzzel", "gtk",
     "helix", "hyprland", "i3", "kde", "kitty", "labwc", "lf", "mpv", "neovim", "qt", "ranger", "rofi",
-    "sway", "swaylock", "vesktop", "vscode", "waybar", "xresources", "zathura", "zed",
+    "sway", "swaybar", "swaylock", "tofi", "vesktop", "vscode", "waybar", "xresources",
+    "zathura", "zed",
 ];
 
 pub fn module_aliases(name: &str) -> Option<&'static str> {
@@ -231,6 +234,7 @@ pub fn module_aliases(name: &str) -> Option<&'static str> {
         "codeoss" | "code_oss" | "vscode-oss" => Some("code-oss"),
         "nvim" | "vim" => Some("neovim"),
         "hypr" => Some("hyprland"),
+        "bar" | "swaybar-colors" => Some("swaybar"),
         _ => None,
     }
 }
@@ -276,7 +280,9 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "ranger"     => apply_ranger(tera, &ctx, scheme, config),
         "rofi"       => apply_rofi(tera, &ctx, scheme, config),
         "sway"       => apply_sway(tera, &ctx, scheme, config),
+        "swaybar"    => apply_swaybar(tera, &ctx, scheme, config),
         "swaylock"   => apply_swaylock(tera, &ctx, scheme, config),
+        "tofi"       => apply_tofi(tera, &ctx, scheme, config),
         "vesktop"    => apply_vesktop(tera, &ctx, scheme, config),
         "vscode"     => apply_vscode(scheme, config),
         "waybar"     => apply_waybar(tera, &ctx, scheme, config),
@@ -794,10 +800,27 @@ fn apply_sway(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) ->
     render_to(tera, "sway", ctx, &dest)
 }
 
+fn apply_swaybar(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    let dest = home.join(".config/sway/coat-bar");
+    render_to(tera, "swaybar", ctx, &dest)?;
+    // swaybar re-reads its config only when sway reloads, and a reload is the
+    // only way to pick up the `sway` module's client.* colors too — so this is
+    // where a running sway session gets repainted (best-effort, silenced).
+    run("swaymsg reload 2>/dev/null");
+    Ok(())
+}
+
 fn apply_swaylock(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
     let dest = home.join(".config/swaylock/config");
     render_to(tera, "swaylock", ctx, &dest)
+}
+
+fn apply_tofi(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    let dest = home.join(".config/tofi/config");
+    render_to(tera, "tofi", ctx, &dest)
 }
 
 /// Render the vesktop CSS theme to any path — used by the Windows `apply_discord` function.
@@ -1561,8 +1584,27 @@ pub fn module_docs(name: &str) {
         "sway" => {
             println!("Add to ~/.config/sway/config:\n");
             println!("  include ~/.config/sway/coat-theme\n");
-            println!("IMPORTANT: Remove any 'bar {{ }}' blocks from your config!\n");
+            println!("This sets window/border colors only. For sway's built-in bar,");
+            println!("enable the 'swaybar' module instead of writing a bar {{ }} block.\n");
             println!("Then reload: swaymsg reload");
+        }
+        "swaybar" => {
+            println!("Themes sway's built-in bar (swaybar).\n");
+            println!("Add to ~/.config/sway/config:\n");
+            println!("  include ~/.config/sway/coat-bar\n");
+            println!("IMPORTANT: remove every other 'bar {{ }}' block from your config —");
+            println!("each one creates an additional bar, and this file provides a full");
+            println!("block. The whole block is generated (not just the colors) because");
+            println!("sway rejects 'include' inside 'bar {{ }}'.\n");
+            println!("The status line is swaybar's status_command, set to 'swayrbar'.");
+            println!("Configure its modules in ~/.config/swayrbar/config.toml.\n");
+            println!("coat runs 'swaymsg reload' automatically.");
+        }
+        "tofi" => {
+            println!("Writes ~/.config/tofi/config — tofi reads it on every launch,\n");
+            println!("so there is nothing to reload.\n");
+            println!("Test with:  tofi-drun");
+            println!("Bind in sway:  set $menu tofi-drun");
         }
         "lf" => {
             println!("Add to ~/.config/lf/lfrc:\n");

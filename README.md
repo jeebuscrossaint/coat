@@ -135,9 +135,9 @@ If run as administrator, also themes the logon screen.
 | Terminals | fish, foot, kitty |
 | Editors | helix, vscode, code-oss, zed |
 | WM / Compositors | i3, sway, labwc |
-| Bars | waybar |
+| Bars | waybar, swaybar |
 | Screen locker | swaylock |
-| Launchers | fuzzel, rofi |
+| Launchers | fuzzel, rofi, tofi |
 | Notifications | dunst |
 | System | gtk, qt, xresources |
 | Utilities | bat, btop, ranger, lf, zathura |
