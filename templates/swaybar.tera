@@ -12,13 +12,14 @@
 
 bar {
     id bar-0
-    position top
-{% if font_monospace %}    font pango:{{ font_monospace }} {{ font_size_desktop }}
+    position bottom
+{% if font_monospace %}    font pango:{{ font_monospace }} {{ font_size_desktop - 2 }}
 {% endif %}    status_command swayrbar
 
     status_padding 3
     status_edge_padding 8
-    tray_padding 3
+    # No tray: nothing in this session puts a useful icon there.
+    tray_output none
     workspace_min_width 22
     separator_symbol "  "
     wrap_scroll no
