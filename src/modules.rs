@@ -826,7 +826,17 @@ fn apply_swayosd(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig)
     // swayosd-server parses its stylesheet once at startup, so restart it if
     // it's running (pkill succeeds only when it killed something → no
     // duplicate server on a TTY). Same pattern as the avizo module.
-    run("pkill -x swayosd-server 2>/dev/null && swayosd-server &");
+    //
+    // The 2s grace period before respawning is for the supervised case: the
+    // sway session runs the server under `swayosd-supervise`, which brings it
+    // back ~1s after the kill. Respawning unconditionally would leave two
+    // servers racing for the DBus name, and the loser exiting instantly puts
+    // the supervisor into a restart spin. So: kill, wait, and only start one
+    // ourselves if nothing else did. Unsupervised sessions still get a server
+    // back, just 2s later.
+    run("pkill -x swayosd-server 2>/dev/null || exit 0; \
+         sleep 2; \
+         pgrep -x swayosd-server >/dev/null || exec swayosd-server");
     Ok(())
 }
 
