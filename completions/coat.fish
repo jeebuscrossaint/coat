@@ -31,7 +31,9 @@ complete -c coat -n '__fish_seen_subcommand_from set' -a '(coat __complete schem
 complete -c coat -n '__fish_seen_subcommand_from apply docs' -a '(coat __complete modules)' -d module
 
 # Shell argument for `completions`
-complete -c coat -n '__fish_seen_subcommand_from completions' -a fish -d 'Fish shell'
+complete -c coat -n '__fish_seen_subcommand_from completions' -a fish       -d 'Fish shell'
+complete -c coat -n '__fish_seen_subcommand_from completions' -a powershell -d 'PowerShell'
+complete -c coat -n '__fish_seen_subcommand_from completions' -l print      -d 'Print instead of installing'
 
 # Flags
 complete -c coat -n '__fish_seen_subcommand_from list search browse random' -l dark  -d 'Only dark variant schemes'
@@ -39,3 +41,4 @@ complete -c coat -n '__fish_seen_subcommand_from list search browse random' -l l
 complete -c coat -n '__fish_seen_subcommand_from list search' -l no-preview -d 'Skip color swatches'
 complete -c coat -n '__fish_seen_subcommand_from random' -l dry        -d 'Preview without applying'
 complete -c coat -n '__fish_seen_subcommand_from random' -l yes -s y    -d 'Apply without prompting'
+complete -c coat -n '__fish_seen_subcommand_from set browse random' -l elevate -d 'Windows: prompt for admin (logon screen keys)'

@@ -71,7 +71,7 @@ fn print_usage(prog: &str) {
     println!("  random [OPTIONS]    Pick a random scheme, preview it, and apply");
     println!("  apply [app]         Apply current scheme to all apps or one specific app");
     println!("  docs <app>          Show setup instructions for an app");
-    println!("  completions <shell> Install shell completions (fish)");
+    println!("  completions <shell> Install shell completions (fish, powershell)");
     println!("  help                Show this help message");
     println!();
     println!("List/Search/Browse/Random Options:");
@@ -80,6 +80,11 @@ fn print_usage(prog: &str) {
     println!("  --no-preview        Skip color swatches (list/search only)");
     println!("  --dry               Preview a random pick without applying (random only)");
     println!("  --yes, -y           Apply a random pick without prompting (random only)");
+    if cfg!(windows) {
+        println!();
+        println!("Set/Browse/Random Options (Windows):");
+        println!("  --elevate           Prompt for admin to theme the logon screen");
+    }
     println!();
     println!("Examples:");
     println!("  {} set gruvbox       Switch to gruvbox and apply everywhere", prog);
@@ -200,9 +205,17 @@ fn update_scheme_in_config(name: &str) -> Result<()> {
     Ok(())
 }
 
+/// Did the user pass `--elevate`? Windows-only; ignored elsewhere.
+fn wants_elevation(args: &[String]) -> bool {
+    args.iter().any(|a| a == "--elevate")
+}
+
 /// Persist `scheme` as the current scheme and apply it everywhere.
-/// Shared by `set` and `random`.
-fn set_and_apply(scheme: &Scheme) -> Result<()> {
+/// Shared by `set`, `random`, and `browse`.
+///
+/// `elevate` only means anything on Windows, where it authorizes a UAC prompt
+/// for the logon-screen and HKLM registry keys.
+fn set_and_apply(scheme: &Scheme, elevate: bool) -> Result<()> {
     // Persist the new scheme name into coat.yaml
     update_scheme_in_config(&scheme.slug)?;
     println!();
@@ -212,11 +225,12 @@ fn set_and_apply(scheme: &Scheme) -> Result<()> {
     // Platform-specific theming
     #[cfg(windows)]
     {
-        windows::apply_all(scheme, &config)?;
+        windows::apply_all(scheme, &config, elevate)?;
     }
 
     #[cfg(not(windows))]
     {
+        let _ = elevate; // Windows-only flag
         if config.enabled.is_empty() {
             println!("No modules enabled. Add apps to coat.yaml and run 'coat apply'.");
         } else {
@@ -236,12 +250,12 @@ fn set_and_apply(scheme: &Scheme) -> Result<()> {
 }
 
 fn cmd_set(args: &[String]) -> Result<()> {
-    if args.is_empty() {
+    // First non-flag argument, so `coat set --elevate gruvbox` works too.
+    let Some(name) = args.iter().find(|a| !a.starts_with('-')) else {
         eprintln!("Error: set requires a scheme name\n");
-        eprintln!("Usage: coat set <scheme>");
+        eprintln!("Usage: coat set <scheme> [--elevate]");
         std::process::exit(1);
-    }
-    let name = &args[0];
+    };
 
     ensure_schemes()?;
 
@@ -266,7 +280,7 @@ fn cmd_set(args: &[String]) -> Result<()> {
 
     println!("Setting scheme: {}\n", scheme.name);
 
-    set_and_apply(&scheme)
+    set_and_apply(&scheme, wants_elevation(args))
 }
 
 /// What the user chose at the `random` apply prompt.
@@ -313,6 +327,7 @@ fn cmd_random(args: &[String]) -> Result<()> {
     let dry = args.iter().any(|a| a == "--dry" || a == "--dry-run");
     // --yes / -y skips the confirmation prompt and applies immediately.
     let auto = args.iter().any(|a| a == "--yes" || a == "-y");
+    let elevate = wants_elevation(args);
 
     ensure_schemes()?;
 
@@ -334,10 +349,10 @@ fn cmd_random(args: &[String]) -> Result<()> {
             return Ok(());
         }
         if auto {
-            return set_and_apply(&scheme);
+            return set_and_apply(&scheme, elevate);
         }
         match prompt_random()? {
-            RandomChoice::Apply => return set_and_apply(&scheme),
+            RandomChoice::Apply => return set_and_apply(&scheme, elevate),
             RandomChoice::Reroll => continue,
             RandomChoice::Quit => { println!("Not applied."); return Ok(()); }
         }
@@ -356,7 +371,7 @@ fn cmd_browse(args: &[String]) -> Result<()> {
     match browse::browse(variant_filter)? {
         Some(scheme) => {
             println!("Setting scheme: {}\n", scheme.name);
-            set_and_apply(&scheme)
+            set_and_apply(&scheme, wants_elevation(args))
         }
         None => {
             println!("No scheme selected.");
@@ -404,6 +419,69 @@ fn cmd_search(args: &[String]) -> Result<()> {
 /// The completion script, kept as a static file so packagers can install it
 /// too; embedded here so `coat completions` works from a bare `cargo install`.
 const FISH_COMPLETIONS: &str = include_str!("../completions/coat.fish");
+const PS_COMPLETIONS: &str = include_str!("../completions/coat.ps1");
+
+/// Ask PowerShell where `$PROFILE` lives. Worth spawning a process for:
+/// the path differs between Windows PowerShell 5.1 (`Documents\WindowsPowerShell`)
+/// and PowerShell 7 (`Documents\PowerShell`), and Documents itself is often
+/// redirected into OneDrive — guessing gets it wrong on most real machines.
+/// Prefers `pwsh` and falls back to the in-box `powershell`.
+fn powershell_profile_path() -> Result<std::path::PathBuf> {
+    for exe in ["pwsh", "powershell"] {
+        let out = std::process::Command::new(exe)
+            .args(["-NoProfile", "-NonInteractive", "-Command", "$PROFILE"])
+            .output();
+        if let Ok(out) = out {
+            if out.status.success() {
+                let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                if !path.is_empty() {
+                    return Ok(std::path::PathBuf::from(path));
+                }
+            }
+        }
+    }
+    anyhow::bail!("Could not locate $PROFILE — is PowerShell on PATH?")
+}
+
+/// Write the completion script beside `$PROFILE` and dot-source it from there.
+/// PowerShell has no autoloaded completions directory, so the profile line is
+/// what actually makes them live. Both steps are idempotent.
+fn install_powershell_completions() -> Result<()> {
+    let profile = powershell_profile_path()?;
+    let dir = profile
+        .parent()
+        .context("$PROFILE has no parent directory")?
+        .to_path_buf();
+    fs::create_dir_all(&dir)
+        .with_context(|| format!("Failed to create {}", dir.display()))?;
+
+    let script = dir.join("coat.completion.ps1");
+    fs::write(&script, PS_COMPLETIONS)
+        .with_context(|| format!("Failed to write {}", script.display()))?;
+    println!("Installed PowerShell completions → {}", script.display());
+
+    // Match on the filename, not the full line, so a profile edited by hand
+    // (different quoting, absolute vs. $PSScriptRoot) isn't duplicated.
+    let existing = fs::read_to_string(&profile).unwrap_or_default();
+    if existing.contains("coat.completion.ps1") {
+        println!("$PROFILE already sources it — nothing to add.");
+    } else {
+        let mut updated = existing;
+        if !updated.is_empty() && !updated.ends_with('\n') {
+            updated.push('\n');
+        }
+        updated.push_str(&format!(
+            "\n# coat completions\n. '{}'\n",
+            script.display()
+        ));
+        fs::write(&profile, updated)
+            .with_context(|| format!("Failed to write {}", profile.display()))?;
+        println!("Added a source line to {}", profile.display());
+    }
+
+    println!("Start a new shell (or run '. $PROFILE') to pick them up.");
+    Ok(())
+}
 
 fn cmd_completions(args: &[String]) -> Result<()> {
     // `--print`/`--stdout` emits the script instead of installing it, for
@@ -432,14 +510,21 @@ fn cmd_completions(args: &[String]) -> Result<()> {
             println!("Start a new shell (or run 'exec fish') to pick them up.");
             Ok(())
         }
+        Some("powershell") | Some("pwsh") => {
+            if print_only {
+                print!("{}", PS_COMPLETIONS);
+                return Ok(());
+            }
+            install_powershell_completions()
+        }
         Some(other) => {
             eprintln!("Unsupported shell: {}\n", other);
-            eprintln!("Supported shells: fish");
+            eprintln!("Supported shells: fish, powershell");
             std::process::exit(1);
         }
         None => {
             eprintln!("Usage: coat completions <shell> [--print]\n");
-            eprintln!("Supported shells: fish");
+            eprintln!("Supported shells: fish, powershell");
             std::process::exit(1);
         }
     }
@@ -516,6 +601,9 @@ fn main() {
             "docs"            => cmd_docs(&args[2..], prog),
             "completions"     => cmd_completions(&args[2..]),
             "__complete"      => cmd_complete(&args[2..]),
+            // Hidden: the UAC-elevated child spawned by `--elevate`.
+            #[cfg(windows)]
+            "__winelevate"    => windows::cmd_elevated_keys(&args[2..]),
             "help" | "--help" => { print_usage(prog); Ok(()) }
             other             => {
                 eprintln!("Unknown command: {}\n", other);

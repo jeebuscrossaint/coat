@@ -250,8 +250,8 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
     #[cfg(windows)]
     {
         match name {
-            "vscode"   => return crate::windows::apply_vscode(scheme),
-            "zed"      => return crate::windows::apply_zed(scheme),
+            "vscode"   => return crate::windows::apply_vscode(scheme, config),
+            "zed"      => return crate::windows::apply_zed(scheme, config),
             "vesktop"  => return crate::windows::apply_discord(scheme, config),
             _ => {}
         }

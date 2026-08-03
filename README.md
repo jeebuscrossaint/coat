@@ -66,18 +66,29 @@ coat apply kitty
 
 ## Shell completions
 
-Fish completions cover subcommands, flags, and (dynamically) scheme and module
-names. Install them with:
+Fish and PowerShell completions cover subcommands, flags, and (dynamically)
+scheme and module names. Install them with:
 
 ```bash
 coat completions fish            # → ~/.config/fish/completions/coat.fish
 coat completions fish --print    # print to stdout instead of installing
 ```
 
-The script also lives at [`completions/coat.fish`](completions/coat.fish) so
-distro packages can install it automatically (e.g. cargo-deb drops it in
+```powershell
+coat completions powershell      # → coat.completion.ps1 beside $PROFILE, sourced from it
+coat completions powershell --print
+```
+
+PowerShell has no autoloaded completions directory, so coat writes the script
+next to your `$PROFILE` and adds a line there to dot-source it. Both steps are
+idempotent — re-running just refreshes the script. `$PROFILE` is resolved by
+asking PowerShell itself, so a OneDrive-redirected Documents folder and the
+5.1 / 7 split are handled.
+
+The scripts also live in [`completions/`](completions) so distro packages can
+install them automatically (e.g. cargo-deb drops the fish one in
 `/usr/share/fish/vendor_completions.d/`). Note that a plain `cargo install`
-places only the binary — run `coat completions fish` once afterward.
+places only the binary — run `coat completions <shell>` once afterward.
 
 ## Configuration
 
@@ -117,16 +128,19 @@ On Windows, `coat set <scheme>` themes the OS directly — no config file requir
 
 - System accent color (registry, AccentPalette, taskbar/Start)
 - Dark/light mode
-- Windows Terminal color scheme
-- VSCode color customizations
-- Zed theme (if Zed is installed)
+- Windows Terminal — scheme, selected via `profiles.defaults`, plus font and opacity from `coat.yaml`
+- VSCode color customizations and editor font
+- Zed theme and buffer font (if Zed is installed)
 
 ```powershell
 coat set nord
 coat set gruvbox-dark-hard
+coat set nord --elevate   # also theme the logon screen (one UAC prompt)
 ```
 
-If run as administrator, also themes the logon screen.
+The logon-screen keys live in `HKU\.DEFAULT` and need admin. `--elevate` spawns
+a short-lived elevated helper for just those, so the rest of the apply stays in
+your current terminal. Already running elevated? No flag needed.
 
 ## Supported modules
 

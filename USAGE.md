@@ -309,11 +309,9 @@ In Vesktop/Vencord settings → Themes → enable **coat**.
 
 - System accent color via registry (`Explorer\Accent`, DWM, `Control Panel\Colors`)
 - Dark/light mode (`Themes\Personalize`)
-- Windows Terminal — injects a `"coat"` entry into `settings.json`
-- VSCode — merges into `%APPDATA%\Code\User\settings.json`
-- Zed — writes `%APPDATA%\Zed\themes\coat.json` and selects it in `settings.json` (only if Zed's config dir exists)
-
-Run as administrator to also theme the logon screen.
+- Windows Terminal — see below
+- VSCode — merges into `%APPDATA%\Code\User\settings.json`, including `editor.fontFamily` from `font.monospace`
+- Zed — writes `%APPDATA%\Zed\themes\coat.json` and selects it in `settings.json`, including `buffer_font_family` (only if Zed's config dir exists)
 
 ```powershell
 coat set nord
@@ -322,6 +320,40 @@ coat set catppuccin-mocha
 ```
 
 After applying, Explorer/taskbar picks up changes live. Some accent color changes may require signing out and back in.
+
+### Windows Terminal
+
+coat injects a `"coat"` entry into `schemes`, then selects it by writing
+`profiles.defaults.colorScheme`, so every profile that hasn't overridden the
+scheme picks it up — no hand-editing. It also sets the top-level `theme` to
+`dark` or `light` to match the scheme.
+
+Font and opacity come from `coat.yaml`, mapped onto `profiles.defaults`:
+
+| coat.yaml | Windows Terminal |
+|---|---|
+| `font.monospace` | `font.face` |
+| `font.sizes.terminal` | `font.size` |
+| `opacity.terminal` (0.0–1.0) | `opacity` (0–100), with `useAcrylic: false` |
+
+Keys your `coat.yaml` doesn't mention are left untouched, as are per-profile
+overrides in `profiles.list` and any other settings you've customized. Setting
+a value back to its default (e.g. `opacity.terminal: 1.0`) does get written, so
+changes revert cleanly.
+
+### Logon screen (`--elevate`)
+
+The logon-screen accent lives in `HKU\.DEFAULT` and needs administrator rights.
+Pass `--elevate` to `set`, `random`, or `browse` and coat spawns a short-lived
+elevated helper for just those keys — one UAC prompt, with everything else
+applying unelevated in your existing terminal:
+
+```powershell
+coat set nord --elevate
+```
+
+Without the flag, that one step is reported as skipped and the rest still
+applies. Running coat from an already-elevated shell needs no flag.
 
 ---
 
