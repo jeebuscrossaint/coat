@@ -37,7 +37,6 @@ macro_rules! tpl {
 }
 
 static TEMPLATES: &[(&str, &str)] = &[
-    tpl!("avizo",     "avizo.tera"),
     tpl!("bat",       "bat.tera"),
     tpl!("btop",      "btop.tera"),
     tpl!("dunst",     "dunst.tera"),
@@ -45,31 +44,22 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("firefox_content", "firefox_content.tera"),
     tpl!("fish",      "fish.tera"),
     tpl!("foot",      "foot.tera"),
-    tpl!("fuzzel",    "fuzzel.tera"),
     tpl!("gtk",       "gtk.tera"),
     tpl!("gtklock",   "gtklock.tera"),
-    tpl!("helix",     "helix.tera"),
     tpl!("hyprland",  "hyprland.tera"),
-    tpl!("i3",        "i3.tera"),
-    tpl!("kde",       "kde.tera"),
     tpl!("kitty",     "kitty.tera"),
-    tpl!("konsole",   "konsole.tera"),
     tpl!("labwc",     "labwc.tera"),
-    tpl!("lf",        "lf.tera"),
     tpl!("mpv",       "mpv.tera"),
     tpl!("neovim",    "neovim.tera"),
     tpl!("ranger",    "ranger.tera"),
-    tpl!("rofi",      "rofi.tera"),
     tpl!("sway",      "sway.tera"),
     tpl!("swaybar",   "swaybar.tera"),
-    tpl!("swaylock",  "swaylock.tera"),
     tpl!("swayosd",   "swayosd.tera"),
     tpl!("tofi",      "tofi.tera"),
     tpl!("vesktop",   "vesktop.tera"),
     tpl!("waybar",    "waybar.tera"),
     tpl!("xresources","xresources.tera"),
     tpl!("zathura",   "zathura.tera"),
-    tpl!("qt_colors", "qt_colors.tera"),
 ];
 
 // ── Tera setup ─────────────────────────────────────────────────────────────
@@ -268,17 +258,14 @@ fn run(cmd: &str) {
 // ── Module dispatch ────────────────────────────────────────────────────────
 
 pub const ALL_MODULES: &[&str] = &[
-    "avizo", "bat", "btop", "code-oss", "dunst", "firefox", "fish", "foot", "fuzzel", "gtk",
-    "gtklock", "helix", "hyprland", "i3", "kde", "kitty", "labwc", "lf", "mpv", "neovim", "qt", "ranger",
-    "rofi",
-    "sway", "swaybar", "swaylock", "swayosd", "tofi", "vesktop", "vscode", "waybar",
-    "xresources", "zathura", "zed",
+    "bat", "btop", "code-oss", "dunst", "firefox", "fish", "foot", "gtk", "gtklock", "hyprland",
+    "kitty", "labwc", "mpv", "neovim", "ranger", "sway", "swaybar", "swayosd", "tofi",
+    "vesktop", "vscode", "waybar", "xresources", "zathura", "zed",
 ];
 
 pub fn module_aliases(name: &str) -> Option<&'static str> {
     match name {
         "vencord" | "discord" => Some("vesktop"),
-        "plasma" | "kde-plasma" => Some("kde"),
         "codeoss" | "code_oss" | "vscode-oss" => Some("code-oss"),
         "nvim" | "vim" => Some("neovim"),
         "hypr" => Some("hyprland"),
@@ -305,7 +292,6 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
     }
 
     match name {
-        "avizo"      => apply_avizo(tera, &ctx, scheme, config),
         "bat"        => apply_bat(tera, &ctx, scheme, config),
         "btop"       => apply_btop(tera, &ctx, scheme, config),
         "code-oss"   => apply_code_oss(scheme, config),
@@ -313,24 +299,16 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "firefox"    => apply_firefox(tera, &ctx, scheme, config),
         "fish"       => apply_fish(tera, &ctx, scheme, config),
         "foot"       => apply_foot(tera, &ctx, scheme, config),
-        "fuzzel"     => apply_fuzzel(tera, &ctx, scheme, config),
         "gtk"        => apply_gtk(tera, &ctx, scheme, config),
         "gtklock"    => apply_gtklock(tera, &ctx, scheme, config),
-        "helix"      => apply_helix(tera, &ctx, scheme, config),
         "hyprland"   => apply_hyprland(tera, &ctx, scheme, config),
-        "i3"         => apply_i3(tera, &ctx, scheme, config),
-        "kde"        => apply_kde(tera, &ctx, scheme, config),
         "kitty"      => apply_kitty(tera, &ctx, scheme, config),
         "labwc"      => apply_labwc(tera, &ctx, scheme, config),
-        "lf"         => apply_lf(tera, &ctx, scheme, config),
         "mpv"        => apply_mpv(tera, &ctx, scheme, config),
         "neovim"     => apply_neovim(tera, &ctx, scheme, config),
-        "qt"         => apply_qt(scheme, config),
         "ranger"     => apply_ranger(tera, &ctx, scheme, config),
-        "rofi"       => apply_rofi(tera, &ctx, scheme, config),
         "sway"       => apply_sway(tera, &ctx, scheme, config),
         "swaybar"    => apply_swaybar(tera, &ctx, scheme, config),
-        "swaylock"   => apply_swaylock(tera, &ctx, scheme, config),
         "swayosd"    => apply_swayosd(tera, &ctx, scheme, config),
         "tofi"       => apply_tofi(tera, &ctx, scheme, config),
         "vesktop"    => apply_vesktop(tera, &ctx, scheme, config),
@@ -344,16 +322,6 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
 }
 
 // ── Individual module functions ────────────────────────────────────────────
-
-fn apply_avizo(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    let dest = home.join(".config/avizo/config.ini");
-    render_to(tera, "avizo", ctx, &dest)?;
-    // avizo-service reads its config at startup, so restart it if it's running
-    // (pkill succeeds only when it killed something → no duplicate on a TTY).
-    run("pkill -x avizo-service 2>/dev/null && avizo-service &");
-    Ok(())
-}
 
 fn apply_bat(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
@@ -415,18 +383,6 @@ fn apply_foot(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) ->
     render_to(tera, "foot", ctx, &dest)
 }
 
-fn apply_fuzzel(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    let dir = home.join(".config/fuzzel");
-    render_to(tera, "fuzzel", ctx, &dir.join("coat-theme.ini"))?;
-    // fuzzel rejects a relative include: the path must be absolute or start `~/`.
-    ensure_include(
-        &dir.join("fuzzel.ini"),
-        "include=~/.config/fuzzel/coat-theme.ini",
-        ("#", ""),
-    )
-}
-
 fn apply_gtk(tera: &Tera, ctx: &tera::Context, scheme: &Scheme, config: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
     // Same fragment for gtk-3.0 and gtk-4.0, each pulled in by that version's
@@ -480,200 +436,12 @@ fn apply_gtklock(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig)
     Ok(())
 }
 
-fn apply_helix(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    let dest = home.join(".config/helix/themes/coat.toml");
-    render_to(tera, "helix", ctx, &dest)
-}
-
 fn apply_hyprland(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
     let dest = home.join(".config/hypr/coat-theme.conf");
     render_to(tera, "hyprland", ctx, &dest)?;
     // Live-reload a running Hyprland session (best-effort, silenced).
     run("hyprctl reload 2>/dev/null");
-    Ok(())
-}
-
-fn apply_i3(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    let dest = home.join(".config/i3/coat-theme.conf");
-    render_to(tera, "i3", ctx, &dest)?;
-    run("i3-msg reload 2>/dev/null");
-    Ok(())
-}
-
-fn rgb(hex: &str) -> String {
-    let (r, g, b) = Scheme::hex_to_rgb(hex);
-    format!("{},{},{}", r, g, b)
-}
-
-fn kde_color_sections(s: &Scheme) -> String {
-    let mut o = String::new();
-
-    for sec in &["Colors:Button", "Colors:Complementary", "Colors:Header", "Colors:Tooltip"] {
-        o += &format!("[{}]\n", sec);
-        o += &format!("BackgroundAlternate={}\n", rgb(&s.base02));
-        o += &format!("BackgroundNormal={}\n",    rgb(&s.base01));
-        o += &format!("DecorationFocus={}\n",     rgb(&s.base0d));
-        o += &format!("DecorationHover={}\n",     rgb(&s.base0c));
-        o += &format!("ForegroundActive={}\n",    rgb(&s.base06));
-        o += &format!("ForegroundInactive={}\n",  rgb(&s.base03));
-        o += &format!("ForegroundLink={}\n",      rgb(&s.base0d));
-        o += &format!("ForegroundNegative={}\n",  rgb(&s.base08));
-        o += &format!("ForegroundNeutral={}\n",   rgb(&s.base09));
-        o += &format!("ForegroundNormal={}\n",    rgb(&s.base05));
-        o += &format!("ForegroundPositive={}\n",  rgb(&s.base0b));
-        o += &format!("ForegroundVisited={}\n",   rgb(&s.base0e));
-        o += "\n";
-    }
-
-    o += &format!("[Colors:Selection]\n\
-        BackgroundAlternate={}\nBackgroundNormal={}\n\
-        DecorationFocus={}\nDecorationHover={}\n\
-        ForegroundActive={}\nForegroundInactive={}\n\
-        ForegroundLink={}\nForegroundNegative={}\n\
-        ForegroundNeutral={}\nForegroundNormal={}\n\
-        ForegroundPositive={}\nForegroundVisited={}\n\n",
-        rgb(&s.base0e), rgb(&s.base0d),
-        rgb(&s.base0d), rgb(&s.base0c),
-        rgb(&s.base07), rgb(&s.base01),
-        rgb(&s.base07), rgb(&s.base08),
-        rgb(&s.base09), rgb(&s.base00),
-        rgb(&s.base0b), rgb(&s.base06));
-
-    for (sec, bg, bg_alt, fg_active) in &[
-        ("Colors:View",   &s.base00, &s.base01, &s.base06),
-        ("Colors:Window", &s.base00, &s.base01, &s.base07),
-    ] {
-        o += &format!("[{}]\n", sec);
-        o += &format!("BackgroundAlternate={}\n", rgb(bg_alt));
-        o += &format!("BackgroundNormal={}\n",    rgb(bg));
-        o += &format!("DecorationFocus={}\n",     rgb(&s.base0d));
-        o += &format!("DecorationHover={}\n",     rgb(&s.base0c));
-        o += &format!("ForegroundActive={}\n",    rgb(fg_active));
-        o += &format!("ForegroundInactive={}\n",  rgb(&s.base03));
-        o += &format!("ForegroundLink={}\n",      rgb(&s.base0d));
-        o += &format!("ForegroundNegative={}\n",  rgb(&s.base08));
-        o += &format!("ForegroundNeutral={}\n",   rgb(&s.base09));
-        o += &format!("ForegroundNormal={}\n",    rgb(&s.base05));
-        o += &format!("ForegroundPositive={}\n",  rgb(&s.base0b));
-        o += &format!("ForegroundVisited={}\n",   rgb(&s.base0e));
-        o += "\n";
-    }
-
-    o += &format!("[WM]\n\
-        activeBackground={}\nactiveBlend={}\nactiveForeground={}\n\
-        inactiveBackground={}\ninactiveBlend={}\ninactiveForeground={}\n\n",
-        rgb(&s.base01), rgb(&s.base05), rgb(&s.base05),
-        rgb(&s.base00), rgb(&s.base03), rgb(&s.base03));
-
-    o += "[ColorEffects:Disabled]\n\
-        ChangeSelectionColor=true\nColor=56,56,56\nColorAmount=0\n\
-        ColorEffect=0\nContrastAmount=0.65\nContrastEffect=1\n\
-        Enable=true\nIntensityAmount=0.1\nIntensityEffect=2\n\n";
-
-    o += "[ColorEffects:Inactive]\n\
-        ChangeSelectionColor=true\nColor=112,111,110\nColorAmount=0.025\n\
-        ColorEffect=2\nContrastAmount=0.1\nContrastEffect=0\n\
-        Enable=false\nIntensityAmount=0\nIntensityEffect=0\n\n";
-
-    o
-}
-
-// Write color sections directly into kdeglobals, bypassing plasma-apply-colorscheme.
-// That tool silently skips re-application when the scheme name already matches
-// (it checks ColorScheme= and ColorSchemeHash= in [General]), so it never updates
-// colors when you switch between schemes while keeping the "coat" name.
-fn update_kdeglobals(scheme: &Scheme) -> Result<()> {
-    let home = home_dir()?;
-    let path = home.join(".config/kdeglobals");
-
-    let owned: &[&str] = &[
-        "Colors:Button", "Colors:Complementary", "Colors:Header",
-        "Colors:Selection", "Colors:Tooltip", "Colors:View", "Colors:Window",
-        "WM", "ColorEffects:Disabled", "ColorEffects:Inactive",
-    ];
-
-    let existing = if path.exists() {
-        fs::read_to_string(&path).unwrap_or_default()
-    } else {
-        String::new()
-    };
-
-    let mut out = String::new();
-    let mut in_owned = false;
-    let mut in_general = false;
-    let mut wrote_colorscheme = false;
-    let mut saw_general = false;
-
-    for line in existing.lines() {
-        if line.starts_with('[') && line.ends_with(']') {
-            let sec = &line[1..line.len() - 1];
-            if in_general && !wrote_colorscheme {
-                out.push_str("ColorScheme=coat\n");
-                wrote_colorscheme = true;
-            }
-            in_owned   = owned.contains(&sec);
-            in_general = sec == "General";
-            if in_general { saw_general = true; }
-        }
-        if in_owned { continue; }
-        if in_general {
-            if line.starts_with("ColorScheme=") {
-                out.push_str("ColorScheme=coat\n");
-                wrote_colorscheme = true;
-                continue;
-            }
-            if line.starts_with("ColorSchemeHash=") { continue; }
-        }
-        out.push_str(line);
-        out.push('\n');
-    }
-
-    if in_general && !wrote_colorscheme {
-        out.push_str("ColorScheme=coat\n");
-        wrote_colorscheme = true;
-    }
-    if !saw_general {
-        out.push_str("\n[General]\nColorScheme=coat\n");
-        wrote_colorscheme = true;
-    }
-    let _ = wrote_colorscheme;
-
-    out.push('\n');
-    out.push_str(&kde_color_sections(scheme));
-
-    let out = out.trim_end().to_string() + "\n";
-    ensure_dir(path.parent().unwrap_or(std::path::Path::new("/")))?;
-    fs::write(&path, &out)
-        .with_context(|| format!("Failed to write {}", path.display()))?;
-    detail!("  ✓ {}", path.display());
-    Ok(())
-}
-
-fn apply_kde(tera: &Tera, ctx: &tera::Context, scheme: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-
-    // coat.colors — available in System Settings colour picker
-    let colors_dir = home.join(".local/share/color-schemes");
-    ensure_dir(&colors_dir)?;
-    render_to(tera, "kde", ctx, &colors_dir.join("coat.colors"))?;
-
-    // Konsole colour scheme
-    let konsole_dir = home.join(".local/share/konsole");
-    ensure_dir(&konsole_dir)?;
-    render_to(tera, "konsole", ctx, &konsole_dir.join("coat.colorscheme"))?;
-
-    // Write colours directly into kdeglobals (ensures correct values even if
-    // plasma-apply-colorscheme is unavailable)
-    update_kdeglobals(scheme)?;
-
-    // plasma-apply-colorscheme silently skips when the scheme name in kdeglobals
-    // already matches. Reset it first so it always does a full live apply.
-    run("kwriteconfig6 --file kdeglobals --group General --key ColorScheme _coat_reset 2>/dev/null");
-    run("plasma-apply-colorscheme coat 2>/dev/null");
-
     Ok(())
 }
 
@@ -871,26 +639,12 @@ fn apply_firefox(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig)
     Ok(())
 }
 
-fn apply_lf(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    let dest = home.join(".config/lf/colors");
-    render_to(tera, "lf", ctx, &dest)?;
-    detail!("    Add to ~/.config/lf/lfrc: set color true");
-    Ok(())
-}
-
 fn apply_ranger(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
     let dest = home.join(".config/ranger/colorschemes/coat.py");
     render_to(tera, "ranger", ctx, &dest)?;
     detail!("    Add to ~/.config/ranger/rc.conf: set colorscheme coat");
     Ok(())
-}
-
-fn apply_rofi(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    let dest = home.join(".config/rofi/coat.rasi");
-    render_to(tera, "rofi", ctx, &dest)
 }
 
 fn apply_sway(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
@@ -910,23 +664,13 @@ fn apply_swaybar(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig)
     Ok(())
 }
 
-fn apply_swaylock(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    let dest = home.join(".config/swaylock/coat-theme.conf");
-    render_to(tera, "swaylock", ctx, &dest)?;
-    // swaylock has no include directive and reads exactly one config, so the
-    // fragment is consumed with -C and behaviour flags go on the command line.
-    detail!("    Lock with: swaylock -C ~/.config/swaylock/coat-theme.conf [behaviour flags]");
-    Ok(())
-}
-
 fn apply_swayosd(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
     let dest = home.join(".config/swayosd/style.css");
     render_to(tera, "swayosd", ctx, &dest)?;
     // swayosd-server parses its stylesheet once at startup, so restart it if
     // it's running (pkill succeeds only when it killed something → no
-    // duplicate server on a TTY). Same pattern as the avizo module.
+    // duplicate server on a TTY).
     //
     // The 2s grace period before respawning is for the supervised case: the
     // sway session runs the server under `swayosd-supervise`, which brings it
@@ -1005,105 +749,6 @@ fn apply_zathura(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig)
     render_to(tera, "zathura", ctx, &dir.join("coat-theme"))?;
     // girara resolves a relative include against the config being processed.
     ensure_include(&dir.join("zathurarc"), "include coat-theme", ("#", ""))
-}
-
-// ── Qt — handled directly (conditional directory detection) ───────────────
-
-fn apply_qt(scheme: &Scheme, config: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    let qt5_dir = home.join(".config/qt5ct");
-    let qt6_dir = home.join(".config/qt6ct");
-
-    let mut applied = 0;
-    for (dir, conf_name) in &[(&qt5_dir, "qt5ct.conf"), (&qt6_dir, "qt6ct.conf")] {
-        if !dir.is_dir() {
-            continue;
-        }
-        let colors_dir = dir.join("colors");
-        ensure_dir(&colors_dir)?;
-
-        // Write color scheme file
-        let scheme_path = colors_dir.join("coat.conf");
-        let colors_content = build_qt_colors(scheme, config);
-        fs::write(&scheme_path, &colors_content)
-            .with_context(|| format!("Failed to write {}", scheme_path.display()))?;
-        detail!("  ✓ {}", scheme_path.display());
-
-        // Write main conf
-        let conf_path = dir.join(conf_name);
-        let conf_content = build_qt_conf(&scheme_path, config);
-        fs::write(&conf_path, &conf_content)
-            .with_context(|| format!("Failed to write {}", conf_path.display()))?;
-        detail!("  ✓ {}", conf_path.display());
-        applied += 1;
-    }
-
-    if applied == 0 {
-        bail!("Neither qt5ct nor qt6ct config directory found — install and run one once to initialise");
-    }
-    detail!("    Set QT_QPA_PLATFORMTHEME=qt5ct (or qt6ct) in your environment.");
-    Ok(())
-}
-
-fn build_qt_colors(scheme: &Scheme, _config: &CoatConfig) -> String {
-    let c = |color: &str| format!("#{}", color);
-    format!(
-        "# coat Qt color scheme: {}\n# {}\n\n[ColorScheme]\n\
-active_colors=\
-{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}\n\
-disabled_colors=\
-{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}\n\
-inactive_colors=\
-{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}\n",
-        scheme.name,
-        scheme.author,
-        // active
-        c(&scheme.base05), c(&scheme.base02), c(&scheme.base03), c(&scheme.base02),
-        c(&scheme.base01), c(&scheme.base02), c(&scheme.base05), c(&scheme.base07),
-        c(&scheme.base05), c(&scheme.base00), c(&scheme.base01), c(&scheme.base00),
-        c(&scheme.base0d), c(&scheme.base07), c(&scheme.base0d), c(&scheme.base0e),
-        c(&scheme.base01), c(&scheme.base01), c(&scheme.base05), c(&scheme.base04),
-        // disabled
-        c(&scheme.base03), c(&scheme.base01), c(&scheme.base02), c(&scheme.base02),
-        c(&scheme.base01), c(&scheme.base01), c(&scheme.base03), c(&scheme.base04),
-        c(&scheme.base03), c(&scheme.base00), c(&scheme.base00), c(&scheme.base00),
-        c(&scheme.base02), c(&scheme.base03), c(&scheme.base03), c(&scheme.base03),
-        c(&scheme.base00), c(&scheme.base00), c(&scheme.base03), c(&scheme.base03),
-        // inactive
-        c(&scheme.base04), c(&scheme.base01), c(&scheme.base02), c(&scheme.base02),
-        c(&scheme.base01), c(&scheme.base01), c(&scheme.base04), c(&scheme.base05),
-        c(&scheme.base04), c(&scheme.base00), c(&scheme.base01), c(&scheme.base00),
-        c(&scheme.base03), c(&scheme.base06), c(&scheme.base0d), c(&scheme.base0e),
-        c(&scheme.base00), c(&scheme.base01), c(&scheme.base04), c(&scheme.base03),
-    )
-}
-
-fn build_qt_conf(colors_path: &Path, config: &CoatConfig) -> String {
-    let mut out = String::new();
-    out.push_str("[Appearance]\n");
-    out.push_str(&format!("color_scheme_path={}\n", colors_path.display()));
-    out.push_str("custom_palette=true\n");
-    out.push_str("standard_dialogs=default\n");
-    out.push_str("style=Fusion\n\n");
-
-    let has_font = !config.font_monospace().is_empty() || !config.font_sansserif().is_empty();
-    if has_font {
-        out.push_str("[Fonts]\n");
-        if !config.font_monospace().is_empty() {
-            out.push_str(&format!(
-                "fixed=\"{},-1,5,50,0,0,0,1,0\"\n",
-                config.font_monospace()
-            ));
-        }
-        if !config.font_sansserif().is_empty() {
-            out.push_str(&format!(
-                "general=\"{},-1,5,50,0,0,0,0,0\"\n",
-                config.font_sansserif()
-            ));
-        }
-        out.push('\n');
-    }
-    out
 }
 
 // ── JSONC-safe settings reading ───────────────────────────────────────────
@@ -1671,22 +1316,10 @@ pub fn module_docs(name: &str) {
             println!("Or add to ~/.config/fish/config.fish:\n");
             println!("  fish_config theme choose coat");
         }
-        "kde" => {
-            println!("The KDE color scheme is applied automatically via plasma-apply-colorscheme.\n");
-            println!("A Konsole color scheme is also written. To activate it in Konsole:\n");
-            println!("  Settings → Edit Current Profile → Appearance → coat\n");
-            println!("Or from within a Konsole session:");
-            println!("  konsoleprofile ColorScheme=coat");
-        }
         "kitty" => {
             println!("Add to ~/.config/kitty/kitty.conf:\n");
             println!("  include coat-theme.conf\n");
             println!("Then reload: Ctrl+Shift+F5");
-        }
-        "helix" => {
-            println!("Add to ~/.config/helix/config.toml:\n");
-            println!("  theme = \"coat\"\n");
-            println!("Then restart helix or run :config-reload");
         }
         "hyprland" => {
             println!("Add to ~/.config/hypr/hyprland.conf:\n");
@@ -1699,16 +1332,6 @@ pub fn module_docs(name: &str) {
             println!("It sits on Neovim's runtimepath automatically, so just add to your config:\n");
             println!("  vim.cmd.colorscheme(\"coat\")   -- or in Vimscript:  colorscheme coat\n");
             println!("In an already-open Neovim, reload it with:  :colorscheme coat");
-        }
-        "i3" => {
-            println!("Add to ~/.config/i3/config:\n");
-            println!("  include coat-theme.conf\n");
-            println!("Then reload: $mod+Shift+r");
-        }
-        "rofi" => {
-            println!("Add to ~/.config/rofi/config.rasi:\n");
-            println!("  @theme \"coat\"\n");
-            println!("Or test with: rofi -show drun -theme coat");
         }
         "bat" => {
             println!("Add to ~/.config/bat/config:\n");
@@ -1756,11 +1379,6 @@ pub fn module_docs(name: &str) {
             println!("Test with:  tofi-drun");
             println!("Bind in sway:  set $menu tofi-drun");
         }
-        "lf" => {
-            println!("Add to ~/.config/lf/lfrc:\n");
-            println!("  set color true\n");
-            println!("lf picks up ~/.config/lf/colors automatically on next launch.");
-        }
         "vscode" => {
             println!("The theme is automatically activated.\n");
             println!("If it doesn't appear, reload VSCode:");
@@ -1788,27 +1406,20 @@ pub fn module_docs(name: &str) {
             println!("Ensure 'adw-gtk3' and 'adw-gtk3-dark' are installed.");
             println!("Some apps may require a restart.");
         }
-        "swaylock" => {
-            println!("Writes ~/.config/swaylock/coat-theme.conf — colours and font only.");
-            println!("swaylock has no include directive and reads exactly one config,");
-            println!("so pass the fragment with -C and keep behaviour on the command");
-            println!("line, where flags win anyway. coat does not touch");
-            println!("~/.config/swaylock/config.\n");
-            println!("Test with:");
-            println!("  swaylock -C ~/.config/swaylock/coat-theme.conf --clock\n");
-            println!("To bind to a key, add to Sway config:");
-            println!("  bindsym $mod+l exec swaylock -C ~/.config/swaylock/coat-theme.conf");
-        }
-        "avizo" => {
-            println!("coat writes only theme keys to ~/.config/avizo/config.ini;");
-            println!("avizo has no include directive and no --config flag, so the file");
-            println!("has to sit where avizo reads it. Layout and timing are left out,");
-            println!("so avizo falls back to its own defaults for those.\n");
-            println!("avizo-service is restarted automatically if it's running.\n");
-            println!("Start it in your compositor, e.g. Hyprland:");
-            println!("  exec-once = avizo-service\n");
-            println!("Trigger the OSD with the avizo wrappers, e.g.:");
-            println!("  volumectl up   |   lightctl -D intel_backlight up");
+        "gtklock" => {
+            println!("Writes ~/.config/gtklock/coat-theme.css and adds");
+            println!("  @import url(\"coat-theme.css\");");
+            println!("to ~/.config/gtklock/style.css on first apply.\n");
+            println!("Point gtklock at it in ~/.config/gtklock/config.ini:");
+            println!("  [main]");
+            println!("  style=/home/you/.config/gtklock/style.css\n");
+            println!("Use an absolute path — a relative `style` resolves against");
+            println!("gtklock's working directory, whatever spawned it.\n");
+            println!("Note: gtklock's builder ids (#clock-label, #input-field,");
+            println!("#unlock-button) are NOT CSS selectors and match nothing. GTK3");
+            println!("doesn't turn a builder id into a CSS name and gtklock names only");
+            println!("the window, so style widget types (window, label, entry, button)");
+            println!("plus .suggested-action; it also sets .focused and .hidden.");
         }
         "dunst" => {
             println!("Writes the drop-in ~/.config/dunst/dunstrc.d/50-coat.conf");
@@ -1856,14 +1467,6 @@ pub fn module_docs(name: &str) {
             println!("settings there are preserved. Then merges automatically.\n");
             println!("To make permanent, add to ~/.xinitrc or ~/.xprofile:");
             println!("  xrdb -merge ~/.Xresources");
-        }
-        "qt" => {
-            println!("Qt5ct/Qt6ct color schemes created.\n");
-            println!("To enable, ensure QT_QPA_PLATFORMTHEME is set:\n");
-            println!("  export QT_QPA_PLATFORMTHEME=qt5ct  # For Qt5");
-            println!("  export QT_QPA_PLATFORMTHEME=qt6ct  # For Qt6\n");
-            println!("Add to ~/.profile, ~/.bash_profile, or ~/.config/fish/config.fish\n");
-            println!("Then launch qt5ct or qt6ct to verify the 'coat' color scheme.");
         }
         "labwc" => {
             println!("Theme is applied automatically via labwc --reconfigure.\n");

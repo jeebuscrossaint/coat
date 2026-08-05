@@ -21,7 +21,6 @@ coat/
 │   ├── modules.rs    # all 22 module apply functions
 │   └── windows.rs    # Windows-specific theming (registry, WT, VSCode)
 ├── templates/        # Tera templates for each module
-├── docs/             # documentation site
 ├── Cargo.toml
 └── USAGE.md
 ```
@@ -101,10 +100,10 @@ prefer_base24: false
 enabled:
   - fish
   - kitty
-  - helix
+  - neovim
   - sway
-  - waybar
-  - fuzzel
+  - swaybar
+  - tofi
   - dunst
   - gtk
   - vesktop
@@ -147,15 +146,16 @@ your current terminal. Already running elevated? No flag needed.
 | Category | Modules |
 |---|---|
 | Terminals | fish, foot, kitty |
-| Editors | helix, vscode, code-oss, zed |
-| WM / Compositors | i3, sway, labwc |
-| Bars | waybar, swaybar |
-| Screen locker | swaylock |
-| Launchers | fuzzel, rofi, tofi |
+| Editors | neovim, vscode, code-oss, zed |
+| WM / Compositors | sway, hyprland, labwc |
+| Bars | swaybar, waybar |
+| Screen locker | gtklock |
+| Launchers | tofi |
 | Notifications | dunst |
-| OSD | avizo, swayosd |
-| System | gtk, qt, xresources |
-| Utilities | bat, btop, ranger, lf, zathura |
+| OSD | swayosd |
+| System | gtk, xresources |
+| Utilities | bat, btop, ranger, zathura |
+| Browsers | firefox |
 | Other | vesktop |
 
 See [USAGE.md](USAGE.md) for per-application activation steps, or run `coat docs <app>`.

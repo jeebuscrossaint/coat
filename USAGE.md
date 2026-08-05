@@ -34,18 +34,17 @@ enabled:
   - fish
   - foot
   - kitty
-  - helix
+  - neovim
   - vscode
   - sway
-  - waybar
-  - fuzzel
+  - swaybar
+  - tofi
   - dunst
   - gtk
-  - qt
+  - gtklock
   - vesktop
   - bat
   - btop
-  - lf
   - zathura
 
 font:
@@ -55,14 +54,14 @@ font:
   emoji:     "Noto Color Emoji"
   sizes:
     terminal: 12   # foot, kitty, xresources
-    desktop:  10   # waybar, btop
-    popups:   10   # fuzzel, rofi, dunst
+    desktop:  10   # swaybar, btop, zathura
+    popups:   10   # tofi, dunst
 
 opacity:
   terminal:     0.95   # foot, kitty
   applications: 1.0
   desktop:      1.0
-  popups:       0.95   # swaylock ring alpha
+  popups:       0.95   # dunst, gtklock, tofi backgrounds
 ```
 
 ---
@@ -104,18 +103,6 @@ include=~/.config/foot/coat-theme.ini
 
 Open a new window to apply.
 
-### helix
-
-Writes `~/.config/helix/themes/coat.toml`.
-
-```toml
-# Add to ~/.config/helix/config.toml
-[editor]
-theme = "coat"
-```
-
-Reload: `:config-reload`
-
 ### vscode
 
 Merges colors directly into `~/.config/Code/User/settings.json` (Linux) or `%APPDATA%\Code\User\settings.json` (Windows) via `workbench.colorCustomizations` and `editor.tokenColorCustomizations`. No extension install needed — changes take effect immediately.
@@ -123,15 +110,6 @@ Merges colors directly into `~/.config/Code/User/settings.json` (Linux) or `%APP
 ### zed
 
 Writes a theme family to `~/.config/zed/themes/coat.json` (Linux) or `%APPDATA%\Zed\themes\coat.json` (Windows) and selects it by merging `"theme": "coat"` into `settings.json`. Zed hot-reloads themes, so no restart is needed. If the theme doesn't switch, pick it via `Ctrl+Shift+P → "theme selector: toggle" → coat`.
-
-### i3
-
-Writes `~/.config/i3/coat-theme.conf`. `i3-msg reload` is run automatically.
-
-```
-# Add to ~/.config/i3/config
-include coat-theme.conf
-```
 
 ### sway
 
@@ -176,37 +154,6 @@ additional bar rather than merging with this one.
 
 coat runs `swaymsg reload` automatically, which also repaints the `sway`
 module's window colors.
-
-### swaylock
-
-Writes `~/.config/swaylock/coat-theme.conf` — colors and font only. swaylock has
-no include directive and reads exactly one config, so pass the fragment with `-C`
-and keep behaviour on the command line, where flags win anyway:
-
-```bash
-swaylock -C ~/.config/swaylock/coat-theme.conf --clock --indicator-radius=110
-```
-
-coat does not touch `~/.config/swaylock/config`.
-
-### fuzzel
-
-Writes `~/.config/fuzzel/coat-theme.ini` (font + colors) and adds the include to
-your `fuzzel.ini` on first apply. fuzzel requires an absolute or `~/`-prefixed
-path:
-
-```ini
-include=~/.config/fuzzel/coat-theme.ini
-```
-
-### rofi
-
-Writes `~/.config/rofi/coat.rasi`.
-
-```rasi
-/* Add to ~/.config/rofi/config.rasi */
-@import "coat.rasi"
-```
 
 ### tofi
 
@@ -259,17 +206,6 @@ adds `@import url("coat-theme.css");` at the top of each `gtk.css` on first
 apply. Runs `gsettings` to apply immediately. Restart GTK apps to pick up the new
 colors.
 
-### qt
-
-Writes color palettes to `~/.config/qt5ct/colors/coat.conf` and/or `~/.config/qt6ct/colors/coat.conf` (whichever directories exist).
-
-```bash
-# Add to ~/.profile or shell config
-export QT_QPA_PLATFORMTHEME=qt5ct   # or qt6ct
-```
-
-Open `qt5ct`/`qt6ct` and verify **coat** is selected under Colors.
-
 ### xresources
 
 Writes `~/.Xresources.coat` and adds an `#include` for it to `~/.Xresources` on
@@ -302,15 +238,6 @@ Writes `~/.config/ranger/colorschemes/coat.py`.
 ```
 # Add to ~/.config/ranger/rc.conf
 set colorscheme coat
-```
-
-### lf
-
-Writes `~/.config/lf/colors` using 24-bit truecolor ANSI codes.
-
-```
-# Add to ~/.config/lf/lfrc
-set color true
 ```
 
 ### zathura
