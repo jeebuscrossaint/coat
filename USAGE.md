@@ -179,13 +179,25 @@ module's window colors.
 
 ### swaylock
 
-Writes `~/.config/swaylock/config` directly. Takes effect next time you run `swaylock`.
+Writes `~/.config/swaylock/coat-theme.conf` — colors and font only. swaylock has
+no include directive and reads exactly one config, so pass the fragment with `-C`
+and keep behaviour on the command line, where flags win anyway:
+
+```bash
+swaylock -C ~/.config/swaylock/coat-theme.conf --clock --indicator-radius=110
+```
+
+coat does not touch `~/.config/swaylock/config`.
 
 ### fuzzel
 
-Writes the entire `~/.config/fuzzel/fuzzel.ini`. Just launch fuzzel — no include step needed.
+Writes `~/.config/fuzzel/coat-theme.ini` (font + colors) and adds the include to
+your `fuzzel.ini` on first apply. fuzzel requires an absolute or `~/`-prefixed
+path:
 
-> **Note:** coat overwrites `fuzzel.ini` completely on each apply.
+```ini
+include=~/.config/fuzzel/coat-theme.ini
+```
 
 ### rofi
 
@@ -198,12 +210,15 @@ Writes `~/.config/rofi/coat.rasi`.
 
 ### tofi
 
-Writes the entire `~/.config/tofi/config`. tofi reads it on every launch, so
-there is nothing to reload and no include step.
+Writes `~/.config/tofi/coat-theme` (font, font size, colors) and adds the include
+to your `config` on first apply. Geometry and behaviour keys stay yours.
 
-> **Note:** coat overwrites `tofi/config` completely on each apply — it carries
-> the geometry and behaviour keys (`drun-launch`, `fuzzy-match`, `terminal`, …)
-> as well as the colors.
+```
+include=coat-theme
+```
+
+tofi resolves the include the moment it reads the line, so anything you set after
+it overrides the theme.
 
 ### swayosd
 
@@ -224,16 +239,25 @@ exec swayosd-server
 
 ### dunst
 
-Writes `~/.config/dunst/dunstrc` and restarts dunst automatically.
+Writes the drop-in `~/.config/dunst/dunstrc.d/50-coat.conf` (colors + font) and
+runs `dunstctl reload`. Your `dunstrc` — geometry, timeouts, icons, mouse
+actions, `dmenu`/`browser` — is left alone.
 
-```bash
-# If dunst doesn't restart automatically
-killall dunst && dunst &
-```
+Drop-ins are applied after the base config in lexical order, last winning, so
+coat overrides colors in your `dunstrc` and you can override coat with a
+later-sorting drop-in such as `99-mine.conf`.
+
+> **Note:** dunst only reads the `dunstrc.d` next to the *first* `dunstrc` it
+> finds. If you have no `~/.config/dunst/dunstrc`, coat creates one (seeded from
+> `/etc/dunst/dunstrc`) — otherwise the base config would resolve to `/etc` and
+> the drop-in would never be read.
 
 ### gtk
 
-Writes to `~/.config/gtk-3.0/gtk.css` and `~/.config/gtk-4.0/gtk.css`. Runs `gsettings` to apply immediately. Restart GTK apps to pick up the new colors.
+Writes `coat-theme.css` into `~/.config/gtk-3.0/` and `~/.config/gtk-4.0/`, and
+adds `@import url("coat-theme.css");` at the top of each `gtk.css` on first
+apply. Runs `gsettings` to apply immediately. Restart GTK apps to pick up the new
+colors.
 
 ### qt
 
@@ -248,9 +272,9 @@ Open `qt5ct`/`qt6ct` and verify **coat** is selected under Colors.
 
 ### xresources
 
-Writes `~/.Xresources` and runs `xrdb -merge ~/.Xresources`.
-
-> **Note:** This overwrites `~/.Xresources`. Back up any custom settings first.
+Writes `~/.Xresources.coat` and adds an `#include` for it to `~/.Xresources` on
+first apply, then runs `xrdb -merge ~/.Xresources`. Your own DPI, cursor and
+per-app settings in `~/.Xresources` are preserved.
 
 ### bat
 
@@ -291,7 +315,8 @@ set color true
 
 ### zathura
 
-Writes color settings to `~/.config/zathura/zathurarc`. Restart zathura to apply.
+Writes `~/.config/zathura/coat-theme` (colors + font) and adds `include
+coat-theme` to your `zathurarc` on first apply. Restart zathura to apply.
 
 ### vesktop
 

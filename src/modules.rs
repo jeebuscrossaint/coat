@@ -201,6 +201,51 @@ fn render_to(tera: &Tera, name: &str, ctx: &tera::Context, dest: &Path) -> Resul
     Ok(())
 }
 
+/// Idempotently make sure the user's own config pulls in coat's generated theme
+/// fragment.
+///
+/// coat's job stops at colours/fonts/sizes/opacity: it writes a fragment to a
+/// `coat-*` filename and never owns the app's primary config. This single
+/// include line is the seam between the two. It is written once, at the top of
+/// the file — top, because every app whose include we use here (tofi, zathura,
+/// GTK's CSS `@import`) applies it at the point it appears, so anything the user
+/// writes below wins. Already present → nothing happens, so `coat apply` stays
+/// safe to re-run.
+///
+/// A missing config is created holding just the include; that is the one case
+/// where coat authors the file, and it is still only a pointer at a fragment.
+///
+/// `comment` is the target syntax's comment delimiters — ("#", "") for ini/conf,
+/// ("!", "") for Xresources, ("/*", " */") for CSS. Getting this wrong writes a
+/// file the app refuses to parse, which is worse than no theme at all.
+fn ensure_include(config: &Path, include_line: &str, comment: (&str, &str)) -> Result<()> {
+    let existing = fs::read_to_string(config).unwrap_or_default();
+    if existing.lines().any(|l| l.trim() == include_line) {
+        return Ok(());
+    }
+    ensure_dir(config.parent().unwrap_or(Path::new("/")))?;
+    let (open, close) = comment;
+    let mut out = String::new();
+    out.push_str(&format!(
+        "{} Added by coat — pulls in the generated colour/font fragment.{}\n",
+        open, close
+    ));
+    out.push_str(&format!(
+        "{} Everything below is yours: coat rewrites the fragment, never this file.{}\n",
+        open, close
+    ));
+    out.push_str(include_line);
+    out.push('\n');
+    if !existing.is_empty() {
+        out.push('\n');
+        out.push_str(&existing);
+    }
+    fs::write(config, out)
+        .with_context(|| format!("Failed to write {}", config.display()))?;
+    detail!("  ✓ {} (include added)", config.display());
+    Ok(())
+}
+
 /// Fire off a shell command with its stdio fully silenced and DON'T wait for it —
 /// these are best-effort reload hooks (bat cache rebuilds, dunst restarts, ...)
 /// whose own chatter isn't ours to show inside a clean per-app status line, and
@@ -324,9 +369,34 @@ fn apply_btop(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) ->
 
 fn apply_dunst(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
-    let dest = home.join(".config/dunst/dunstrc");
-    render_to(tera, "dunst", ctx, &dest)?;
-    run("killall dunst 2>/dev/null; dunst &");
+    let dir = home.join(".config/dunst");
+
+    // dunst reads drop-ins only from the `dunstrc.d` sitting next to the FIRST
+    // dunstrc it finds, searching $XDG_CONFIG_HOME before $XDG_CONFIG_DIRS. With
+    // no ~/.config/dunst/dunstrc the base config resolves to /etc/dunst/dunstrc
+    // and our drop-in in ~/.config is never looked at — silently unthemed. So
+    // make sure a user dunstrc exists, seeded from the packaged one.
+    let base = dir.join("dunstrc");
+    if !base.exists() {
+        ensure_dir(&dir)?;
+        let seed = fs::read_to_string("/etc/dunst/dunstrc").unwrap_or_else(|_| {
+            "# Your dunst config. coat writes only dunstrc.d/50-coat.conf\n\
+             # (colours + font); geometry, timeouts and actions belong here.\n\
+             [global]\n"
+                .to_string()
+        });
+        fs::write(&base, seed)
+            .with_context(|| format!("Failed to write {}", base.display()))?;
+        detail!(
+            "  ✓ {} (created — drop-ins are only read next to a dunstrc)",
+            base.display()
+        );
+    }
+
+    render_to(tera, "dunst", ctx, &dir.join("dunstrc.d/50-coat.conf"))?;
+    // Reload rather than kill/respawn: this re-reads dunstrc plus its drop-ins in
+    // place, so the running daemon repaints without dropping its queue.
+    run("dunstctl reload 2>/dev/null");
     Ok(())
 }
 
@@ -344,16 +414,25 @@ fn apply_foot(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) ->
 
 fn apply_fuzzel(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
-    let dest = home.join(".config/fuzzel/fuzzel.ini");
-    render_to(tera, "fuzzel", ctx, &dest)
+    let dir = home.join(".config/fuzzel");
+    render_to(tera, "fuzzel", ctx, &dir.join("coat-theme.ini"))?;
+    // fuzzel rejects a relative include: the path must be absolute or start `~/`.
+    ensure_include(
+        &dir.join("fuzzel.ini"),
+        "include=~/.config/fuzzel/coat-theme.ini",
+        ("#", ""),
+    )
 }
 
 fn apply_gtk(tera: &Tera, ctx: &tera::Context, scheme: &Scheme, config: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
-    // Write same template to both gtk-3.0 and gtk-4.0
+    // Same fragment for gtk-3.0 and gtk-4.0, each pulled in by that version's
+    // gtk.css. @import has to come first in a CSS file, which is where
+    // ensure_include puts it.
     for ver in &["gtk-3.0", "gtk-4.0"] {
-        let dest = home.join(format!(".config/{}/gtk.css", ver));
-        render_to(tera, "gtk", ctx, &dest)?;
+        let dir = home.join(format!(".config/{}", ver));
+        render_to(tera, "gtk", ctx, &dir.join("coat-theme.css"))?;
+        ensure_include(&dir.join("gtk.css"), "@import url(\"coat-theme.css\");", ("/*", " */"))?;
     }
     // gsettings calls
     let theme = if scheme.is_dark() { "adw-gtk3-dark" } else { "adw-gtk3" };
@@ -815,8 +894,12 @@ fn apply_swaybar(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig)
 
 fn apply_swaylock(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
-    let dest = home.join(".config/swaylock/config");
-    render_to(tera, "swaylock", ctx, &dest)
+    let dest = home.join(".config/swaylock/coat-theme.conf");
+    render_to(tera, "swaylock", ctx, &dest)?;
+    // swaylock has no include directive and reads exactly one config, so the
+    // fragment is consumed with -C and behaviour flags go on the command line.
+    detail!("    Lock with: swaylock -C ~/.config/swaylock/coat-theme.conf [behaviour flags]");
+    Ok(())
 }
 
 fn apply_swayosd(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
@@ -842,8 +925,10 @@ fn apply_swayosd(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig)
 
 fn apply_tofi(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
-    let dest = home.join(".config/tofi/config");
-    render_to(tera, "tofi", ctx, &dest)
+    let dir = home.join(".config/tofi");
+    render_to(tera, "tofi", ctx, &dir.join("coat-theme"))?;
+    // Relative include: tofi resolves it against the including file's directory.
+    ensure_include(&dir.join("config"), "include=coat-theme", ("#", ""))
 }
 
 /// Render the vesktop CSS theme to any path — used by the Windows `apply_discord` function.
@@ -884,16 +969,24 @@ fn apply_waybar(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) 
 
 fn apply_xresources(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
-    let dest = home.join(".Xresources");
+    // ~/.Xresources is a general-purpose file — DPI, cursor, per-app tweaks — so
+    // coat writes a fragment beside it and adds one #include rather than replacing
+    // whatever was there. The cpp-style include gets an absolute path so it holds
+    // regardless of the directory xrdb runs in.
+    let dest = home.join(".Xresources.coat");
     render_to(tera, "xresources", ctx, &dest)?;
-    run(&format!("xrdb -merge {} 2>/dev/null", dest.display()));
+    let main = home.join(".Xresources");
+    ensure_include(&main, &format!("#include \"{}\"", dest.display()), ("!", ""))?;
+    run(&format!("xrdb -merge {} 2>/dev/null", main.display()));
     Ok(())
 }
 
 fn apply_zathura(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
-    let dest = home.join(".config/zathura/zathurarc");
-    render_to(tera, "zathura", ctx, &dest)
+    let dir = home.join(".config/zathura");
+    render_to(tera, "zathura", ctx, &dir.join("coat-theme"))?;
+    // girara resolves a relative include against the config being processed.
+    ensure_include(&dir.join("zathurarc"), "include coat-theme", ("#", ""))
 }
 
 // ── Qt — handled directly (conditional directory detection) ───────────────
@@ -1637,8 +1730,11 @@ pub fn module_docs(name: &str) {
             println!("keys without a bind, and it wants root plus a service manager unit.");
         }
         "tofi" => {
-            println!("Writes ~/.config/tofi/config — tofi reads it on every launch,\n");
-            println!("so there is nothing to reload.\n");
+            println!("Writes ~/.config/tofi/coat-theme (font + colours) and adds");
+            println!("  include=coat-theme");
+            println!("to ~/.config/tofi/config on first apply. Geometry and behaviour");
+            println!("keys stay yours; anything set after the include overrides it.\n");
+            println!("tofi re-reads both on every launch, so there is nothing to reload.\n");
             println!("Test with:  tofi-drun");
             println!("Bind in sway:  set $menu tofi-drun");
         }
@@ -1666,18 +1762,30 @@ pub fn module_docs(name: &str) {
             println!("  Ctrl+Shift+P → \"theme selector: toggle\" → coat");
         }
         "gtk" => {
+            println!("Writes coat-theme.css into ~/.config/gtk-3.0 and gtk-4.0, and adds");
+            println!("  @import url(\"coat-theme.css\");");
+            println!("at the top of each gtk.css on first apply — your own CSS below it");
+            println!("is preserved.\n");
             println!("Theme is applied via gsettings automatically.\n");
             println!("Ensure 'adw-gtk3' and 'adw-gtk3-dark' are installed.");
             println!("Some apps may require a restart.");
         }
         "swaylock" => {
-            println!("Theme is applied automatically.\n");
-            println!("Test with: swaylock\n");
+            println!("Writes ~/.config/swaylock/coat-theme.conf — colours and font only.");
+            println!("swaylock has no include directive and reads exactly one config,");
+            println!("so pass the fragment with -C and keep behaviour on the command");
+            println!("line, where flags win anyway. coat does not touch");
+            println!("~/.config/swaylock/config.\n");
+            println!("Test with:");
+            println!("  swaylock -C ~/.config/swaylock/coat-theme.conf --clock\n");
             println!("To bind to a key, add to Sway config:");
-            println!("  bindsym $mod+l exec swaylock");
+            println!("  bindsym $mod+l exec swaylock -C ~/.config/swaylock/coat-theme.conf");
         }
         "avizo" => {
-            println!("coat owns ~/.config/avizo/config.ini (colours + layout).\n");
+            println!("coat writes only theme keys to ~/.config/avizo/config.ini;");
+            println!("avizo has no include directive and no --config flag, so the file");
+            println!("has to sit where avizo reads it. Layout and timing are left out,");
+            println!("so avizo falls back to its own defaults for those.\n");
             println!("avizo-service is restarted automatically if it's running.\n");
             println!("Start it in your compositor, e.g. Hyprland:");
             println!("  exec-once = avizo-service\n");
@@ -1685,9 +1793,17 @@ pub fn module_docs(name: &str) {
             println!("  volumectl up   |   lightctl -D intel_backlight up");
         }
         "dunst" => {
-            println!("Dunst is restarted automatically to apply the theme.\n");
-            println!("If it doesn't restart, run manually:");
-            println!("  killall dunst && dunst &");
+            println!("Writes the drop-in ~/.config/dunst/dunstrc.d/50-coat.conf");
+            println!("(colours + font) and runs `dunstctl reload`. Your dunstrc —");
+            println!("geometry, timeouts, icons, mouse actions — is left alone.\n");
+            println!("Drop-ins apply after the base config in lexical order, last");
+            println!("winning, so override coat with e.g. 99-mine.conf.\n");
+            println!("Note: dunst only reads the dunstrc.d next to the FIRST dunstrc");
+            println!("it finds, so coat creates ~/.config/dunst/dunstrc if missing —");
+            println!("otherwise the base would resolve to /etc and the drop-in would");
+            println!("never be read.\n");
+            println!("If it doesn't reload, run manually:");
+            println!("  dunstctl reload");
         }
         "btop" => {
             println!("To activate:\n");
@@ -1699,6 +1815,10 @@ pub fn module_docs(name: &str) {
             println!("  color_theme = \"coat\"");
         }
         "zathura" => {
+            println!("Writes ~/.config/zathura/coat-theme (colours + font) and adds");
+            println!("  include coat-theme");
+            println!("to ~/.config/zathura/zathurarc on first apply. Bindings and");
+            println!("behaviour settings stay yours.\n");
             println!("Restart zathura or open a new PDF to see the changes.");
         }
         "vesktop" => {
@@ -1713,7 +1833,9 @@ pub fn module_docs(name: &str) {
             println!("Then reload: pkill -SIGUSR2 waybar");
         }
         "xresources" => {
-            println!("Theme is automatically merged.\n");
+            println!("Writes ~/.Xresources.coat and adds an #include for it to");
+            println!("~/.Xresources on first apply, so your own DPI, cursor and per-app");
+            println!("settings there are preserved. Then merges automatically.\n");
             println!("To make permanent, add to ~/.xinitrc or ~/.xprofile:");
             println!("  xrdb -merge ~/.Xresources");
         }
