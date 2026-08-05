@@ -47,6 +47,7 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("foot",      "foot.tera"),
     tpl!("fuzzel",    "fuzzel.tera"),
     tpl!("gtk",       "gtk.tera"),
+    tpl!("gtklock",   "gtklock.tera"),
     tpl!("helix",     "helix.tera"),
     tpl!("hyprland",  "hyprland.tera"),
     tpl!("i3",        "i3.tera"),
@@ -268,7 +269,8 @@ fn run(cmd: &str) {
 
 pub const ALL_MODULES: &[&str] = &[
     "avizo", "bat", "btop", "code-oss", "dunst", "firefox", "fish", "foot", "fuzzel", "gtk",
-    "helix", "hyprland", "i3", "kde", "kitty", "labwc", "lf", "mpv", "neovim", "qt", "ranger", "rofi",
+    "gtklock", "helix", "hyprland", "i3", "kde", "kitty", "labwc", "lf", "mpv", "neovim", "qt", "ranger",
+    "rofi",
     "sway", "swaybar", "swaylock", "swayosd", "tofi", "vesktop", "vscode", "waybar",
     "xresources", "zathura", "zed",
 ];
@@ -313,6 +315,7 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "foot"       => apply_foot(tera, &ctx, scheme, config),
         "fuzzel"     => apply_fuzzel(tera, &ctx, scheme, config),
         "gtk"        => apply_gtk(tera, &ctx, scheme, config),
+        "gtklock"    => apply_gtklock(tera, &ctx, scheme, config),
         "helix"      => apply_helix(tera, &ctx, scheme, config),
         "hyprland"   => apply_hyprland(tera, &ctx, scheme, config),
         "i3"         => apply_i3(tera, &ctx, scheme, config),
@@ -459,6 +462,21 @@ fn apply_gtk(tera: &Tera, ctx: &tera::Context, scheme: &Scheme, config: &CoatCon
         ));
     }
     run("pkill -HUP -f 'gtk' 2>/dev/null; true");
+    Ok(())
+}
+
+fn apply_gtklock(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    let dir = home.join(".config/gtklock");
+    render_to(tera, "gtklock", ctx, &dir.join("coat-theme.css"))?;
+    // gtklock's whole appearance is GTK CSS, so the seam is a plain @import —
+    // which GTK resolves relative to the importing stylesheet.
+    ensure_include(
+        &dir.join("style.css"),
+        "@import url(\"coat-theme.css\");",
+        ("/*", " */"),
+    )?;
+    detail!("    Point gtklock at it: style=~/.config/gtklock/style.css in config.ini");
     Ok(())
 }
 
