@@ -53,7 +53,7 @@
     history_length = 20
 
     # Misc/Advanced
-    dmenu = /usr/bin/rofi -dmenu -p dunst
+    dmenu = /usr/bin/tofi --prompt-text "dunst ❯ "
     browser = /usr/bin/xdg-open
     always_run_script = true
     title = Dunst
