@@ -247,7 +247,6 @@ In Vesktop/Vencord settings → Themes → enable **coat**.
 - Dark/light mode (`Themes\Personalize`)
 - Windows Terminal — see below
 - VSCode — merges into `%APPDATA%\Code\User\settings.json`, including `editor.fontFamily` from `font.monospace`
-- Zed — writes `%APPDATA%\Zed\themes\coat.json` and selects it in `settings.json`, including `buffer_font_family` (only if Zed's config dir exists)
 
 ```powershell
 coat set nord

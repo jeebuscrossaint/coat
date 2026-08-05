@@ -468,7 +468,7 @@ fn apply_wt_defaults(
 
     // coat.yaml stores opacity as 0.0–1.0, Windows Terminal wants 0–100.
     // `useAcrylic: false` gives plain transparency, matching what the Linux
-    // terminal modules do with the same setting (kitty/foot don't blur).
+    // terminal module does with the same setting (foot doesn't blur).
     if let Some(opacity) = config.opacity.terminal {
         let pct = (opacity.clamp(0.0, 1.0) * 100.0).round() as u64;
         defaults.insert("opacity".into(), JsonValue::Number(pct.into()));
@@ -569,17 +569,6 @@ fn vscode_settings_path_windows() -> Option<PathBuf> {
     Some(path)
 }
 
-// ── Zed on Windows ─────────────────────────────────────────────────────────
-
-/// Zed stores its config under %APPDATA%\Zed on Windows.
-fn zed_paths_windows() -> Option<(PathBuf, PathBuf)> {
-    let appdata = std::env::var("APPDATA").ok()?;
-    let base = PathBuf::from(appdata).join("Zed");
-    let settings = base.join("settings.json");
-    let themes = base.join("themes");
-    Some((settings, themes))
-}
-
 // ── Public entry points ────────────────────────────────────────────────────
 
 pub fn apply_accent(scheme: &Scheme) -> Result<()> {
@@ -607,7 +596,7 @@ pub fn apply_terminal(scheme: &Scheme, config: &CoatConfig) -> Result<()> {
 }
 
 /// `font.monospace` from coat.yaml, or `None` when it's unset — the shared
-/// VSCode/Zed writers leave the editor's own font alone in that case.
+/// The VSCode writer leaves the editor's own font alone in that case.
 fn configured_font(config: &CoatConfig) -> Option<&str> {
     Some(config.font_monospace()).filter(|f| !f.is_empty())
 }
@@ -619,19 +608,6 @@ pub fn apply_vscode(scheme: &Scheme, config: &CoatConfig) -> Result<()> {
         return Ok(());
     };
     crate::modules::apply_vscode_shared(scheme, &path, configured_font(config))
-}
-
-pub fn apply_zed(scheme: &Scheme, config: &CoatConfig) -> Result<()> {
-    let Some((settings, themes)) = zed_paths_windows() else {
-        detail!("  (Zed not found at %APPDATA%\\Zed — skipping)");
-        return Ok(());
-    };
-    // Only apply if Zed's config dir already exists — avoids creating it blind.
-    if !settings.parent().map(|p| p.is_dir()).unwrap_or(false) {
-        detail!("  (Zed not found at %APPDATA%\\Zed — skipping)");
-        return Ok(());
-    }
-    crate::modules::apply_zed_shared(scheme, &settings, &themes, configured_font(config))
 }
 
 /// Write the registry keys that require admin: the logon-screen accent
@@ -756,7 +732,6 @@ pub fn apply_all(scheme: &Scheme, config: &CoatConfig, elevate: bool) -> Result<
     step("Logon/HKLM keys", || apply_elevated(scheme, scheme.is_dark(), elevate));
     step("Windows Terminal", || apply_terminal(scheme, config));
     step("VSCode", || apply_vscode(scheme, config));
-    step("Zed", || apply_zed(scheme, config));
     step("Firefox", || {
         let tera = crate::modules::make_tera()?;
         crate::modules::apply_module("firefox", scheme, config, &tera)

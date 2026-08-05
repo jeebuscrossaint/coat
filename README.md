@@ -128,7 +128,6 @@ On Windows, `coat set <scheme>` themes the OS directly — no config file requir
 - Dark/light mode
 - Windows Terminal — scheme, selected via `profiles.defaults`, plus font and opacity from `coat.yaml`
 - VSCode color customizations and editor font
-- Zed theme and buffer font (if Zed is installed)
 
 ```powershell
 coat set nord
