@@ -95,7 +95,7 @@ fn print_usage(prog: &str) {
     println!("  {} random -y         Pick and apply a random scheme, no prompt", prog);
     println!("  {} random --dry      Preview a random scheme without applying", prog);
     println!("  {} apply             Apply current scheme to all enabled apps", prog);
-    println!("  {} apply kitty       Apply current scheme only to kitty", prog);
+    println!("  {} apply foot        Apply current scheme only to foot", prog);
     println!("  {} list --dark       List dark schemes", prog);
 }
 

@@ -47,7 +47,6 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("gtk",       "gtk.tera"),
     tpl!("gtklock",   "gtklock.tera"),
     tpl!("hyprland",  "hyprland.tera"),
-    tpl!("kitty",     "kitty.tera"),
     tpl!("labwc",     "labwc.tera"),
     tpl!("mpv",       "mpv.tera"),
     tpl!("neovim",    "neovim.tera"),
@@ -258,15 +257,14 @@ fn run(cmd: &str) {
 // ── Module dispatch ────────────────────────────────────────────────────────
 
 pub const ALL_MODULES: &[&str] = &[
-    "bat", "btop", "code-oss", "dunst", "firefox", "fish", "foot", "gtk", "gtklock", "hyprland",
-    "kitty", "labwc", "mpv", "neovim", "ranger", "sway", "swaybar", "swayosd", "tofi",
-    "vesktop", "vscode", "waybar", "xresources", "zathura", "zed",
+    "bat", "btop", "dunst", "firefox", "fish", "foot", "gtk", "gtklock", "hyprland", "labwc",
+    "mpv", "neovim", "ranger", "sway", "swaybar", "swayosd", "tofi", "vesktop", "vscode",
+    "waybar", "xresources", "zathura",
 ];
 
 pub fn module_aliases(name: &str) -> Option<&'static str> {
     match name {
         "vencord" | "discord" => Some("vesktop"),
-        "codeoss" | "code_oss" | "vscode-oss" => Some("code-oss"),
         "nvim" | "vim" => Some("neovim"),
         "hypr" => Some("hyprland"),
         "bar" | "swaybar-colors" => Some("swaybar"),
@@ -285,7 +283,6 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
     {
         match name {
             "vscode"   => return crate::windows::apply_vscode(scheme, config),
-            "zed"      => return crate::windows::apply_zed(scheme, config),
             "vesktop"  => return crate::windows::apply_discord(scheme, config),
             _ => {}
         }
@@ -294,7 +291,6 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
     match name {
         "bat"        => apply_bat(tera, &ctx, scheme, config),
         "btop"       => apply_btop(tera, &ctx, scheme, config),
-        "code-oss"   => apply_code_oss(scheme, config),
         "dunst"      => apply_dunst(tera, &ctx, scheme, config),
         "firefox"    => apply_firefox(tera, &ctx, scheme, config),
         "fish"       => apply_fish(tera, &ctx, scheme, config),
@@ -302,7 +298,6 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "gtk"        => apply_gtk(tera, &ctx, scheme, config),
         "gtklock"    => apply_gtklock(tera, &ctx, scheme, config),
         "hyprland"   => apply_hyprland(tera, &ctx, scheme, config),
-        "kitty"      => apply_kitty(tera, &ctx, scheme, config),
         "labwc"      => apply_labwc(tera, &ctx, scheme, config),
         "mpv"        => apply_mpv(tera, &ctx, scheme, config),
         "neovim"     => apply_neovim(tera, &ctx, scheme, config),
@@ -316,7 +311,6 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "waybar"     => apply_waybar(tera, &ctx, scheme, config),
         "xresources" => apply_xresources(tera, &ctx, scheme, config),
         "zathura"    => apply_zathura(tera, &ctx, scheme, config),
-        "zed"        => apply_zed(scheme, config),
         other        => bail!("Unknown module: {}", other),
     }
 }
@@ -442,29 +436,6 @@ fn apply_hyprland(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig
     render_to(tera, "hyprland", ctx, &dest)?;
     // Live-reload a running Hyprland session (best-effort, silenced).
     run("hyprctl reload 2>/dev/null");
-    Ok(())
-}
-
-fn apply_kitty(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    let dest = home.join(".config/kitty/coat-theme.conf");
-    render_to(tera, "kitty", ctx, &dest)?;
-    let path_str = dest.to_string_lossy();
-    let live_cmd = format!(
-        "kitty @ --to unix:/tmp/kitty set-colors --all --configured {} 2>/dev/null",
-        path_str
-    );
-    let live_ok = Command::new("sh")
-        .args(["-c", &live_cmd])
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false);
-    if !live_ok {
-        run("pkill -SIGUSR1 kitty 2>/dev/null");
-    }
     Ok(())
 }
 
@@ -1013,10 +984,6 @@ fn apply_vscode(scheme: &Scheme, config: &CoatConfig) -> Result<()> {
     apply_vscode_variant(scheme, config, "Code")
 }
 
-fn apply_code_oss(scheme: &Scheme, config: &CoatConfig) -> Result<()> {
-    apply_vscode_variant(scheme, config, "Code - OSS")
-}
-
 // ── Zed — handled directly (theme JSON + settings.json merge) ──────────────
 
 /// Build a Zed theme-family JSON document for the given scheme.
@@ -1025,6 +992,9 @@ fn apply_code_oss(scheme: &Scheme, config: &CoatConfig) -> Result<()> {
 // map it fills, so the map can be moved/inserted afterward — intentional, not a
 // no-op, despite clippy flagging the type as non-Drop.
 #[allow(clippy::drop_non_drop)]
+// Kept for the Windows build only: the Linux zed module was removed, but
+// windows.rs still themes Zed. Same pattern as apply_vesktop_shared above.
+#[cfg_attr(not(windows), allow(dead_code))]
 fn build_zed_theme(s: &Scheme) -> JsonValue {
     let h = |c: &str| format!("#{}", c);
     let ha = |c: &str, a: &str| format!("#{}{}", c, a);
@@ -1244,6 +1214,9 @@ fn build_zed_theme(s: &Scheme) -> JsonValue {
 /// Shared Zed apply logic. Works on any platform.
 /// Writes the theme family to `themes_dir/coat.json` and merges
 /// `settings.json` to select the "coat" theme (and font, if given).
+// Kept for the Windows build only: the Linux zed module was removed, but
+// windows.rs still themes Zed. Same pattern as apply_vesktop_shared above.
+#[cfg_attr(not(windows), allow(dead_code))]
 pub fn apply_zed_shared(
     scheme: &Scheme,
     settings_path: &Path,
@@ -1286,14 +1259,6 @@ pub fn apply_zed_shared(
     Ok(())
 }
 
-fn apply_zed(scheme: &Scheme, config: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    let settings_path = home.join(".config/zed/settings.json");
-    let themes_dir = home.join(".config/zed/themes");
-    let font = Some(config.font_monospace()).filter(|f| !f.is_empty());
-    apply_zed_shared(scheme, &settings_path, &themes_dir, font)
-}
-
 // ── Docs strings ───────────────────────────────────────────────────────────
 
 pub fn module_docs(name: &str) {
@@ -1315,11 +1280,6 @@ pub fn module_docs(name: &str) {
             println!("  fish_config theme save coat\n");
             println!("Or add to ~/.config/fish/config.fish:\n");
             println!("  fish_config theme choose coat");
-        }
-        "kitty" => {
-            println!("Add to ~/.config/kitty/kitty.conf:\n");
-            println!("  include coat-theme.conf\n");
-            println!("Then reload: Ctrl+Shift+F5");
         }
         "hyprland" => {
             println!("Add to ~/.config/hypr/hyprland.conf:\n");
@@ -1383,19 +1343,6 @@ pub fn module_docs(name: &str) {
             println!("The theme is automatically activated.\n");
             println!("If it doesn't appear, reload VSCode:");
             println!("  Ctrl+Shift+P → Reload Window");
-        }
-        "code-oss" => {
-            println!("Colors are written to ~/.config/Code - OSS/User/settings.json.\n");
-            println!("The theme is automatically activated.\n");
-            println!("If it doesn't appear, reload the window:");
-            println!("  Ctrl+Shift+P → Reload Window");
-        }
-        "zed" => {
-            println!("The 'coat' theme is written to ~/.config/zed/themes/coat.json");
-            println!("and selected automatically in settings.json.\n");
-            println!("Zed hot-reloads themes — no restart needed.\n");
-            println!("If it doesn't switch, set it manually:");
-            println!("  Ctrl+Shift+P → \"theme selector: toggle\" → coat");
         }
         "gtk" => {
             println!("Writes coat-theme.css into ~/.config/gtk-3.0 and gtk-4.0, and adds");

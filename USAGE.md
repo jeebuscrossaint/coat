@@ -33,7 +33,6 @@ prefer_base24: false           # prefer Base24 variant when available
 enabled:
   - fish
   - foot
-  - kitty
   - neovim
   - vscode
   - sway
@@ -53,12 +52,12 @@ font:
   serif:     "Ubuntu Serif"
   emoji:     "Noto Color Emoji"
   sizes:
-    terminal: 12   # foot, kitty, xresources
+    terminal: 12   # foot, xresources
     desktop:  10   # swaybar, btop, zathura
     popups:   10   # tofi, dunst
 
 opacity:
-  terminal:     0.95   # foot, kitty
+  terminal:     0.95   # foot
   applications: 1.0
   desktop:      1.0
   popups:       0.95   # dunst, gtklock, tofi backgrounds
@@ -80,17 +79,6 @@ fish_config theme save coat
 fish_config theme choose coat
 ```
 
-### kitty
-
-Writes `~/.config/kitty/coat-theme.conf`.
-
-```
-# Add to ~/.config/kitty/kitty.conf
-include coat-theme.conf
-```
-
-Reload: `Ctrl+Shift+F5`
-
 ### foot
 
 Writes `~/.config/foot/coat-theme.ini`.
@@ -106,10 +94,6 @@ Open a new window to apply.
 ### vscode
 
 Merges colors directly into `~/.config/Code/User/settings.json` (Linux) or `%APPDATA%\Code\User\settings.json` (Windows) via `workbench.colorCustomizations` and `editor.tokenColorCustomizations`. No extension install needed — changes take effect immediately.
-
-### zed
-
-Writes a theme family to `~/.config/zed/themes/coat.json` (Linux) or `%APPDATA%\Zed\themes\coat.json` (Windows) and selects it by merging `"theme": "coat"` into `settings.json`. Zed hot-reloads themes, so no restart is needed. If the theme doesn't switch, pick it via `Ctrl+Shift+P → "theme selector: toggle" → coat`.
 
 ### sway
 

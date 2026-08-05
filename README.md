@@ -60,7 +60,7 @@ coat random --dry       # preview a random pick without applying
 coat apply
 
 # Apply to a single app
-coat apply kitty
+coat apply foot
 ```
 
 ## Shell completions
@@ -99,7 +99,6 @@ prefer_base24: false
 
 enabled:
   - fish
-  - kitty
   - neovim
   - sway
   - swaybar
@@ -145,8 +144,8 @@ your current terminal. Already running elevated? No flag needed.
 
 | Category | Modules |
 |---|---|
-| Terminals | fish, foot, kitty |
-| Editors | neovim, vscode, code-oss, zed |
+| Terminals | fish, foot |
+| Editors | neovim, vscode |
 | WM / Compositors | sway, hyprland, labwc |
 | Bars | swaybar, waybar |
 | Screen locker | gtklock |
