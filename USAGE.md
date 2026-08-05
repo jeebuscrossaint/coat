@@ -108,17 +108,6 @@ include ~/.config/sway/coat-theme
 
 Writes `~/.config/labwc/themerc` and runs `labwc --reconfigure`. No manual step needed.
 
-### waybar
-
-Writes `~/.config/waybar/coat-theme.css` with `@define-color` variables.
-
-```css
-/* Add to ~/.config/waybar/style.css */
-@import "coat-theme.css";
-```
-
-Reload: `killall -SIGUSR2 waybar`
-
 ### swaybar
 
 Themes sway's built-in bar. Writes `~/.config/sway/coat-bar`.
@@ -214,15 +203,6 @@ bat cache --build
 Writes `~/.config/btop/themes/coat.theme`.
 
 In btop: `Esc` → Options → Color theme → **coat**
-
-### ranger
-
-Writes `~/.config/ranger/colorschemes/coat.py`.
-
-```
-# Add to ~/.config/ranger/rc.conf
-set colorscheme coat
-```
 
 ### zathura
 

@@ -46,17 +46,14 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("foot",      "foot.tera"),
     tpl!("gtk",       "gtk.tera"),
     tpl!("gtklock",   "gtklock.tera"),
-    tpl!("hyprland",  "hyprland.tera"),
     tpl!("labwc",     "labwc.tera"),
     tpl!("mpv",       "mpv.tera"),
     tpl!("neovim",    "neovim.tera"),
-    tpl!("ranger",    "ranger.tera"),
     tpl!("sway",      "sway.tera"),
     tpl!("swaybar",   "swaybar.tera"),
     tpl!("swayosd",   "swayosd.tera"),
     tpl!("tofi",      "tofi.tera"),
     tpl!("vesktop",   "vesktop.tera"),
-    tpl!("waybar",    "waybar.tera"),
     tpl!("xresources","xresources.tera"),
     tpl!("zathura",   "zathura.tera"),
 ];
@@ -257,16 +254,15 @@ fn run(cmd: &str) {
 // ── Module dispatch ────────────────────────────────────────────────────────
 
 pub const ALL_MODULES: &[&str] = &[
-    "bat", "btop", "dunst", "firefox", "fish", "foot", "gtk", "gtklock", "hyprland", "labwc",
-    "mpv", "neovim", "ranger", "sway", "swaybar", "swayosd", "tofi", "vesktop", "vscode",
-    "waybar", "xresources", "zathura",
+    "bat", "btop", "dunst", "firefox", "fish", "foot", "gtk", "gtklock", "labwc", "mpv",
+    "neovim", "sway", "swaybar", "swayosd", "tofi", "vesktop", "vscode", "xresources",
+    "zathura",
 ];
 
 pub fn module_aliases(name: &str) -> Option<&'static str> {
     match name {
         "vencord" | "discord" => Some("vesktop"),
         "nvim" | "vim" => Some("neovim"),
-        "hypr" => Some("hyprland"),
         "bar" | "swaybar-colors" => Some("swaybar"),
         _ => None,
     }
@@ -297,18 +293,15 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "foot"       => apply_foot(tera, &ctx, scheme, config),
         "gtk"        => apply_gtk(tera, &ctx, scheme, config),
         "gtklock"    => apply_gtklock(tera, &ctx, scheme, config),
-        "hyprland"   => apply_hyprland(tera, &ctx, scheme, config),
         "labwc"      => apply_labwc(tera, &ctx, scheme, config),
         "mpv"        => apply_mpv(tera, &ctx, scheme, config),
         "neovim"     => apply_neovim(tera, &ctx, scheme, config),
-        "ranger"     => apply_ranger(tera, &ctx, scheme, config),
         "sway"       => apply_sway(tera, &ctx, scheme, config),
         "swaybar"    => apply_swaybar(tera, &ctx, scheme, config),
         "swayosd"    => apply_swayosd(tera, &ctx, scheme, config),
         "tofi"       => apply_tofi(tera, &ctx, scheme, config),
         "vesktop"    => apply_vesktop(tera, &ctx, scheme, config),
         "vscode"     => apply_vscode(scheme, config),
-        "waybar"     => apply_waybar(tera, &ctx, scheme, config),
         "xresources" => apply_xresources(tera, &ctx, scheme, config),
         "zathura"    => apply_zathura(tera, &ctx, scheme, config),
         other        => bail!("Unknown module: {}", other),
@@ -427,15 +420,6 @@ fn apply_gtklock(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig)
         ("/*", " */"),
     )?;
     detail!("    Point gtklock at it: style=~/.config/gtklock/style.css in config.ini");
-    Ok(())
-}
-
-fn apply_hyprland(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    let dest = home.join(".config/hypr/coat-theme.conf");
-    render_to(tera, "hyprland", ctx, &dest)?;
-    // Live-reload a running Hyprland session (best-effort, silenced).
-    run("hyprctl reload 2>/dev/null");
     Ok(())
 }
 
@@ -610,14 +594,6 @@ fn apply_firefox(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig)
     Ok(())
 }
 
-fn apply_ranger(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    let dest = home.join(".config/ranger/colorschemes/coat.py");
-    render_to(tera, "ranger", ctx, &dest)?;
-    detail!("    Add to ~/.config/ranger/rc.conf: set colorscheme coat");
-    Ok(())
-}
-
 fn apply_sway(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
     let dest = home.join(".config/sway/coat-theme");
@@ -692,12 +668,6 @@ fn apply_vesktop(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig)
         render_to(tera, "vesktop", ctx, &dest)?;
     }
     Ok(())
-}
-
-fn apply_waybar(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    let dest = home.join(".config/waybar/coat-theme.css");
-    render_to(tera, "waybar", ctx, &dest)
 }
 
 fn apply_xresources(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
@@ -1006,11 +976,6 @@ pub fn module_docs(name: &str) {
             println!("Or add to ~/.config/fish/config.fish:\n");
             println!("  fish_config theme choose coat");
         }
-        "hyprland" => {
-            println!("Add to ~/.config/hypr/hyprland.conf:\n");
-            println!("  source = ~/.config/hypr/coat-theme.conf\n");
-            println!("Sets border + shadow colors. coat runs `hyprctl reload` automatically.");
-        }
         "neovim" => {
             println!("A colorscheme is written to:");
             println!("  $XDG_DATA_HOME/nvim/site/colors/coat.lua (default ~/.local/share/nvim/site/...)\n");
@@ -1127,12 +1092,6 @@ pub fn module_docs(name: &str) {
             println!("  Settings → Vencord → Themes → coat.theme.css\n");
             println!("Or restart if auto-loading is enabled.");
         }
-        "waybar" => {
-            println!("Add to the top of ~/.config/waybar/style.css:\n");
-            println!("  @import \"coat-theme.css\";\n");
-            println!("Or replace your entire style.css with coat-theme.css.\n");
-            println!("Then reload: pkill -SIGUSR2 waybar");
-        }
         "xresources" => {
             println!("Writes ~/.Xresources.coat and adds an #include for it to");
             println!("~/.Xresources on first apply, so your own DPI, cursor and per-app");
@@ -1143,11 +1102,6 @@ pub fn module_docs(name: &str) {
         "labwc" => {
             println!("Theme is applied automatically via labwc --reconfigure.\n");
             println!("If labwc is not running, start it and the theme will load.");
-        }
-        "ranger" => {
-            println!("Add to ~/.config/ranger/rc.conf:\n");
-            println!("  set colorscheme coat\n");
-            println!("Restart ranger to apply.");
         }
         other => {
             println!("The {} theme has been applied.", other);
