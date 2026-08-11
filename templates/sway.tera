@@ -24,10 +24,25 @@ set $base0E #{{ base0E }}
 set $base0F #{{ base0F }}
 
 # Window colors
+#
+# Deliberately diverges from the upstream base16-i3 template, which paints the
+# focused titlebar and frame with $base0D. base0D is the spec's blue slot, so
+# that made the accent blue-to-purple under every scheme regardless of the
+# scheme's own character. Here the frame is neutral instead: focus is signalled
+# by brightness (base05 vs base03) and the titlebar always matches the window
+# background, so it shifts tone with the scheme without ever clashing.
+#
+# Only base00, base03, base05 and base08 are used. base01/base02/base04/base06
+# are avoided on purpose — the spec calls them background/foreground ramp steps,
+# but plenty of published schemes (shades-of-purple, for one) fill them with
+# saturated ANSI colors, which would put a neon frame on unfocused windows.
+# base05-on-base00 and base03-on-base00 are the only pairs base16 actually
+# guarantees are legible, so the frame stays readable under any scheme.
+#
 # Property Name         Border  BG      Text    Indicator Child Border
-client.focused          $base0D $base0D $base00 $base0D   $base0D
-client.focused_inactive $base01 $base01 $base05 $base03   $base01
-client.unfocused        $base01 $base00 $base05 $base01   $base01
+client.focused          $base05 $base00 $base05 $base05   $base05
+client.focused_inactive $base03 $base00 $base05 $base03   $base03
+client.unfocused        $base03 $base00 $base03 $base03   $base03
 client.urgent           $base08 $base08 $base00 $base08   $base08
 client.placeholder      $base00 $base00 $base05 $base00   $base00
 client.background       $base07
