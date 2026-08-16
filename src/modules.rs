@@ -48,6 +48,7 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("gtk",       "gtk.tera"),
     tpl!("gtklock",   "gtklock.tera"),
     tpl!("labwc",     "labwc.tera"),
+    tpl!("mew",       "mew.tera"),
     tpl!("mpv",       "mpv.tera"),
     tpl!("neovim",    "neovim.tera"),
     tpl!("sway",      "sway.tera"),
@@ -256,7 +257,7 @@ fn run(cmd: &str) {
 
 pub const ALL_MODULES: &[&str] = &[
     "bat", "btop", "dunst", "dwl", "firefox", "fish", "foot", "gtk", "gtklock", "labwc",
-    "mpv",
+    "mew", "mpv",
     "neovim", "sway", "swaybar", "swayosd", "tofi", "vesktop", "vscode", "xresources",
     "zathura",
 ];
@@ -267,6 +268,7 @@ pub fn module_aliases(name: &str) -> Option<&'static str> {
         "nvim" | "vim" => Some("neovim"),
         "bar" | "swaybar-colors" => Some("swaybar"),
         "dwm" => Some("dwl"),
+        "dmenu" | "menu" => Some("mew"),
         _ => None,
     }
 }
@@ -298,6 +300,7 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "gtklock"    => apply_gtklock(tera, &ctx, scheme, config),
         "dwl"        => apply_dwl(tera, &ctx, scheme, config),
         "labwc"      => apply_labwc(tera, &ctx, scheme, config),
+        "mew"        => apply_mew(tera, &ctx, scheme, config),
         "mpv"        => apply_mpv(tera, &ctx, scheme, config),
         "neovim"     => apply_neovim(tera, &ctx, scheme, config),
         "sway"       => apply_sway(tera, &ctx, scheme, config),
@@ -455,6 +458,20 @@ fn apply_labwc(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -
     Ok(())
 }
 
+fn apply_mew(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    let dest = home.join(".config/mew/coat-colors.h");
+    render_to(tera, "mew", ctx, &dest)?;
+    // Same compile-time story as dwl: touch config.h so make does not skip the
+    // rebuild (mew.o depends on config.h, not on this header). Cheap -- mew is
+    // one translation unit -- and the next launcher invocation picks it up, so
+    // unlike dwl there is nothing to restart.
+    run("d=\"$HOME/dotfiles/linux/pkg/mew\"; [ -d \"$d\" ] || exit 0; \
+         [ -f \"$d/config.h\" ] || cp \"$d/config.def.h\" \"$d/config.h\"; \
+         touch \"$d/config.h\"; \
+         make -C \"$d\" >/dev/null 2>&1 || true");
+    Ok(())
+}
 fn apply_mpv(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
     let dest = home.join(".config/mpv/coat-theme.conf");
@@ -1131,6 +1148,11 @@ pub fn module_docs(name: &str) {
             println!("A running dwl is NOT restarted -- restart it yourself to see the");
             println!("change. Under wl-restart (wayland-socket-handover patch) that keeps");
             println!("your clients alive.");
+        }
+        "mew" => {
+            println!("Writes ~/.config/mew/coat-colors.h and rebuilds the mew tree.\n");
+            println!("mew is compile-time configured, so colours are a header the source");
+            println!("includes. No restart needed -- the next launch picks it up.");
         }
         "labwc" => {
             println!("Theme is applied automatically via labwc --reconfigure.\n");
