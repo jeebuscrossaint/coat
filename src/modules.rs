@@ -54,8 +54,10 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("sway",      "sway.tera"),
     tpl!("swaybar",   "swaybar.tera"),
     tpl!("swayosd",   "swayosd.tera"),
+    tpl!("tsubu",    "tsubu.tera"),
     tpl!("tofi",      "tofi.tera"),
     tpl!("vesktop",   "vesktop.tera"),
+    tpl!("wlock",    "wlock.tera"),
     tpl!("xresources","xresources.tera"),
     tpl!("zathura",   "zathura.tera"),
 ];
@@ -258,6 +260,7 @@ fn run(cmd: &str) {
 pub const ALL_MODULES: &[&str] = &[
     "bat", "btop", "dunst", "dwl", "firefox", "fish", "foot", "gtk", "gtklock", "labwc",
     "mew", "mpv",
+    "tsubu", "wlock",
     "neovim", "sway", "swaybar", "swayosd", "tofi", "vesktop", "vscode", "xresources",
     "zathura",
 ];
@@ -269,6 +272,8 @@ pub fn module_aliases(name: &str) -> Option<&'static str> {
         "bar" | "swaybar-colors" => Some("swaybar"),
         "dwm" => Some("dwl"),
         "dmenu" | "menu" => Some("mew"),
+        "notifications" => Some("tsubu"),
+        "lock" | "lockscreen" => Some("wlock"),
         _ => None,
     }
 }
@@ -301,6 +306,8 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "dwl"        => apply_dwl(tera, &ctx, scheme, config),
         "labwc"      => apply_labwc(tera, &ctx, scheme, config),
         "mew"        => apply_mew(tera, &ctx, scheme, config),
+        "tsubu"      => apply_tsubu(tera, &ctx, scheme, config),
+        "wlock"      => apply_wlock(tera, &ctx, scheme, config),
         "mpv"        => apply_mpv(tera, &ctx, scheme, config),
         "neovim"     => apply_neovim(tera, &ctx, scheme, config),
         "sway"       => apply_sway(tera, &ctx, scheme, config),
@@ -689,6 +696,32 @@ pub fn apply_vesktop_shared(scheme: &Scheme, config: &CoatConfig, path: &Path) -
     render_to(&tera, "vesktop", &ctx, path)
 }
 
+fn apply_tsubu(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    let dest = home.join(".config/tsubu/coat-colors.h");
+    render_to(tera, "tsubu", ctx, &dest)?;
+    // Compile-time configured, same as dwl and mew: touch config.h so make does
+    // not skip the rebuild (tsubu.o depends on config.h, not on this header).
+    // Nothing to restart: tsubu is daemonless, so the next notification is themed.
+    run("d=\"$HOME/dotfiles/linux/pkg/tsubu\"; [ -d \"$d\" ] || exit 0; \
+         [ -f \"$d/config.h\" ] || cp \"$d/config.def.h\" \"$d/config.h\"; \
+         touch \"$d/config.h\"; \
+         make -C \"$d\" >/dev/null 2>&1 || true");
+    Ok(())
+}
+fn apply_wlock(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    let dest = home.join(".config/wlock/coat-colors.h");
+    render_to(tera, "wlock", ctx, &dest)?;
+    // Compile-time configured, same as dwl and mew: touch config.h so make does
+    // not skip the rebuild (wlock.o depends on config.h, not on this header).
+    // Nothing to restart: wlock only runs while the screen is locked.
+    run("d=\"$HOME/dotfiles/linux/pkg/wlock\"; [ -d \"$d\" ] || exit 0; \
+         [ -f \"$d/config.h\" ] || cp \"$d/config.def.h\" \"$d/config.h\"; \
+         touch \"$d/config.h\"; \
+         make -C \"$d\" >/dev/null 2>&1 || true");
+    Ok(())
+}
 fn apply_vesktop(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
     let paths = [
@@ -1148,6 +1181,15 @@ pub fn module_docs(name: &str) {
             println!("A running dwl is NOT restarted -- restart it yourself to see the");
             println!("change. Under wl-restart (wayland-socket-handover patch) that keeps");
             println!("your clients alive.");
+        }
+        "tsubu" => {
+            println!("Writes ~/.config/tsubu/coat-colors.h and rebuilds the tsubu tree.\n");
+            println!("tsubu is daemonless -- nothing to restart, the next notification");
+            println!("is drawn with the new colours.");
+        }
+        "wlock" => {
+            println!("Writes ~/.config/wlock/coat-colors.h and rebuilds the wlock tree.\n");
+            println!("Nothing to restart; wlock only runs while the screen is locked.");
         }
         "mew" => {
             println!("Writes ~/.config/mew/coat-colors.h and rebuilds the mew tree.\n");
