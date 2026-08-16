@@ -40,6 +40,7 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("bat",       "bat.tera"),
     tpl!("btop",      "btop.tera"),
     tpl!("dunst",     "dunst.tera"),
+    tpl!("dwl",       "dwl.tera"),
     tpl!("firefox",   "firefox.tera"),
     tpl!("firefox_content", "firefox_content.tera"),
     tpl!("fish",      "fish.tera"),
@@ -254,7 +255,8 @@ fn run(cmd: &str) {
 // ── Module dispatch ────────────────────────────────────────────────────────
 
 pub const ALL_MODULES: &[&str] = &[
-    "bat", "btop", "dunst", "firefox", "fish", "foot", "gtk", "gtklock", "labwc", "mpv",
+    "bat", "btop", "dunst", "dwl", "firefox", "fish", "foot", "gtk", "gtklock", "labwc",
+    "mpv",
     "neovim", "sway", "swaybar", "swayosd", "tofi", "vesktop", "vscode", "xresources",
     "zathura",
 ];
@@ -264,6 +266,7 @@ pub fn module_aliases(name: &str) -> Option<&'static str> {
         "vencord" | "discord" => Some("vesktop"),
         "nvim" | "vim" => Some("neovim"),
         "bar" | "swaybar-colors" => Some("swaybar"),
+        "dwm" => Some("dwl"),
         _ => None,
     }
 }
@@ -293,6 +296,7 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "foot"       => apply_foot(tera, &ctx, scheme, config),
         "gtk"        => apply_gtk(tera, &ctx, scheme, config),
         "gtklock"    => apply_gtklock(tera, &ctx, scheme, config),
+        "dwl"        => apply_dwl(tera, &ctx, scheme, config),
         "labwc"      => apply_labwc(tera, &ctx, scheme, config),
         "mpv"        => apply_mpv(tera, &ctx, scheme, config),
         "neovim"     => apply_neovim(tera, &ctx, scheme, config),
@@ -423,6 +427,26 @@ fn apply_gtklock(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig)
     Ok(())
 }
 
+fn apply_dwl(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    let dest = home.join(".config/dwl/coat-colors.h");
+    render_to(tera, "dwl", ctx, &dest)?;
+    // dwl is configured at compile time, so a colour change is a rebuild. The
+    // tree picks this header up via -I$(HOME)/.config/dwl in config.mk, and
+    // config.def.h falls back to built-in colours if it is missing.
+    //
+    // We deliberately do NOT restart dwl here. With the wayland-socket-handover
+    // patch plus a wl-restart wrapper a restart is lossless, but without that
+    // wrapper killing dwl would take the whole session down -- far too rude for
+    // a theme change. Rebuild, and let the user restart when they choose.
+    // dwl.o depends on config.h, NOT on this header, so make would otherwise see
+    // nothing to do after a colour-only change. Touch config.h to force it.
+    run("d=\"$HOME/dotfiles/linux/pkg/dwl\"; [ -d \"$d\" ] || exit 0; \
+         [ -f \"$d/config.h\" ] || cp \"$d/config.def.h\" \"$d/config.h\"; \
+         touch \"$d/config.h\"; \
+         make -C \"$d\" >/dev/null 2>&1 || true");
+    Ok(())
+}
 fn apply_labwc(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
     let dest = home.join(".config/labwc/themerc");
@@ -1098,6 +1122,15 @@ pub fn module_docs(name: &str) {
             println!("settings there are preserved. Then merges automatically.\n");
             println!("To make permanent, add to ~/.xinitrc or ~/.xprofile:");
             println!("  xrdb -merge ~/.Xresources");
+        }
+        "dwl" => {
+            println!("Writes ~/.config/dwl/coat-colors.h and rebuilds the dwl tree.\n");
+            println!("dwl is configured at compile time, so the colours are a header the");
+            println!("source includes; config.def.h uses __has_include and falls back to");
+            println!("its built-in colours when the header is absent.\n");
+            println!("A running dwl is NOT restarted -- restart it yourself to see the");
+            println!("change. Under wl-restart (wayland-socket-handover patch) that keeps");
+            println!("your clients alive.");
         }
         "labwc" => {
             println!("Theme is applied automatically via labwc --reconfigure.\n");
