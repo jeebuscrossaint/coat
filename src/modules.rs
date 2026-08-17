@@ -716,7 +716,20 @@ fn apply_fnott(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -
     // fnott has no include mechanism, so coat owns the whole file -- geometry
     // included. Same arrangement as gtklock before it.
     render_to(tera, "fnott", ctx, &home.join(".config/fnott/fnott.ini"))?;
-    run("fnottctl reload 2>/dev/null || true");
+
+    // fnott has NO reload: fnottctl only does dismiss/actions/list/pause/quit,
+    // and SIGHUP kills it outright (tested). So it has to be restarted, and the
+    // restart has to happen here -- nothing else supervises it, since mango
+    // starts it from exec-once, which by design does not re-run on a reload.
+    //
+    // Doing it in one `sh -c` so the respawn cannot be orphaned if the kill
+    // succeeds and coat exits immediately afterwards; setsid detaches it from
+    // coat's process group so it outlives this command.
+    run("pgrep -x fnott >/dev/null 2>&1 || exit 0; \
+         pkill -x fnott; \
+         i=0; while pgrep -x fnott >/dev/null 2>&1 && [ $i -lt 20 ]; do \
+           sleep 0.1; i=$((i+1)); done; \
+         setsid fnott >/dev/null 2>&1 &");
     Ok(())
 }
 
