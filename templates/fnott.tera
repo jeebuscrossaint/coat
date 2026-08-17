@@ -6,9 +6,11 @@
 # file. Geometry lives in coat's templates/fnott.tera -- edits here are lost on
 # the next `coat set`.
 #
-# fnott's colours are ARGB with the alpha FIRST (aarrggbb), which is the opposite
-# of the rrggbbaa every other Wayland tool here uses. Getting it backwards gives
-# you a fully transparent popup rather than an error.
+# fnott's colours are RGBA -- alpha LAST (rrggbbaa), per fnott.ini(5): "in RGBA
+# format", default 3f5f3fff. I had this backwards on the first pass and wrote
+# alpha first, which meant `ff181818` was parsed as red ff, green 18, blue 18:
+# every notification came out pink. It is not an error either way, just wrong
+# colours, so the only way to catch it is to look.
 
 [main]
 notification-margin=8
@@ -22,13 +24,13 @@ max-height=200
 summary-font={{ font_monospace }}:size={{ font_size_popups }}
 body-font={{ font_monospace }}:size={{ font_size_popups }}
 {% endif %}
-background=ff{{ base00 }}
-border-color=ff{{ base03 }}
-title-color=ff{{ base0D }}
-summary-color=ff{{ base05 }}
-body-color=ff{{ base05 }}
+background={{ base00 }}ff
+border-color={{ base03 }}ff
+title-color={{ base0D }}ff
+summary-color={{ base05 }}ff
+body-color={{ base05 }}ff
 progress-bar-height=4
-progress-bar-color=ff{{ base0D }}
+progress-bar-color={{ base0D }}ff
 default-timeout=5
 idle-timeout=0
 anchor=top-right
@@ -36,17 +38,17 @@ stacking-order=top-down
 layer=overlay
 
 [low]
-title-color=ff{{ base03 }}
-border-color=ff{{ base03 }}
+title-color={{ base03 }}ff
+border-color={{ base03 }}ff
 default-timeout=3
 
 [normal]
-title-color=ff{{ base0D }}
-border-color=ff{{ base03 }}
+title-color={{ base0D }}ff
+border-color={{ base03 }}ff
 
 [critical]
-title-color=ff{{ base08 }}
-border-color=ff{{ base08 }}
-background=ff{{ base00 }}
+title-color={{ base08 }}ff
+border-color={{ base08 }}ff
+background={{ base00 }}ff
 # 0 = never expire. A critical notification you miss is one that did not happen.
 default-timeout=0
