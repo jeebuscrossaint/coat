@@ -44,19 +44,25 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("firefox",   "firefox.tera"),
     tpl!("firefox_content", "firefox_content.tera"),
     tpl!("fish",      "fish.tera"),
+    tpl!("fnott",     "fnott.tera"),
     tpl!("foot",      "foot.tera"),
     tpl!("gtk",       "gtk.tera"),
     tpl!("gtklock",   "gtklock.tera"),
     tpl!("labwc",     "labwc.tera"),
+    tpl!("mango",     "mango.tera"),
     tpl!("mew",       "mew.tera"),
     tpl!("mpv",       "mpv.tera"),
     tpl!("neovim",    "neovim.tera"),
     tpl!("sway",      "sway.tera"),
+    tpl!("swaylock",  "swaylock.tera"),
     tpl!("swaybar",   "swaybar.tera"),
     tpl!("swayosd",   "swayosd.tera"),
     tpl!("tsubu",    "tsubu.tera"),
     tpl!("tofi",      "tofi.tera"),
     tpl!("vesktop",   "vesktop.tera"),
+    tpl!("waybar",    "waybar.tera"),
+    tpl!("wmenu",     "wmenu.tera"),
+    tpl!("wob",       "wob.tera"),
     tpl!("wlock",    "wlock.tera"),
     tpl!("xresources","xresources.tera"),
     tpl!("zathura",   "zathura.tera"),
@@ -258,7 +264,8 @@ fn run(cmd: &str) {
 // ── Module dispatch ────────────────────────────────────────────────────────
 
 pub const ALL_MODULES: &[&str] = &[
-    "bat", "btop", "dunst", "dwl", "firefox", "fish", "foot", "gtk", "gtklock", "labwc",
+    "bat", "btop", "dunst", "dwl", "firefox", "fish", "fnott", "foot", "gtk", "gtklock",
+    "labwc", "mango", "swaylock", "waybar", "wmenu", "wob",
     "mew", "mpv",
     "tsubu", "wlock",
     "neovim", "sway", "swaybar", "swayosd", "tofi", "vesktop", "vscode", "xresources",
@@ -305,6 +312,12 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "gtklock"    => apply_gtklock(tera, &ctx, scheme, config),
         "dwl"        => apply_dwl(tera, &ctx, scheme, config),
         "labwc"      => apply_labwc(tera, &ctx, scheme, config),
+        "mango"      => apply_mango(tera, &ctx, scheme, config),
+        "fnott"      => apply_fnott(tera, &ctx, scheme, config),
+        "swaylock"   => apply_swaylock(tera, &ctx, scheme, config),
+        "waybar"     => apply_waybar(tera, &ctx, scheme, config),
+        "wmenu"      => apply_wmenu(tera, &ctx, scheme, config),
+        "wob"        => apply_wob(tera, &ctx, scheme, config),
         "mew"        => apply_mew(tera, &ctx, scheme, config),
         "tsubu"      => apply_tsubu(tera, &ctx, scheme, config),
         "wlock"      => apply_wlock(tera, &ctx, scheme, config),
@@ -677,6 +690,93 @@ fn apply_swayosd(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig)
     run("pkill -x swayosd-server 2>/dev/null || exit 0; \
          sleep 2; \
          pgrep -x swayosd-server >/dev/null || exec swayosd-server");
+    Ok(())
+}
+
+fn apply_mango(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    let dir = home.join(".config/mango");
+    render_to(tera, "mango", ctx, &dir.join("coat-colors.conf"))?;
+
+    // mango's `source=` takes a path, not a relative include, and it does not
+    // expand ~ -- so the absolute path has to be written out.
+    let line = format!("source={}/coat-colors.conf", dir.display());
+    ensure_include(&dir.join("config.conf"), &line, ("#", ""))?;
+
+    // The payoff for moving off dwl: mango's config is runtime, so a scheme
+    // change recolours a LIVE session. dwl had to be rebuilt and restarted, which
+    // meant losing every window and (because its autostart re-ran) its audio.
+    //
+    // reload_config re-reads the whole config, which re-runs `exec=` lines but
+    // NOT `exec-once=` -- daemons are left alone by design.
+    run("mmsg dispatch reload_config 2>/dev/null || true");
+    Ok(())
+}
+
+fn apply_fnott(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    // fnott has no include mechanism, so coat owns the whole file -- geometry
+    // included. Same arrangement as gtklock before it.
+    render_to(tera, "fnott", ctx, &home.join(".config/fnott/fnott.ini"))?;
+    run("fnottctl reload 2>/dev/null || true");
+    Ok(())
+}
+
+fn apply_swaylock(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    // No include mechanism here either, so coat owns the file. Nothing to
+    // reload: swaylock reads it fresh at every invocation, so the next lock is
+    // already themed. This is why swaylock replaced gtklock, which needed its
+    // whole config owned AND a running instance killed.
+    render_to(tera, "swaylock", ctx, &home.join(".config/swaylock/config"))
+}
+
+fn apply_waybar(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    let dir = home.join(".config/waybar");
+    render_to(tera, "waybar", ctx, &dir.join("coat-colors.css"))?;
+
+    // GTK CSS requires every @import at the TOP of the file, before any rule --
+    // an @import after a selector is silently dropped, which would look exactly
+    // like coat not working. ensure_include prepends, so this is safe.
+    ensure_include(&dir.join("style.css"), "@import \"coat-colors.css\";", ("/*", "*/"))?;
+
+    // SIGUSR2 is waybar's reload signal. SIGUSR1 toggles visibility -- sending
+    // that instead makes the bar vanish and reads as a crash.
+    run("pkill -SIGUSR2 -x waybar 2>/dev/null || true");
+    Ok(())
+}
+
+fn apply_wmenu(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    // wmenu has NO config file -- colours and font are command-line flags. So
+    // what gets written is a shell fragment, sourced by ~/.local/bin/menu and
+    // menu-run, which are what the compositor binds. Nothing to reload: the next
+    // launcher invocation sources the new colours.
+    //
+    // (wmenu ships its own wmenu-run, but it calls plain `wmenu` and therefore
+    // ignores all of this, which is why the wrappers exist.)
+    render_to(tera, "wmenu", ctx, &home.join(".config/wmenu/coat-flags"))
+}
+
+fn apply_wob(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    // No include mechanism, so coat owns the file including geometry.
+    render_to(tera, "wob", ctx, &home.join(".config/wob/wob.ini"))?;
+
+    // wob reads its config once at startup, so it has to be restarted, and
+    // killing wob alone is not enough: under `tail -f fifo | wob` the tail is
+    // blocked on a read and only notices the broken pipe when it next writes, so
+    // the pipeline sits there with no wob and the OSD stays gone until something
+    // pushes a byte through the FIFO.
+    //
+    // ~/.local/bin/wob-osd owns that problem. It records its pid and restarts
+    // the whole pipeline on SIGUSR1, so this is one signal to one known pid --
+    // no `pkill -f` pattern, which would also match the shell spawned to run it
+    // and kill itself. If the supervisor is not running, do nothing rather than
+    // leave a dead OSD behind.
+    run("p=\"${XDG_RUNTIME_DIR:-/tmp}/wob-osd.pid\"; \
+         [ -r \"$p\" ] && kill -USR1 \"$(cat \"$p\")\" 2>/dev/null; true");
     Ok(())
 }
 
