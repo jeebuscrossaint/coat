@@ -19,18 +19,35 @@
 #define COAT_BASE03 0x{{ base03 | lower }}ff
 #define COAT_BASE05 0x{{ base05 | lower }}ff
 #define COAT_BASE08 0x{{ base08 | lower }}ff
+#define COAT_BASE0D 0x{{ base0D | lower }}ff
 
-/* fg, bg, border -- consumed by colors[][3] in config.def.h */
-#define COAT_NORM_FG     COAT_BASE03
+/* fg, bg, border -- consumed by colors[][3] in config.def.h.
+ *
+ * These three elements serve two different consumers, which is why fg and
+ * border disagree: the BAR uses fg/bg (status text, layout symbol, tag
+ * numbers, window title), while WINDOW BORDERS use only the border element.
+ * So each is matched to its sway counterpart independently -- fg follows the
+ * swaybar module, border follows the sway module's client.* mapping.
+ *
+ * Backgrounds stay at base00 throughout, as in the swaybar module: tags render
+ * as bare accent-coloured numbers rather than filled pills.
+ */
+
+/* status text, layout symbol, unselected tags, unfocused title (swaybar
+ * statusline is base05); border is the unfocused window frame (base03) */
+#define COAT_NORM_FG     COAT_BASE05
 #define COAT_NORM_BG     COAT_BASE00
 #define COAT_NORM_BORDER COAT_BASE03
 
-#define COAT_SEL_FG      COAT_BASE05
+/* selected tag and focused title take the accent, matching swaybar's
+ * focused_workspace; the border stays base05, matching client.focused */
+#define COAT_SEL_FG      COAT_BASE0D
 #define COAT_SEL_BG      COAT_BASE00
 #define COAT_SEL_BORDER  COAT_BASE05
 
-#define COAT_URG_FG      COAT_BASE00
-#define COAT_URG_BG      COAT_BASE08
+/* urgent: base08 text on base00, not a filled block */
+#define COAT_URG_FG      COAT_BASE08
+#define COAT_URG_BG      COAT_BASE00
 #define COAT_URG_BORDER  COAT_BASE08
 
 /* root (the desktop behind the windows) -- COLOR() wants floats, so give the
