@@ -62,7 +62,6 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("vesktop",   "vesktop.tera"),
     tpl!("waybar",    "waybar.tera"),
     tpl!("wmenu",     "wmenu.tera"),
-    tpl!("wob",       "wob.tera"),
     tpl!("wlock",    "wlock.tera"),
     tpl!("xresources","xresources.tera"),
     tpl!("zathura",   "zathura.tera"),
@@ -265,7 +264,7 @@ fn run(cmd: &str) {
 
 pub const ALL_MODULES: &[&str] = &[
     "bat", "btop", "dunst", "dwl", "firefox", "fish", "fnott", "foot", "gtk", "gtklock",
-    "labwc", "mango", "swaylock", "waybar", "wmenu", "wob",
+    "labwc", "mango", "swaylock", "waybar", "wmenu",
     "mew", "mpv",
     "tsubu", "wlock",
     "neovim", "sway", "swaybar", "swayosd", "tofi", "vesktop", "vscode", "xresources",
@@ -317,7 +316,6 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "swaylock"   => apply_swaylock(tera, &ctx, scheme, config),
         "waybar"     => apply_waybar(tera, &ctx, scheme, config),
         "wmenu"      => apply_wmenu(tera, &ctx, scheme, config),
-        "wob"        => apply_wob(tera, &ctx, scheme, config),
         "mew"        => apply_mew(tera, &ctx, scheme, config),
         "tsubu"      => apply_tsubu(tera, &ctx, scheme, config),
         "wlock"      => apply_wlock(tera, &ctx, scheme, config),
@@ -757,27 +755,6 @@ fn apply_wmenu(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -
     // (wmenu ships its own wmenu-run, but it calls plain `wmenu` and therefore
     // ignores all of this, which is why the wrappers exist.)
     render_to(tera, "wmenu", ctx, &home.join(".config/wmenu/coat-flags"))
-}
-
-fn apply_wob(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    // No include mechanism, so coat owns the file including geometry.
-    render_to(tera, "wob", ctx, &home.join(".config/wob/wob.ini"))?;
-
-    // wob reads its config once at startup, so it has to be restarted, and
-    // killing wob alone is not enough: under `tail -f fifo | wob` the tail is
-    // blocked on a read and only notices the broken pipe when it next writes, so
-    // the pipeline sits there with no wob and the OSD stays gone until something
-    // pushes a byte through the FIFO.
-    //
-    // ~/.local/bin/wob-osd owns that problem. It records its pid and restarts
-    // the whole pipeline on SIGUSR1, so this is one signal to one known pid --
-    // no `pkill -f` pattern, which would also match the shell spawned to run it
-    // and kill itself. If the supervisor is not running, do nothing rather than
-    // leave a dead OSD behind.
-    run("p=\"${XDG_RUNTIME_DIR:-/tmp}/wob-osd.pid\"; \
-         [ -r \"$p\" ] && kill -USR1 \"$(cat \"$p\")\" 2>/dev/null; true");
-    Ok(())
 }
 
 fn apply_tofi(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {

@@ -39,8 +39,46 @@ window#waybar {
   color: #{{ base0D }};
 }
 
-#custom-slstatus {
+#mpris,
+#network,
+#disk,
+#cpu,
+#memory,
+#temperature,
+#custom-fan,
+#backlight,
+#wireplumber,
+#battery,
+#custom-uptime {
+  background: #{{ base00 }};
   color: #{{ base05 }};
+}
+
+#clock {
+  background: #{{ base00 }};
+  color: #{{ base0D }};
+}
+
+/* States. This is what a single slstatus text blob could not do. */
+#mpris.paused,
+#mpris.stopped,
+#wireplumber.muted {
+  color: #{{ base03 }};
+}
+
+#battery.warning {
+  color: #{{ base0A }};
+}
+
+#battery.critical,
+#temperature.critical,
+#network.disconnected {
+  color: #{{ base08 }};
+}
+
+#battery.charging,
+#battery.full {
+  color: #{{ base0B }};
 }
 
 #mode {
