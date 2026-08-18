@@ -17,8 +17,18 @@
 {% endif %}
 }
 
+/* Slightly translucent, not solid. Under wayfire this is what the blur shows through
+ * -- an opaque bar would frost nothing, because blur only affects what is BEHIND a
+ * surface. Under mango and labwc, which have no blur, this reads as a subtle tint of
+ * the wallpaper and is still fully legible because base05 on base00 is the guaranteed
+ * pair.
+ *
+ * rgba() and NOT #rrggbbaa: GTK's CSS parser has no 8-digit hex form and rejects the
+ * whole declaration with "Junk at end of value", which takes the entire stylesheet
+ * down with it -- the bar came up completely unstyled. The r/g/b filters exist for
+ * exactly this. */
 window#waybar {
-  background: #{{ base00 }};
+  background: rgba({{ base00 | r }}, {{ base00 | g }}, {{ base00 | b }}, 0.90);
   color: #{{ base05 }};
 }
 
@@ -71,6 +81,38 @@ window#waybar {
 #taskbar button.active {
   color: #{{ base0D }};
 }
+
+/* The dock (the second bar, name="dock"). Slightly more transparent than the top bar:
+ * under wayfire it sits on blurred wallpaper, and the frosted look needs the colour to
+ * be a tint over that rather than a solid slab. Geometry is in style.css. */
+/* The dock window is TRANSPARENT: it spans the whole output, so tinting it would give
+ * a second full-width bar. The frosted slab is the inner #taskbar container, which is
+ * only as wide as its icons. */
+#waybar.dock {
+  background: transparent;
+  color: #{{ base05 }};
+}
+
+#waybar.dock #taskbar {
+  background: rgba({{ base00 | r }}, {{ base00 | g }}, {{ base00 | b }}, 0.70);
+}
+
+#waybar.dock #taskbar button {
+  background: transparent;
+  color: #{{ base05 }};
+}
+
+#waybar.dock #taskbar button:hover {
+  background: rgba({{ base03 | r }}, {{ base03 | g }}, {{ base03 | b }}, 0.35);
+}
+
+/* The active-app underline. base0D so it matches the accent used for the active
+ * workspace in both compositors' tag rows. */
+#waybar.dock #taskbar button.active {
+  background: rgba({{ base03 | r }}, {{ base03 | g }}, {{ base03 | b }}, 0.25);
+  border-color: #{{ base0D }};
+}
+
 
 #mpris,
 #network,
