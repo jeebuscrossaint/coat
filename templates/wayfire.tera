@@ -22,18 +22,31 @@
 # base03 on base00, and base01/02/04/06 are avoided because plenty of schemes leave them
 # at unreadable contrast. Everything below is therefore base00 grounds with base05 text.
 
-# ── titlebars ────────────────────────────────────────────────────────────────
-# base00 for both states, matching the unified titlebar the labwc session uses: the
-# window edge is drawn by the border and the shadow, not by a contrasting title strip.
-# Inactive is the same colour at ~80% alpha, which is the only way to distinguish the
-# two here -- wayfire's decoration plugin has ONE font_color for both states, so an
-# inactive titlebar cannot dim its text the way labwc's can.
+# ── titlebars (pixdecor) ─────────────────────────────────────────────────────
+# pixdecor is a third-party plugin that replaces wayfire's built-in decorator, and it is
+# what gives the wayfire session rounded corners, drop shadows and left-side buttons --
+# none of which the built-in one can do. Its section is [pixdecor]; the [decoration]
+# keys further down are kept for the case where pixdecor is not built.
 #
-# The traffic-light colours are deliberately absent: they are hardcoded in wayfire's
-# C++ and only drawn on hover. See THIRD-PARTY.md in the dotfiles for that whole story.
-decoration  active_color    \#{{ base00 }}ff
-decoration  inactive_color  \#{{ base00 }}cc
-decoration  font_color      \#{{ base05 }}ff
+# fg_* is the FOCUSED window, bg_* the unfocused one (foreground/background window, not
+# foreground/background colour -- worth reading twice). Unlike wayfire's built-in
+# decorator, pixdecor has separate text colours for the two states, so an unfocused
+# titlebar can dim its title the way labwc's does.
+pixdecor  fg_color        \#{{ base00 }}ff
+pixdecor  bg_color        \#{{ base00 }}cc
+pixdecor  fg_text_color   \#{{ base05 }}ff
+pixdecor  bg_text_color   \#{{ base03 }}ff
+pixdecor  button_color    \#{{ base05 }}ff
+
+# Black with alpha, deliberately not a palette colour: a shadow is an absence of light,
+# and base00 would make it invisible on a light scheme. Same reasoning as labwc's.
+pixdecor  shadow_color    \#00000080
+
+# NOTE there are deliberately no [decoration] edits. pixdecor replaces wayfire's
+# built-in decorator and `decoration` is not in the session's core/plugins, so patching
+# that section would write keys nothing reads. If pixdecor ever has to be abandoned, add
+# `decoration` back to core/plugins, add a [decoration] section, and restore the
+# active_color/inactive_color/font_color edits here.
 
 # ── exposé / mission control ─────────────────────────────────────────────────
 # The scale overlay dims the desktop behind the spread windows, so it wants the
