@@ -1016,9 +1016,26 @@ fn apply_waybar(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) 
     // like coat not working. ensure_include prepends, so this is safe.
     ensure_include(&dir.join("style.css"), "@import \"coat-colors.css\";", ("/*", "*/"))?;
 
-    // SIGUSR2 is waybar's reload signal. SIGUSR1 toggles visibility -- sending
-    // that instead makes the bar vanish and reads as a crash.
-    run("pkill -SIGUSR2 -x waybar 2>/dev/null || true");
+    // RESTART waybar; do NOT send SIGUSR2.
+    //
+    // SIGUSR2 is waybar's documented reload signal and it CRASHES waybar 0.15.0:
+    //
+    //     GLib-GIO:ERROR ../glib/gio/gapplicationimpl-dbus.c:851:
+    //     g_application_impl_command_line: assertion failed: (object_id != 0)
+    //     Bail out!
+    //
+    // That is an abort, not an error return, so the bar simply disappears. Reproduced
+    // 2026-08-18 by sending five SIGUSR2s in a row: waybar died on the reload and left a
+    // pile of unreaped children behind. It is the reason "waybar just dies sometimes" --
+    // it dies on a theme change, because this is the line that ran.
+    //
+    // SIGUSR1 (toggle visibility) is unaffected and still safe; four in a row changed
+    // nothing. Only the reload path is broken.
+    //
+    // Restart only if it was already running, so `coat set` outside a session does not
+    // start a bar with nowhere to draw. setsid detaches it, otherwise it dies with coat.
+    run("pgrep -x waybar >/dev/null 2>&1 && { pkill -x waybar; sleep 0.3; \
+         setsid waybar >/dev/null 2>&1 & } ; true");
     Ok(())
 }
 
