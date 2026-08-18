@@ -49,6 +49,7 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("gtk",       "gtk.tera"),
     tpl!("gtklock",   "gtklock.tera"),
     tpl!("labwc",     "labwc.tera"),
+    tpl!("labwc-button", "labwc-button.svg.tera"),
     tpl!("mango",     "mango.tera"),
     tpl!("mew",       "mew.tera"),
     tpl!("mpv",       "mpv.tera"),
@@ -468,10 +469,70 @@ fn apply_dwl(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> 
          make -C \"$d\" >/dev/null 2>&1 || true");
     Ok(())
 }
-fn apply_labwc(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+fn apply_labwc(tera: &Tera, ctx: &tera::Context, s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
-    let dest = home.join(".config/labwc/themerc");
-    render_to(tera, "labwc", ctx, &dest)?;
+    // A THEME DIRECTORY, not ~/.config/labwc/themerc.
+    //
+    // This used to write ~/.config/labwc/themerc, and labwc silently ignored it --
+    // every generated labwc theme was dead on arrival. labwc only reads `themerc`
+    // from a theme directory (the list is in labwc-theme(5)); what it reads out of
+    // the config directory is `themerc-override`. Verified 2026-08-17 against
+    // labwc 0.20.1: with themerc in the config dir the built-in light theme was
+    // rendered, and the same file as themerc-override applied immediately.
+    //
+    // A theme directory rather than themerc-override because a theme directory is
+    // also where labwc looks for BUTTON IMAGES. The titlebar buttons ship in the
+    // dotfiles as 1-bit xbm masks next to this file, and labwc fills them with the
+    // per-button colours rendered below -- so the macOS-style traffic lights follow
+    // the scheme. From the config directory the colours applied but the images did
+    // not, leaving labwc's built-in glyphs tinted red/amber/green.
+    //
+    // Requires <theme><name>coat</name></theme> in rc.xml, which is what selects
+    // this directory.
+    let dir = home.join(".local/share/themes/coat/labwc");
+    render_to(tera, "labwc", ctx, &dir.join("themerc"))?;
+
+    // Anti-aliased titlebar buttons.
+    //
+    // The xbm masks stowed into this directory work and follow the scheme, but xbm is
+    // ONE BIT per pixel, so a 13px disc is visibly octagonal. png/svg are rendered
+    // properly anti-aliased -- at the cost that labwc does not recolour them ("one
+    // advantage of xbm buttons over other formats is that they change color based on
+    // the theme", labwc-theme(5)). So the colour is baked in HERE instead, which keeps
+    // the lights following the scheme and gets smooth edges.
+    //
+    // The naming is labwc's and is not optional: png/svg buttons need the "-active"
+    // and "-inactive" suffixes, and an unsuffixed close.svg is simply never looked up
+    // (verified 2026-08-17 -- it silently fell back to labwc's built-in glyph). svg
+    // beats xbm in the lookup, so the xbm files stay as a fallback for a labwc built
+    // without librsvg.
+    //
+    // Inactive windows grey their lights out and reveal the colour on hover, matching
+    // macOS; that is why _hover-inactive gets the live colour rather than the grey.
+    let lights: [(&str, &str); 4] = [
+        ("close", &s.base08),
+        ("iconify", &s.base0a),
+        ("max", &s.base0b),
+        ("max_toggled", &s.base0b),
+    ];
+    for (name, colour) in lights {
+        for (suffix, fill) in [
+            ("-active", colour),
+            ("-inactive", s.base03.as_str()),
+            ("_hover-active", colour),
+            ("_hover-inactive", colour),
+        ] {
+            let mut bctx = ctx.clone();
+            bctx.insert("fill", &fill);
+            render_to(
+                tera,
+                "labwc-button",
+                &bctx,
+                &dir.join(format!("{}{}.svg", name, suffix)),
+            )?;
+        }
+    }
+
     run("labwc --reconfigure 2>/dev/null; true");
     Ok(())
 }

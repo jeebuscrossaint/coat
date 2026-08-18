@@ -26,12 +26,19 @@ border.width: 1
 # makes them red/amber/green -- and it comes from the scheme, so they re-colour with
 # everything else. base08/0A/0B are base16's semantic red/yellow/green, which is
 # exactly what this needs.
+#
+# ORDER MATTERS HERE. themerc is applied top to bottom and the UNQUALIFIED
+# `button.unpressed.image.color` sets every button, so it has to come FIRST and act
+# as the default -- with it last it silently overwrote all three traffic lights and
+# they rendered as three identical base05 discs. That is not obvious from the file:
+# nothing warns, the specific keys are accepted, and the result just looks wrong.
+# The unqualified line is also what colours any button the layout adds later
+# (menu, shade, desk).
+window.active.button.unpressed.image.color: #{{ base05 }}
 window.active.button.close.unpressed.image.color: #{{ base08 }}
 window.active.button.iconify.unpressed.image.color: #{{ base0A }}
 window.active.button.max.unpressed.image.color: #{{ base0B }}
 window.active.button.max_toggled.unpressed.image.color: #{{ base0B }}
-# Any button not named above (menu, shade, desk) if the layout ever adds one.
-window.active.button.unpressed.image.color: #{{ base05 }}
 
 # Pressed: the accent, so a click reads as a click on every button.
 window.active.button.close.pressed.image.color: #{{ base0D }}
