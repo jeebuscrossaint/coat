@@ -30,6 +30,39 @@ window#waybar {
   color: #{{ base03 }};
 }
 
+/* labwc's workspaces (ext-workspace-v1). Colour mirrors what mango-tags emits for
+ * the tag row, so the two compositors' bars read the same:
+ *
+ *   inactive  base03  dim, present but receding
+ *   active    base0D  the accent
+ *   urgent    base08  the red
+ *
+ * base03 and base05 on base00 are the only text pairs trusted here (see the header
+ * note); base01/02/04/06 are skipped deliberately.
+ *
+ * `background: transparent` on the button, not base00: GTK paints its own button
+ * background over the bar's, and a solid base00 would defeat any future bar
+ * transparency. Geometry for these lives in style.css. */
+#workspaces button {
+  background: transparent;
+  color: #{{ base03 }};
+}
+
+#workspaces button.active {
+  color: #{{ base0D }};
+}
+
+#workspaces button.urgent {
+  color: #{{ base08 }};
+}
+
+/* .hidden is a workspace that exists but is not on any output. Same treatment as
+ * inactive rather than invisible -- a number vanishing from the row and a number
+ * going dim look very different when you are trying to find a window. */
+#workspaces button.hidden {
+  color: #{{ base03 }};
+}
+
 #taskbar button {
   background: #{{ base00 }};
   color: #{{ base0D }};
