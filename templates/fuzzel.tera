@@ -1,0 +1,47 @@
+# coat fuzzel theme: {{ scheme_name }}
+# {{ scheme_author }}
+{% if scheme_variant %}# variant: {{ scheme_variant }}{% endif %}
+#
+# An edit list, not a config file — same mechanism as templates/wayfire.tera:
+#
+#     <section>  <key>  <value>
+#
+# coat patches these keys into the user's ~/.config/fuzzel/fuzzel.ini in place. fuzzel
+# has no include directive, and fuzzel.ini also holds behaviour that is not coat's
+# business (font, width, lines, terminal, the keybindings), so owning the whole file
+# would mean owning those too.
+#
+# COLOURS HAVE NO LEADING '#' HERE, and that is unique to fuzzel among everything coat
+# themes. The format is rrggbbaa — eight hex digits, alpha included, bare. Writing
+# `#1a1a1aff` gets the whole value rejected.
+#
+# Palette discipline as everywhere else: base05 text on base00, base03 for anything
+# secondary, base0D for the accent, and nothing from base01/02/04/06 because plenty of
+# schemes leave those at unreadable contrast.
+
+# ── the list itself ──────────────────────────────────────────────────────────
+# background   the whole surface
+# text         an unselected entry
+# match        the characters of your query highlighted inside each entry, so this is
+#              the accent — it is the one thing on screen telling you why a result
+#              matched
+# selection*   the highlighted row, inverted: accent ground with the base00 behind it
+#              as the text, which is the same treatment the wmenu module used and the
+#              only pairing guaranteed legible on every scheme
+colors  background         {{ base00 }}f2
+colors  text               {{ base05 }}ff
+colors  match              {{ base0D }}ff
+colors  selection          {{ base0D }}ff
+colors  selection-text     {{ base00 }}ff
+colors  selection-match    {{ base00 }}ff
+colors  prompt             {{ base03 }}ff
+colors  placeholder        {{ base03 }}ff
+colors  input              {{ base05 }}ff
+colors  message            {{ base03 }}ff
+
+# The border colour lives in [colors], NOT in [border] -- [border] only takes width,
+# radius and selection-radius. `[border] color` is rejected outright, and there is no
+# `counter` key either (fuzzel's [colors] is: background text message prompt placeholder
+# input match selection selection-text selection-match border). Both were wrong here
+# first time and `fuzzel --check-config` is what caught them.
+colors  border             {{ base0D }}ff

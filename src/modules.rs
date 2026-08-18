@@ -45,6 +45,7 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("firefox_content", "firefox_content.tera"),
     tpl!("fish",      "fish.tera"),
     tpl!("fnott",     "fnott.tera"),
+    tpl!("fuzzel",    "fuzzel.tera"),
     tpl!("foot",      "foot.tera"),
     tpl!("gtk",       "gtk.tera"),
     tpl!("gtklock",   "gtklock.tera"),
@@ -266,7 +267,7 @@ fn run(cmd: &str) {
 
 pub const ALL_MODULES: &[&str] = &[
     "bat", "btop", "dunst", "dwl", "firefox", "fish", "fnott", "foot", "gtk", "gtklock",
-    "labwc", "mango", "swaylock", "waybar", "wayfire", "wmenu",
+    "fuzzel", "labwc", "mango", "swaylock", "waybar", "wayfire", "wmenu",
     "mew", "mpv",
     "tsubu", "wlock",
     "neovim", "sway", "swaybar", "swayosd", "tofi", "vesktop", "vscode", "xresources",
@@ -316,6 +317,7 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "wayfire"    => apply_wayfire(tera, &ctx, scheme, config),
         "mango"      => apply_mango(tera, &ctx, scheme, config),
         "fnott"      => apply_fnott(tera, &ctx, scheme, config),
+        "fuzzel"     => apply_fuzzel(tera, &ctx, scheme, config),
         "swaylock"   => apply_swaylock(tera, &ctx, scheme, config),
         "waybar"     => apply_waybar(tera, &ctx, scheme, config),
         "wmenu"      => apply_wmenu(tera, &ctx, scheme, config),
@@ -557,36 +559,44 @@ fn apply_wayfire(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig)
         .render("wayfire", ctx)
         .context("Failed to render template 'wayfire'")?;
 
-    let mut edits: Vec<(String, String, String)> = Vec::new();
+    let edits = parse_ini_edits(&rendered);
+    patch_ini_in_place(&dest, &edits)?;
+    // No reload command: wayfire watches its config file and applies changes live.
+    detail!("  ✓ {}", dest.display());
+    Ok(())
+}
+
+/// Parse a rendered edit-list template into (section, key, value) triples.
+///
+/// The format is one `<section> <key> <value>` per line, with blank lines and `#`
+/// comments ignored. Used by the modules whose target config has no include directive
+/// but is still hand-maintained, so coat must patch keys rather than write a file.
+///
+/// split_whitespace, NOT splitn(3, char::is_whitespace): the templates align their
+/// columns with runs of spaces, and splitn treats every single space as a separator --
+/// which yielded an empty key and a value of "active_color    \#2E2E2Eff", and appended
+/// lines like `= background_color` to the user's config.
+fn parse_ini_edits(rendered: &str) -> Vec<(String, String, String)> {
+    let mut edits = Vec::new();
     for line in rendered.lines() {
         let line = line.trim();
         if line.is_empty() || line.starts_with('#') {
             continue;
         }
-        // split_whitespace, NOT splitn(3, char::is_whitespace): the template aligns its
-        // columns with runs of spaces, and splitn treats each single space as a
-        // separator -- so the key came back empty and the value came back as
-        // "active_color    \#2E2E2Eff". The symptom was lines like `= background_color`
-        // being appended to wayfire.ini, which is a good reminder that this patcher
-        // will happily write nonsense if handed nonsense.
         let mut parts = line.split_whitespace();
         match (parts.next(), parts.next()) {
             (Some(section), Some(key)) => {
                 let value = parts.collect::<Vec<_>>().join(" ");
                 if value.is_empty() {
-                    detail!("  warning: wayfire edit has no value: {}", line);
+                    detail!("  warning: edit has no value: {}", line);
                 } else {
                     edits.push((section.to_string(), key.to_string(), value));
                 }
             }
-            _ => detail!("  warning: unparseable wayfire edit: {}", line),
+            _ => detail!("  warning: unparseable edit: {}", line),
         }
     }
-
-    patch_ini_in_place(&dest, &edits)?;
-    // No reload command: wayfire watches its config file and applies changes live.
-    detail!("  ✓ {}", dest.display());
-    Ok(())
+    edits
 }
 
 /// Set `key = value` inside `[section]` of an INI file, preserving everything else.
@@ -656,9 +666,14 @@ fn patch_ini_in_place(path: &Path, edits: &[(String, String, String)]) -> Result
             if let Some((_, _, value)) =
                 edits.iter().find(|(s, k, _)| *s == section && k == key)
             {
-                let indent: String =
-                    line.chars().take_while(|c| c.is_whitespace()).collect();
-                out.push(format!("{}{} = {}", indent, key, value));
+                // Preserve the file's own spacing convention instead of imposing
+                // `key = value`. wayfire.ini writes `key = value`; fuzzel.ini writes
+                // `key=value`, and a tool that "fixes" that on every theme change
+                // produces a diff in the user's config for no reason. Everything up to
+                // and including the '=' is kept verbatim, and a space is re-added after
+                // it only if the original had one.
+                let sep = if line[eq + 1..].starts_with(' ') { " " } else { "" };
+                out.push(format!("{}={}{}", &line[..eq], sep, value));
                 done.push((section.clone(), key.to_string()));
                 insert_at = Some(out.len());
                 continue;
@@ -700,6 +715,28 @@ fn patch_ini_in_place(path: &Path, edits: &[(String, String, String)]) -> Result
         fs::write(path, text)
             .with_context(|| format!("Failed to write {}", path.display()))?;
     }
+    Ok(())
+}
+
+fn apply_fuzzel(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    let dest = home.join(".config/fuzzel/fuzzel.ini");
+
+    // fuzzel runs fine with no config at all, so an absent file means the user has not
+    // set one up -- writing one containing only colours would be a worse starting point
+    // than fuzzel's defaults, and would hide the fact that nothing else is configured.
+    if !dest.exists() {
+        detail!("  - {} (not present, skipped)", dest.display());
+        return Ok(());
+    }
+
+    let rendered = tera
+        .render("fuzzel", ctx)
+        .context("Failed to render template 'fuzzel'")?;
+    let edits = parse_ini_edits(&rendered);
+    patch_ini_in_place(&dest, &edits)?;
+    // Nothing to reload: fuzzel is not a daemon, it reads its config on each launch.
+    detail!("  ✓ {}", dest.display());
     Ok(())
 }
 
@@ -1512,6 +1549,11 @@ pub fn module_docs(name: &str) {
             println!("Writes ~/.config/mew/coat-colors.h and rebuilds the mew tree.\n");
             println!("mew is compile-time configured, so colours are a header the source");
             println!("includes. No restart needed -- the next launch picks it up.");
+        }
+        "fuzzel" => {
+            println!("Patches colour keys into ~/.config/fuzzel/fuzzel.ini in place.\n");
+            println!("fuzzel colours are bare 8-digit hex (rrggbbaa) with NO leading");
+            println!("'#'. Nothing to reload: fuzzel reads its config on each launch.");
         }
         "wayfire" => {
             println!("Patches colour keys into ~/.config/wayfire.ini in place.\n");
