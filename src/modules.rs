@@ -49,6 +49,7 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("gtk",       "gtk.tera"),
     tpl!("gtklock",   "gtklock.tera"),
     tpl!("labwc",     "labwc.tera"),
+    tpl!("wayfire",   "wayfire.tera"),
     tpl!("labwc-button", "labwc-button.svg.tera"),
     tpl!("mango",     "mango.tera"),
     tpl!("mew",       "mew.tera"),
@@ -265,7 +266,7 @@ fn run(cmd: &str) {
 
 pub const ALL_MODULES: &[&str] = &[
     "bat", "btop", "dunst", "dwl", "firefox", "fish", "fnott", "foot", "gtk", "gtklock",
-    "labwc", "mango", "swaylock", "waybar", "wmenu",
+    "labwc", "mango", "swaylock", "waybar", "wayfire", "wmenu",
     "mew", "mpv",
     "tsubu", "wlock",
     "neovim", "sway", "swaybar", "swayosd", "tofi", "vesktop", "vscode", "xresources",
@@ -312,6 +313,7 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "gtklock"    => apply_gtklock(tera, &ctx, scheme, config),
         "dwl"        => apply_dwl(tera, &ctx, scheme, config),
         "labwc"      => apply_labwc(tera, &ctx, scheme, config),
+        "wayfire"    => apply_wayfire(tera, &ctx, scheme, config),
         "mango"      => apply_mango(tera, &ctx, scheme, config),
         "fnott"      => apply_fnott(tera, &ctx, scheme, config),
         "swaylock"   => apply_swaylock(tera, &ctx, scheme, config),
@@ -534,6 +536,170 @@ fn apply_labwc(tera: &Tera, ctx: &tera::Context, s: &Scheme, _c: &CoatConfig) ->
     }
 
     run("labwc --reconfigure 2>/dev/null; true");
+    Ok(())
+}
+
+fn apply_wayfire(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    let dest = home.join(".config/wayfire.ini");
+
+    // Nothing to do if the user has no wayfire config. Do NOT create one: wayfire.ini
+    // is where every keybind and plugin choice lives, and a file containing only
+    // colours would be a worse starting point than wayfire's own defaults.
+    if !dest.exists() {
+        detail!("  - {} (not present, skipped)", dest.display());
+        return Ok(());
+    }
+
+    // The "template" is a list of edits, not a config file -- see templates/wayfire.tera
+    // for why. Lines are `<section> <key> <value>`; blanks and # comments are ignored.
+    let rendered = tera
+        .render("wayfire", ctx)
+        .context("Failed to render template 'wayfire'")?;
+
+    let mut edits: Vec<(String, String, String)> = Vec::new();
+    for line in rendered.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        // split_whitespace, NOT splitn(3, char::is_whitespace): the template aligns its
+        // columns with runs of spaces, and splitn treats each single space as a
+        // separator -- so the key came back empty and the value came back as
+        // "active_color    \#2E2E2Eff". The symptom was lines like `= background_color`
+        // being appended to wayfire.ini, which is a good reminder that this patcher
+        // will happily write nonsense if handed nonsense.
+        let mut parts = line.split_whitespace();
+        match (parts.next(), parts.next()) {
+            (Some(section), Some(key)) => {
+                let value = parts.collect::<Vec<_>>().join(" ");
+                if value.is_empty() {
+                    detail!("  warning: wayfire edit has no value: {}", line);
+                } else {
+                    edits.push((section.to_string(), key.to_string(), value));
+                }
+            }
+            _ => detail!("  warning: unparseable wayfire edit: {}", line),
+        }
+    }
+
+    patch_ini_in_place(&dest, &edits)?;
+    // No reload command: wayfire watches its config file and applies changes live.
+    detail!("  ✓ {}", dest.display());
+    Ok(())
+}
+
+/// Set `key = value` inside `[section]` of an INI file, preserving everything else.
+///
+/// Written for wayfire.ini, which has no include mechanism and is hand-maintained, so a
+/// generated whole-file rewrite is not an option -- comments, keybinds and plugin lists
+/// all have to survive. Rules:
+///
+///   * an existing key in the right section is rewritten in place, keeping its indent
+///   * a key missing from an existing section is appended to the end of that section
+///   * a section that does not exist is SKIPPED, not created: in wayfire a section for
+///     a plugin that is not in core/plugins does nothing, so inventing one would write
+///     dead config and hide the fact that the plugin is off
+///
+/// Line continuations (`plugins = a \` + more) are safe: only lines whose first token
+/// before `=` matches a wanted key are touched, and continuation lines have no `=`.
+fn patch_ini_in_place(path: &Path, edits: &[(String, String, String)]) -> Result<()> {
+    let original = fs::read_to_string(path)
+        .with_context(|| format!("Failed to read {}", path.display()))?;
+
+    let mut out: Vec<String> = Vec::new();
+    let mut section = String::new();
+    let mut done: Vec<(String, String)> = Vec::new();
+    // Index just past the last real `key = value` seen in the current section. Appended
+    // keys go THERE rather than at the section boundary: a section's last lines are
+    // usually the comment block introducing the NEXT section, so appending at the
+    // boundary put `background = ...` directly above `[idle]`, reading as if it belonged
+    // to idle. Correct as INI, confusing as a file someone has to maintain.
+    let mut insert_at: Option<usize> = None;
+
+    // Keys wanted for `sec` that have not been written yet.
+    let pending = |sec: &str, done: &Vec<(String, String)>| -> Vec<(String, String)> {
+        edits
+            .iter()
+            .filter(|(s, k, _)| {
+                s == sec && !done.iter().any(|(ds, dk)| ds == s && dk == k)
+            })
+            .map(|(_, k, v)| (k.clone(), v.clone()))
+            .collect()
+    };
+
+    for line in original.lines() {
+        let trimmed = line.trim();
+
+        // Entering a new section: first finish the one we are leaving.
+        if trimmed.starts_with('[') && trimmed.ends_with(']') {
+            if !section.is_empty() {
+                let at = insert_at.unwrap_or(out.len());
+                let mut offset = 0;
+                for (k, v) in pending(&section, &done) {
+                    out.insert(at + offset, format!("{} = {}", k, v));
+                    offset += 1;
+                    done.push((section.clone(), k));
+                }
+            }
+            insert_at = None;
+            // Strip `output:eDP-1` down to `output`? No -- match the literal section
+            // name, so a theme edit cannot leak across outputs by accident.
+            section = trimmed[1..trimmed.len() - 1].to_string();
+            out.push(line.to_string());
+            continue;
+        }
+
+        // A `key = value` line in the current section that we want to change.
+        if let Some(eq) = line.find('=') {
+            let key = line[..eq].trim();
+            if let Some((_, _, value)) =
+                edits.iter().find(|(s, k, _)| *s == section && k == key)
+            {
+                let indent: String =
+                    line.chars().take_while(|c| c.is_whitespace()).collect();
+                out.push(format!("{}{} = {}", indent, key, value));
+                done.push((section.clone(), key.to_string()));
+                insert_at = Some(out.len());
+                continue;
+            }
+        }
+
+        // Any other `key = value` line still marks where this section's content ends.
+        if !trimmed.starts_with('#') && !trimmed.is_empty() && line.contains('=') {
+            out.push(line.to_string());
+            insert_at = Some(out.len());
+            continue;
+        }
+
+        out.push(line.to_string());
+    }
+
+    // End of file: finish the last section.
+    if !section.is_empty() {
+        let at = insert_at.unwrap_or(out.len());
+        let mut offset = 0;
+        for (k, v) in pending(&section, &done) {
+            out.insert(at + offset, format!("{} = {}", k, v));
+            offset += 1;
+            done.push((section.clone(), k));
+        }
+    }
+
+    for (s, k, _) in edits {
+        if !done.iter().any(|(ds, dk)| ds == s && dk == k) {
+            detail!("  - [{}] {} (no such section, skipped)", s, k);
+        }
+    }
+
+    let mut text = out.join("\n");
+    if original.ends_with('\n') {
+        text.push('\n');
+    }
+    if text != original {
+        fs::write(path, text)
+            .with_context(|| format!("Failed to write {}", path.display()))?;
+    }
     Ok(())
 }
 
@@ -1346,6 +1512,12 @@ pub fn module_docs(name: &str) {
             println!("Writes ~/.config/mew/coat-colors.h and rebuilds the mew tree.\n");
             println!("mew is compile-time configured, so colours are a header the source");
             println!("includes. No restart needed -- the next launch picks it up.");
+        }
+        "wayfire" => {
+            println!("Patches colour keys into ~/.config/wayfire.ini in place.\n");
+            println!("wayfire.ini has no include directive and holds all your keybinds,");
+            println!("so coat edits individual keys and leaves the rest alone. wayfire");
+            println!("watches the file, so the change applies live with no reload.");
         }
         "labwc" => {
             println!("Theme is applied automatically via labwc --reconfigure.\n");
