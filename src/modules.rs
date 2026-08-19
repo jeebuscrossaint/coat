@@ -49,6 +49,7 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("foot",      "foot.tera"),
     tpl!("gtk",       "gtk.tera"),
     tpl!("gtklock",   "gtklock.tera"),
+    tpl!("kitty",     "kitty.tera"),
     tpl!("labwc",     "labwc.tera"),
     tpl!("wayfire",   "wayfire.tera"),
     tpl!("labwc-button", "labwc-button.svg.tera"),
@@ -267,7 +268,7 @@ fn run(cmd: &str) {
 
 pub const ALL_MODULES: &[&str] = &[
     "bat", "btop", "dunst", "dwl", "firefox", "fish", "fnott", "foot", "gtk", "gtklock",
-    "fuzzel", "labwc", "mango", "swaylock", "waybar", "wayfire", "wmenu",
+    "fuzzel", "kitty", "labwc", "mango", "swaylock", "waybar", "wayfire", "wmenu",
     "mew", "mpv",
     "tsubu", "wlock",
     "neovim", "sway", "swaybar", "swayosd", "tofi", "vesktop", "vscode", "xresources",
@@ -313,6 +314,7 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "gtk"        => apply_gtk(tera, &ctx, scheme, config),
         "gtklock"    => apply_gtklock(tera, &ctx, scheme, config),
         "dwl"        => apply_dwl(tera, &ctx, scheme, config),
+        "kitty"      => apply_kitty(tera, &ctx, scheme, config),
         "labwc"      => apply_labwc(tera, &ctx, scheme, config),
         "wayfire"    => apply_wayfire(tera, &ctx, scheme, config),
         "mango"      => apply_mango(tera, &ctx, scheme, config),
@@ -473,6 +475,38 @@ fn apply_dwl(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> 
          make -C \"$d\" >/dev/null 2>&1 || true");
     Ok(())
 }
+fn apply_kitty(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    let dest = home.join(".config/kitty/coat-theme.conf");
+    render_to(tera, "kitty", ctx, &dest)?;
+    ensure_include(
+        &home.join(".config/kitty/kitty.conf"),
+        "include coat-theme.conf",
+        ("#", ""),
+    )?;
+
+    // Recolour running windows without a restart. `kitty @ set-colors` needs remote
+    // control enabled (allow_remote_control + listen_on in kitty.conf) and talks over the
+    // socket that listen_on names. If that fails -- remote control off, no instance
+    // running -- fall back to SIGUSR1, which makes kitty re-read its config.
+    let live = format!(
+        "kitty @ --to unix:/tmp/kitty set-colors --all --configured {} 2>/dev/null",
+        dest.to_string_lossy()
+    );
+    let ok = Command::new("sh")
+        .args(["-c", &live])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false);
+    if !ok {
+        run("pkill -SIGUSR1 -x kitty 2>/dev/null; true");
+    }
+    Ok(())
+}
+
 fn apply_labwc(tera: &Tera, ctx: &tera::Context, s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
     // A THEME DIRECTORY, not ~/.config/labwc/themerc.
