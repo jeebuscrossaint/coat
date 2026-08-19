@@ -30,30 +30,25 @@
 /* The bar WINDOW is transparent: the visible slabs are the module groups below, so the
  * bar reads as pills floating over the wallpaper instead of one bar welded to the screen
  * edge. Geometry (radius, margins, padding) is in style.css. */
+/* ONE background, on the bar itself. No per-module and no per-section backgrounds --
+ * those boxes behind each field are the "section highlighting" that had to go. */
 window#waybar {
-  background: transparent;
+  background: #{{ base00 }};
   color: #{{ base05 }};
 }
 
-/* The two pills. Translucent so mango's blur_layer frosts them; base05 on base00 is the
- * only text pair guaranteed legible on every scheme. */
-.modules-left,
-.modules-right {
-  background: rgba({{ base00 | r }}, {{ base00 | g }}, {{ base00 | b }}, 0.82);
-}
-
-/* The clock as the one accented field. base00 ON base0D, not the reverse: dark text on
- * the accent is legible whatever the accent's lightness, which base05 on base0D is not. */
+/* No background on the module groups and none on the clock. The bar is text over the
+ * wallpaper; the group slabs rendered as visible blocks at the bar's ends. The clock
+ * keeps the accent as TEXT colour instead of a filled pill. */
 #clock {
-  background: #{{ base0D }};
-  color: #{{ base00 }};
+  color: #{{ base0D }};
 }
 
 /* mango's tag colours are pango markup emitted by ~/.local/bin/mango-tags, not
  * CSS -- waybar cannot style parts of a custom module's text. This only sets the
- * module's own background and its fallback colour. */
+ * fallback colour. No background: the bar is text over the wallpaper, and an opaque
+ * base00 behind each module is exactly the per-section highlighting that had to go. */
 #custom-mangotags {
-  background: #{{ base00 }};
   color: #{{ base03 }};
 }
 
@@ -91,43 +86,11 @@ window#waybar {
 }
 
 #taskbar button {
-  background: #{{ base00 }};
   color: #{{ base0D }};
 }
 
 #taskbar button.active {
   color: #{{ base0D }};
-}
-
-/* The dock (the second bar, name="dock"). More transparent than the top bar: it sits on
- * blurred wallpaper, and the frosted look needs a tint over that rather than a solid
- * slab. Geometry is in style.css. */
-/* The dock window is TRANSPARENT: it spans the whole output, so tinting it would give
- * a second full-width bar. The frosted slab is the inner #taskbar container, which is
- * only as wide as its icons. */
-#waybar.dock {
-  background: transparent;
-  color: #{{ base05 }};
-}
-
-#waybar.dock #taskbar {
-  background: rgba({{ base00 | r }}, {{ base00 | g }}, {{ base00 | b }}, 0.70);
-}
-
-#waybar.dock #taskbar button {
-  background: transparent;
-  color: #{{ base05 }};
-}
-
-#waybar.dock #taskbar button:hover {
-  background: rgba({{ base03 | r }}, {{ base03 | g }}, {{ base03 | b }}, 0.35);
-}
-
-/* The active-app underline. base0D so it matches the accent used for the active
- * workspace in both compositors' tag rows. */
-#waybar.dock #taskbar button.active {
-  background: rgba({{ base03 | r }}, {{ base03 | g }}, {{ base03 | b }}, 0.25);
-  border-color: #{{ base0D }};
 }
 
 
@@ -142,12 +105,10 @@ window#waybar {
 #wireplumber,
 #battery,
 #custom-uptime {
-  background: #{{ base00 }};
   color: #{{ base05 }};
 }
 
 #clock {
-  background: #{{ base00 }};
   color: #{{ base0D }};
 }
 
