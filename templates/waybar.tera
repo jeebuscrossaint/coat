@@ -27,9 +27,26 @@
  * whole declaration with "Junk at end of value", which takes the entire stylesheet
  * down with it -- the bar came up completely unstyled. The r/g/b filters exist for
  * exactly this. */
+/* The bar WINDOW is transparent: the visible slabs are the module groups below, so the
+ * bar reads as pills floating over the wallpaper instead of one bar welded to the screen
+ * edge. Geometry (radius, margins, padding) is in style.css. */
 window#waybar {
-  background: rgba({{ base00 | r }}, {{ base00 | g }}, {{ base00 | b }}, 0.90);
+  background: transparent;
   color: #{{ base05 }};
+}
+
+/* The two pills. Translucent so mango's blur_layer frosts them; base05 on base00 is the
+ * only text pair guaranteed legible on every scheme. */
+.modules-left,
+.modules-right {
+  background: rgba({{ base00 | r }}, {{ base00 | g }}, {{ base00 | b }}, 0.82);
+}
+
+/* The clock as the one accented field. base00 ON base0D, not the reverse: dark text on
+ * the accent is legible whatever the accent's lightness, which base05 on base0D is not. */
+#clock {
+  background: #{{ base0D }};
+  color: #{{ base00 }};
 }
 
 /* mango's tag colours are pango markup emitted by ~/.local/bin/mango-tags, not
