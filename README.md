@@ -4,7 +4,7 @@ A Rust CLI that applies Base16/Base24 color schemes across 22 Linux applications
 
 ## Features
 
-- **19 application modules** — terminals, editors, compositors, bars, launchers, and more
+- **32 application modules** — terminals, editors, compositors, bars, launchers, and more
 - **Windows support** — accent color, dark/light mode, Windows Terminal, and VSCode via `coat set`
 - **Base16 & Base24** — compatible with the full [tinted-theming](https://github.com/tinted-theming/home) ecosystem (~700 schemes)
 - **Scheme browser** — search and preview with live RGB color swatches in the terminal
@@ -18,7 +18,7 @@ coat/
 │   ├── main.rs       # CLI dispatch
 │   ├── config.rs     # coat.yaml deserialization
 │   ├── scheme.rs     # scheme loading, search, list
-│   ├── modules.rs    # all 22 module apply functions
+│   ├── modules.rs    # all 32 module apply functions
 │   └── windows.rs    # Windows-specific theming (registry, WT, VSCode)
 ├── templates/        # Tera templates for each module
 ├── Cargo.toml
@@ -145,7 +145,7 @@ your current terminal. Already running elevated? No flag needed.
 |---|---|
 | Terminals | fish, foot |
 | Editors | neovim, vscode |
-| WM / Compositors | sway, labwc |
+| WM / Compositors | sway, labwc, hyprland, mango, dwl, wayfire |
 | Bars | swaybar |
 | Screen locker | gtklock |
 | Launchers | tofi |

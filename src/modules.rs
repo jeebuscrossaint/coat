@@ -49,6 +49,7 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("foot",      "foot.tera"),
     tpl!("gtk",       "gtk.tera"),
     tpl!("gtklock",   "gtklock.tera"),
+    tpl!("hyprland",  "hyprland.tera"),
     tpl!("kitty",     "kitty.tera"),
     tpl!("labwc",     "labwc.tera"),
     tpl!("wayfire",   "wayfire.tera"),
@@ -268,7 +269,7 @@ fn run(cmd: &str) {
 
 pub const ALL_MODULES: &[&str] = &[
     "bat", "btop", "dunst", "dwl", "firefox", "fish", "fnott", "foot", "gtk", "gtklock",
-    "fuzzel", "kitty", "labwc", "mango", "swaylock", "waybar", "wayfire", "wmenu",
+    "fuzzel", "hyprland", "kitty", "labwc", "mango", "swaylock", "waybar", "wayfire", "wmenu",
     "mew", "mpv",
     "tsubu", "wlock",
     "neovim", "sway", "swaybar", "swayosd", "tofi", "vesktop", "vscode", "xresources",
@@ -281,6 +282,7 @@ pub fn module_aliases(name: &str) -> Option<&'static str> {
         "nvim" | "vim" => Some("neovim"),
         "bar" | "swaybar-colors" => Some("swaybar"),
         "dwm" => Some("dwl"),
+        "hypr" => Some("hyprland"),
         "dmenu" | "menu" => Some("mew"),
         "notifications" => Some("tsubu"),
         "lock" | "lockscreen" => Some("wlock"),
@@ -314,6 +316,7 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "gtk"        => apply_gtk(tera, &ctx, scheme, config),
         "gtklock"    => apply_gtklock(tera, &ctx, scheme, config),
         "dwl"        => apply_dwl(tera, &ctx, scheme, config),
+        "hyprland"   => apply_hyprland(tera, &ctx, scheme, config),
         "kitty"      => apply_kitty(tera, &ctx, scheme, config),
         "labwc"      => apply_labwc(tera, &ctx, scheme, config),
         "wayfire"    => apply_wayfire(tera, &ctx, scheme, config),
@@ -504,6 +507,18 @@ fn apply_kitty(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -
     if !ok {
         run("pkill -SIGUSR1 -x kitty 2>/dev/null; true");
     }
+    Ok(())
+}
+
+fn apply_hyprland(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    let dest = home.join(".config/hypr/coat-theme.conf");
+    render_to(tera, "hyprland", ctx, &dest)?;
+    // Live-reload a running Hyprland session (best-effort, silenced). Nothing to
+    // talk to when Hyprland is not the running compositor, which is the normal
+    // case here -- the file is still written so the session is themed when it
+    // does come up.
+    run("hyprctl reload 2>/dev/null");
     Ok(())
 }
 
@@ -1454,6 +1469,13 @@ pub fn module_docs(name: &str) {
             println!("  fish_config theme save coat\n");
             println!("Or add to ~/.config/fish/config.fish:\n");
             println!("  fish_config theme choose coat");
+        }
+        "hyprland" => {
+            println!("Add to ~/.config/hypr/hyprland.conf:\n");
+            println!("  source = ~/.config/hypr/coat-theme.conf\n");
+            println!("Emits COLOUR VARIABLES only ($base00..$base0F plus pre-composed");
+            println!("translucent tokens); your own sections reference them, so the source");
+            println!("line has to sit ABOVE the first use. coat runs `hyprctl reload`.");
         }
         "neovim" => {
             println!("A colorscheme is written to:");
