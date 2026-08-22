@@ -52,8 +52,10 @@ window#waybar {
   color: #{{ base03 }};
 }
 
-/* #workspaces is for compositors that speak ext-workspace-v1. mango does not, so these
- * rules are inert there and kept only so the template stays useful to other setups:
+/* #workspaces is emitted by waybar's ext-workspace-v1 module and by its native
+ * hyprland/workspaces. mango speaks neither -- its tag row is a custom module
+ * coloured by inline pango -- so these rules do nothing in a mango session and
+ * everything in a Hyprland one:
  *
  *   inactive  base03  dim, present but receding
  *   active    base0D  the accent
@@ -83,6 +85,15 @@ window#waybar {
  * going dim look very different when you are trying to find a window. */
 #workspaces button.hidden {
   color: #{{ base03 }};
+}
+
+/* #window is a focused-title module (hyprland/window, sway/window). The mango
+ * equivalent is custom/mangotitle, which cannot be reached from CSS -- waybar
+ * cannot style characters inside a custom module -- so ~/.local/bin/mango-title
+ * reads this same accent out of coat's mango fragment instead. Both end up
+ * base0D; only the route differs. */
+#window {
+  color: #{{ base0D }};
 }
 
 #taskbar button {
