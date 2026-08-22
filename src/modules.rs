@@ -1083,8 +1083,18 @@ fn apply_waybar(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) 
     //
     // Restart only if it was already running, so `coat set` outside a session does not
     // start a bar with nowhere to draw. setsid detaches it, otherwise it dies with coat.
-    run("pgrep -x waybar >/dev/null 2>&1 && { pkill -x waybar; sleep 0.3; \
-         setsid waybar >/dev/null 2>&1 & } ; true");
+    // Restart with the SAME argv it was running with, read out of /proc before
+    // the kill. Restarting bare was a real bug: under Hyprland the bar is started
+    // as `waybar -c ~/.config/waybar/config-hyprland.jsonc` (the include overlay
+    // that swaps mango's tag scripts for hyprland/workspaces), and a bare restart
+    // silently dropped the flag -- so every scheme change replaced the Hyprland
+    // bar with a default-config one whose left half streams mango IPC and renders
+    // nothing. $args is deliberately unquoted so it word-splits back into
+    // arguments; no path here has spaces in it.
+    run("pgrep -x waybar >/dev/null 2>&1 && { \
+         args=$(tr '\\0' ' ' < /proc/$(pgrep -x waybar | head -1)/cmdline); \
+         pkill -x waybar; sleep 0.3; \
+         setsid $args >/dev/null 2>&1 & } ; true");
     Ok(())
 }
 
