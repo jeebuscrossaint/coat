@@ -2,7 +2,7 @@
 # {{ scheme_author }}
 {% if scheme_variant %}# variant: {{ scheme_variant }}{% endif %}
 #
-# An edit list, not a config file — same mechanism as templates/wayfire.tera:
+# An edit list, not a config file — same mechanism as fnott.tera and swaylock.tera:
 #
 #     <section>  <key>  <value>
 #
@@ -26,7 +26,7 @@
 #              the accent — it is the one thing on screen telling you why a result
 #              matched
 # selection*   the highlighted row, inverted: accent ground with the base00 behind it
-#              as the text, which is the same treatment the wmenu module used and the
+#              as the text, which is the
 #              only pairing guaranteed legible on every scheme
 colors  background         {{ base00 }}f2
 colors  text               {{ base05 }}ff

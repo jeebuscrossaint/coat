@@ -40,7 +40,7 @@ enabled:
   - tofi
   - dunst
   - gtk
-  - gtklock
+  - swaylock
   - vesktop
   - bat
   - btop
@@ -54,16 +54,31 @@ font:
   sizes:
     terminal: 12   # foot, xresources
     desktop:  10   # swaybar, btop, zathura
-    popups:   10   # tofi, dunst
+    popups:   10   # tofi, dunst, fnott
 
 opacity:
   terminal:     0.95   # foot
   applications: 1.0
   desktop:      1.0
-  popups:       0.95   # dunst, gtklock, tofi backgrounds
+  popups:       0.95   # dunst, tofi backgrounds
 ```
 
 ---
+
+## What coat writes
+
+Colours and fonts, and nothing else. Two mechanisms:
+
+- **Fragment + include** — where the app supports one. coat owns a separate file
+  (`coat-theme`, `themes/coat.theme`, `dunstrc.d/50-coat.conf`) and adds a single
+  include line to your config on first apply. Everything else in your config is
+  untouched because coat never opens it again.
+- **In-place key patching** — where the app has no include mechanism (fuzzel,
+  fnott, swaylock). coat rewrites only its own keys and leaves every other line
+  byte-for-byte alone, so geometry, timeouts and behaviour survive a theme change.
+
+If the target file does not exist, the patching modules create one containing only
+colours and fonts; the app's own defaults supply the rest.
 
 ## Activation steps by application
 
@@ -104,10 +119,6 @@ Writes `~/.config/sway/coat-theme` (window colors) and runs `swaymsg reload`.
 include ~/.config/sway/coat-theme
 ```
 
-### labwc
-
-Writes `~/.config/labwc/themerc` and runs `labwc --reconfigure`. No manual step needed.
-
 ### swaybar
 
 Themes sway's built-in bar. Writes `~/.config/sway/coat-bar`.
@@ -120,9 +131,12 @@ include ~/.config/sway/coat-bar
 Remove every other `bar { }` block from your config first — each one creates an
 additional bar rather than merging with this one.
 
-> **Note:** the whole `bar { }` block is generated, not just the colors. Sway
-> rejects `include` inside `bar { }`, so a colors-only fragment cannot be
-> spliced into a hand-written block. The status line is `status_command
+> **Note:** this is the ONE module where coat writes more than colours and
+> fonts, and it is forced. Sway rejects `include` inside `bar { }`, so a
+> colours-only fragment cannot be spliced into a hand-written block, and a
+> second top-level `bar { }` creates a second bar rather than merging. Anything
+> in the generated block that is not a colour is a default coat had to pick —
+> change it in `templates/swaybar.tera`. The status line is `status_command
 > swayrbar`; configure its modules in `~/.config/swayrbar/config.toml`.
 
 coat runs `swaymsg reload` automatically, which also repaints the `sway`
@@ -139,23 +153,6 @@ include=coat-theme
 
 tofi resolves the include the moment it reads the line, so anything you set after
 it overrides the theme.
-
-### swayosd
-
-Writes `~/.config/swayosd/style.css` (GTK CSS) and restarts `swayosd-server`,
-which only parses its stylesheet at startup.
-
-```
-# Run the server from your compositor config, e.g. sway
-exec swayosd-server
-```
-
-> **Note:** the caps/num/scroll-lock OSD works from an ordinary compositor bind
-> (`bindsym --release Caps_Lock exec swayosd-client --caps-lock`).
-> `swayosd-libinput-backend` is only needed to catch those keys *without* a
-> bind, and it requires root plus a service-manager unit — its shipped D-Bus
-> activation file has `Exec=/bin/false` and defers to systemd, so it does not
-> auto-activate on non-systemd systems.
 
 ### dunst
 

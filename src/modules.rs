@@ -40,7 +40,6 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("bat",       "bat.tera"),
     tpl!("btop",      "btop.tera"),
     tpl!("dunst",     "dunst.tera"),
-    tpl!("dwl",       "dwl.tera"),
     tpl!("firefox",   "firefox.tera"),
     tpl!("firefox_content", "firefox_content.tera"),
     tpl!("fish",      "fish.tera"),
@@ -48,26 +47,17 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("fuzzel",    "fuzzel.tera"),
     tpl!("foot",      "foot.tera"),
     tpl!("gtk",       "gtk.tera"),
-    tpl!("gtklock",   "gtklock.tera"),
     tpl!("hyprland",  "hyprland.tera"),
     tpl!("kitty",     "kitty.tera"),
-    tpl!("labwc",     "labwc.tera"),
-    tpl!("wayfire",   "wayfire.tera"),
-    tpl!("labwc-button", "labwc-button.svg.tera"),
     tpl!("mango",     "mango.tera"),
-    tpl!("mew",       "mew.tera"),
     tpl!("mpv",       "mpv.tera"),
     tpl!("neovim",    "neovim.tera"),
     tpl!("sway",      "sway.tera"),
     tpl!("swaylock",  "swaylock.tera"),
     tpl!("swaybar",   "swaybar.tera"),
-    tpl!("swayosd",   "swayosd.tera"),
-    tpl!("tsubu",    "tsubu.tera"),
     tpl!("tofi",      "tofi.tera"),
     tpl!("vesktop",   "vesktop.tera"),
     tpl!("waybar",    "waybar.tera"),
-    tpl!("wmenu",     "wmenu.tera"),
-    tpl!("wlock",    "wlock.tera"),
     tpl!("xresources","xresources.tera"),
     tpl!("zathura",   "zathura.tera"),
 ];
@@ -268,12 +258,9 @@ fn run(cmd: &str) {
 // ── Module dispatch ────────────────────────────────────────────────────────
 
 pub const ALL_MODULES: &[&str] = &[
-    "bat", "btop", "dunst", "dwl", "firefox", "fish", "fnott", "foot", "gtk", "gtklock",
-    "fuzzel", "hyprland", "kitty", "labwc", "mango", "swaylock", "waybar", "wayfire", "wmenu",
-    "mew", "mpv",
-    "tsubu", "wlock",
-    "neovim", "sway", "swaybar", "swayosd", "tofi", "vesktop", "vscode", "xresources",
-    "zathura",
+    "bat", "btop", "dunst", "firefox", "fish", "fnott", "foot", "gtk",
+    "fuzzel", "hyprland", "kitty", "mango", "swaylock", "waybar", "mpv", "neovim",
+    "sway", "swaybar", "tofi", "vesktop", "vscode", "xresources", "zathura",
 ];
 
 pub fn module_aliases(name: &str) -> Option<&'static str> {
@@ -281,11 +268,7 @@ pub fn module_aliases(name: &str) -> Option<&'static str> {
         "vencord" | "discord" => Some("vesktop"),
         "nvim" | "vim" => Some("neovim"),
         "bar" | "swaybar-colors" => Some("swaybar"),
-        "dwm" => Some("dwl"),
         "hypr" => Some("hyprland"),
-        "dmenu" | "menu" => Some("mew"),
-        "notifications" => Some("tsubu"),
-        "lock" | "lockscreen" => Some("wlock"),
         _ => None,
     }
 }
@@ -314,26 +297,17 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "fish"       => apply_fish(tera, &ctx, scheme, config),
         "foot"       => apply_foot(tera, &ctx, scheme, config),
         "gtk"        => apply_gtk(tera, &ctx, scheme, config),
-        "gtklock"    => apply_gtklock(tera, &ctx, scheme, config),
-        "dwl"        => apply_dwl(tera, &ctx, scheme, config),
         "hyprland"   => apply_hyprland(tera, &ctx, scheme, config),
         "kitty"      => apply_kitty(tera, &ctx, scheme, config),
-        "labwc"      => apply_labwc(tera, &ctx, scheme, config),
-        "wayfire"    => apply_wayfire(tera, &ctx, scheme, config),
         "mango"      => apply_mango(tera, &ctx, scheme, config),
         "fnott"      => apply_fnott(tera, &ctx, scheme, config),
         "fuzzel"     => apply_fuzzel(tera, &ctx, scheme, config),
         "swaylock"   => apply_swaylock(tera, &ctx, scheme, config),
         "waybar"     => apply_waybar(tera, &ctx, scheme, config),
-        "wmenu"      => apply_wmenu(tera, &ctx, scheme, config),
-        "mew"        => apply_mew(tera, &ctx, scheme, config),
-        "tsubu"      => apply_tsubu(tera, &ctx, scheme, config),
-        "wlock"      => apply_wlock(tera, &ctx, scheme, config),
         "mpv"        => apply_mpv(tera, &ctx, scheme, config),
         "neovim"     => apply_neovim(tera, &ctx, scheme, config),
         "sway"       => apply_sway(tera, &ctx, scheme, config),
         "swaybar"    => apply_swaybar(tera, &ctx, scheme, config),
-        "swayosd"    => apply_swayosd(tera, &ctx, scheme, config),
         "tofi"       => apply_tofi(tera, &ctx, scheme, config),
         "vesktop"    => apply_vesktop(tera, &ctx, scheme, config),
         "vscode"     => apply_vscode(scheme, config),
@@ -443,41 +417,6 @@ fn apply_gtk(tera: &Tera, ctx: &tera::Context, scheme: &Scheme, config: &CoatCon
     Ok(())
 }
 
-fn apply_gtklock(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    let dir = home.join(".config/gtklock");
-    render_to(tera, "gtklock", ctx, &dir.join("coat-theme.css"))?;
-    // gtklock's whole appearance is GTK CSS, so the seam is a plain @import —
-    // which GTK resolves relative to the importing stylesheet.
-    ensure_include(
-        &dir.join("style.css"),
-        "@import url(\"coat-theme.css\");",
-        ("/*", " */"),
-    )?;
-    detail!("    Point gtklock at it: style=~/.config/gtklock/style.css in config.ini");
-    Ok(())
-}
-
-fn apply_dwl(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    let dest = home.join(".config/dwl/coat-colors.h");
-    render_to(tera, "dwl", ctx, &dest)?;
-    // dwl is configured at compile time, so a colour change is a rebuild. The
-    // tree picks this header up via -I$(HOME)/.config/dwl in config.mk, and
-    // config.def.h falls back to built-in colours if it is missing.
-    //
-    // We deliberately do NOT restart dwl here. With the wayland-socket-handover
-    // patch plus a wl-restart wrapper a restart is lossless, but without that
-    // wrapper killing dwl would take the whole session down -- far too rude for
-    // a theme change. Rebuild, and let the user restart when they choose.
-    // dwl.o depends on config.h, NOT on this header, so make would otherwise see
-    // nothing to do after a colour-only change. Touch config.h to force it.
-    run("d=\"$HOME/dotfiles/linux/pkg/dwl\"; [ -d \"$d\" ] || exit 0; \
-         [ -f \"$d/config.h\" ] || cp \"$d/config.def.h\" \"$d/config.h\"; \
-         touch \"$d/config.h\"; \
-         make -C \"$d\" >/dev/null 2>&1 || true");
-    Ok(())
-}
 fn apply_kitty(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
     let dest = home.join(".config/kitty/coat-theme.conf");
@@ -522,99 +461,6 @@ fn apply_hyprland(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig
     Ok(())
 }
 
-fn apply_labwc(tera: &Tera, ctx: &tera::Context, s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    // A THEME DIRECTORY, not ~/.config/labwc/themerc.
-    //
-    // This used to write ~/.config/labwc/themerc, and labwc silently ignored it --
-    // every generated labwc theme was dead on arrival. labwc only reads `themerc`
-    // from a theme directory (the list is in labwc-theme(5)); what it reads out of
-    // the config directory is `themerc-override`. Verified 2026-08-17 against
-    // labwc 0.20.1: with themerc in the config dir the built-in light theme was
-    // rendered, and the same file as themerc-override applied immediately.
-    //
-    // A theme directory rather than themerc-override because a theme directory is
-    // also where labwc looks for BUTTON IMAGES. The titlebar buttons ship in the
-    // dotfiles as 1-bit xbm masks next to this file, and labwc fills them with the
-    // per-button colours rendered below -- so the macOS-style traffic lights follow
-    // the scheme. From the config directory the colours applied but the images did
-    // not, leaving labwc's built-in glyphs tinted red/amber/green.
-    //
-    // Requires <theme><name>coat</name></theme> in rc.xml, which is what selects
-    // this directory.
-    let dir = home.join(".local/share/themes/coat/labwc");
-    render_to(tera, "labwc", ctx, &dir.join("themerc"))?;
-
-    // Anti-aliased titlebar buttons.
-    //
-    // The xbm masks stowed into this directory work and follow the scheme, but xbm is
-    // ONE BIT per pixel, so a 13px disc is visibly octagonal. png/svg are rendered
-    // properly anti-aliased -- at the cost that labwc does not recolour them ("one
-    // advantage of xbm buttons over other formats is that they change color based on
-    // the theme", labwc-theme(5)). So the colour is baked in HERE instead, which keeps
-    // the lights following the scheme and gets smooth edges.
-    //
-    // The naming is labwc's and is not optional: png/svg buttons need the "-active"
-    // and "-inactive" suffixes, and an unsuffixed close.svg is simply never looked up
-    // (verified 2026-08-17 -- it silently fell back to labwc's built-in glyph). svg
-    // beats xbm in the lookup, so the xbm files stay as a fallback for a labwc built
-    // without librsvg.
-    //
-    // Inactive windows grey their lights out and reveal the colour on hover, matching
-    // macOS; that is why _hover-inactive gets the live colour rather than the grey.
-    let lights: [(&str, &str); 4] = [
-        ("close", &s.base08),
-        ("iconify", &s.base0a),
-        ("max", &s.base0b),
-        ("max_toggled", &s.base0b),
-    ];
-    for (name, colour) in lights {
-        for (suffix, fill) in [
-            ("-active", colour),
-            ("-inactive", s.base03.as_str()),
-            ("_hover-active", colour),
-            ("_hover-inactive", colour),
-        ] {
-            let mut bctx = ctx.clone();
-            bctx.insert("fill", &fill);
-            render_to(
-                tera,
-                "labwc-button",
-                &bctx,
-                &dir.join(format!("{}{}.svg", name, suffix)),
-            )?;
-        }
-    }
-
-    run("labwc --reconfigure 2>/dev/null; true");
-    Ok(())
-}
-
-fn apply_wayfire(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    let dest = home.join(".config/wayfire.ini");
-
-    // Nothing to do if the user has no wayfire config. Do NOT create one: wayfire.ini
-    // is where every keybind and plugin choice lives, and a file containing only
-    // colours would be a worse starting point than wayfire's own defaults.
-    if !dest.exists() {
-        detail!("  - {} (not present, skipped)", dest.display());
-        return Ok(());
-    }
-
-    // The "template" is a list of edits, not a config file -- see templates/wayfire.tera
-    // for why. Lines are `<section> <key> <value>`; blanks and # comments are ignored.
-    let rendered = tera
-        .render("wayfire", ctx)
-        .context("Failed to render template 'wayfire'")?;
-
-    let edits = parse_ini_edits(&rendered);
-    patch_ini_in_place(&dest, &edits)?;
-    // No reload command: wayfire watches its config file and applies changes live.
-    detail!("  ✓ {}", dest.display());
-    Ok(())
-}
-
 /// Parse a rendered edit-list template into (section, key, value) triples.
 ///
 /// The format is one `<section> <key> <value>` per line, with blank lines and `#`
@@ -650,24 +496,82 @@ fn parse_ini_edits(rendered: &str) -> Vec<(String, String, String)> {
 
 /// Set `key = value` inside `[section]` of an INI file, preserving everything else.
 ///
-/// Written for wayfire.ini, which has no include mechanism and is hand-maintained, so a
+/// Written for configs with no include mechanism that are hand-maintained (fuzzel,
 /// generated whole-file rewrite is not an option -- comments, keybinds and plugin lists
 /// all have to survive. Rules:
 ///
 ///   * an existing key in the right section is rewritten in place, keeping its indent
 ///   * a key missing from an existing section is appended to the end of that section
-///   * a section that does not exist is SKIPPED, not created: in wayfire a section for
+///   * a section that does not exist is SKIPPED, not created: a section for
 ///     a plugin that is not in core/plugins does nothing, so inventing one would write
 ///     dead config and hide the fact that the plugin is off
 ///
 /// Line continuations (`plugins = a \` + more) are safe: only lines whose first token
 /// before `=` matches a wanted key are touched, and continuation lines have no `=`.
+/// The section name standing for a file's top-level, sectionless region -- the
+/// part before the first `[header]`. swaylock's config has no sections at all and
+/// is entirely this; fnott's [main] is preceded by none. An edit list addresses it
+/// as `_`, which is not a legal INI section name, so it cannot collide with a real
+/// one.
+const INI_TOP: &str = "_";
+
+/// Apply an edit-list template to an INI-shaped config.
+///
+/// This is the shape every module that owns no include mechanism should use.
+/// coat writes ONLY the keys in the edit list -- colours and fonts -- and leaves
+/// every other line in the file alone, so geometry, timeouts and behaviour stay
+/// the user's. Previously these templates were whole config files, which meant a
+/// theme change silently reverted anything the user had tuned.
+///
+/// If the file does not exist there is nothing to patch, so one is synthesised
+/// from the edit list. That file is still colours and fonts only: the app's own
+/// defaults supply the rest, which is a better starting point than coat inventing
+/// a layout on the user's behalf.
+fn apply_ini_edits(
+    tera: &Tera,
+    ctx: &tera::Context,
+    name: &str,
+    dest: &Path,
+) -> Result<()> {
+    let rendered = tera
+        .render(name, ctx)
+        .with_context(|| format!("Failed to render template '{}'", name))?;
+    let edits = parse_ini_edits(&rendered);
+
+    if dest.exists() {
+        patch_ini_in_place(dest, &edits)?;
+    } else {
+        if let Some(parent) = dest.parent() {
+            fs::create_dir_all(parent)
+                .with_context(|| format!("Failed to create {}", parent.display()))?;
+        }
+        let mut text = String::new();
+        let mut current = String::new();
+        for (section, key, value) in &edits {
+            if section != &current {
+                if section != INI_TOP {
+                    if !text.is_empty() {
+                        text.push('\n');
+                    }
+                    text.push_str(&format!("[{}]\n", section));
+                }
+                current = section.clone();
+            }
+            text.push_str(&format!("{}={}\n", key, value));
+        }
+        fs::write(dest, text)
+            .with_context(|| format!("Failed to write {}", dest.display()))?;
+    }
+    detail!("  ✓ {}", dest.display());
+    Ok(())
+}
+
 fn patch_ini_in_place(path: &Path, edits: &[(String, String, String)]) -> Result<()> {
     let original = fs::read_to_string(path)
         .with_context(|| format!("Failed to read {}", path.display()))?;
 
     let mut out: Vec<String> = Vec::new();
-    let mut section = String::new();
+    let mut section = INI_TOP.to_string();
     let mut done: Vec<(String, String)> = Vec::new();
     // Index just past the last real `key = value` seen in the current section. Appended
     // keys go THERE rather than at the section boundary: a section's last lines are
@@ -692,7 +596,7 @@ fn patch_ini_in_place(path: &Path, edits: &[(String, String, String)]) -> Result
 
         // Entering a new section: first finish the one we are leaving.
         if trimmed.starts_with('[') && trimmed.ends_with(']') {
-            if !section.is_empty() {
+            {
                 let at = insert_at.unwrap_or(out.len());
                 let mut offset = 0;
                 for (k, v) in pending(&section, &done) {
@@ -716,7 +620,7 @@ fn patch_ini_in_place(path: &Path, edits: &[(String, String, String)]) -> Result
                 edits.iter().find(|(s, k, _)| *s == section && k == key)
             {
                 // Preserve the file's own spacing convention instead of imposing
-                // `key = value`. wayfire.ini writes `key = value`; fuzzel.ini writes
+                // `key = value`. fnott.ini writes `key = value`; fuzzel.ini writes
                 // `key=value`, and a tool that "fixes" that on every theme change
                 // produces a diff in the user's config for no reason. Everything up to
                 // and including the '=' is kept verbatim, and a space is re-added after
@@ -740,7 +644,7 @@ fn patch_ini_in_place(path: &Path, edits: &[(String, String, String)]) -> Result
     }
 
     // End of file: finish the last section.
-    if !section.is_empty() {
+    {
         let at = insert_at.unwrap_or(out.len());
         let mut offset = 0;
         for (k, v) in pending(&section, &done) {
@@ -789,20 +693,6 @@ fn apply_fuzzel(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) 
     Ok(())
 }
 
-fn apply_mew(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    let dest = home.join(".config/mew/coat-colors.h");
-    render_to(tera, "mew", ctx, &dest)?;
-    // Same compile-time story as dwl: touch config.h so make does not skip the
-    // rebuild (mew.o depends on config.h, not on this header). Cheap -- mew is
-    // one translation unit -- and the next launcher invocation picks it up, so
-    // unlike dwl there is nothing to restart.
-    run("d=\"$HOME/dotfiles/linux/pkg/mew\"; [ -d \"$d\" ] || exit 0; \
-         [ -f \"$d/config.h\" ] || cp \"$d/config.def.h\" \"$d/config.h\"; \
-         touch \"$d/config.h\"; \
-         make -C \"$d\" >/dev/null 2>&1 || true");
-    Ok(())
-}
 fn apply_mpv(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
     let dest = home.join(".config/mpv/coat-theme.conf");
@@ -983,27 +873,6 @@ fn apply_swaybar(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig)
     Ok(())
 }
 
-fn apply_swayosd(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    let dest = home.join(".config/swayosd/style.css");
-    render_to(tera, "swayosd", ctx, &dest)?;
-    // swayosd-server parses its stylesheet once at startup, so restart it if
-    // it's running (pkill succeeds only when it killed something → no
-    // duplicate server on a TTY).
-    //
-    // The 2s grace period before respawning is for the supervised case: the
-    // sway session runs the server under `swayosd-supervise`, which brings it
-    // back ~1s after the kill. Respawning unconditionally would leave two
-    // servers racing for the DBus name, and the loser exiting instantly puts
-    // the supervisor into a restart spin. So: kill, wait, and only start one
-    // ourselves if nothing else did. Unsupervised sessions still get a server
-    // back, just 2s later.
-    run("pkill -x swayosd-server 2>/dev/null || exit 0; \
-         sleep 2; \
-         pgrep -x swayosd-server >/dev/null || exec swayosd-server");
-    Ok(())
-}
-
 fn apply_mango(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
     let dir = home.join(".config/mango");
@@ -1026,9 +895,10 @@ fn apply_mango(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -
 
 fn apply_fnott(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
-    // fnott has no include mechanism, so coat owns the whole file -- geometry
-    // included. Same arrangement as gtklock before it.
-    render_to(tera, "fnott", ctx, &home.join(".config/fnott/fnott.ini"))?;
+    // Colours and fonts only, patched in place. fnott has no include mechanism,
+    // so coat used to own this whole file -- which meant every theme change reset
+    // the margins, timeouts, anchor and stacking order to coat's opinion of them.
+    apply_ini_edits(tera, ctx, "fnott", &home.join(".config/fnott/fnott.ini"))?;
 
     // fnott has NO reload: fnottctl only does dismiss/actions/list/pause/quit,
     // and SIGHUP kills it outright (tested). So it has to be restarted, and the
@@ -1048,11 +918,14 @@ fn apply_fnott(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -
 
 fn apply_swaylock(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
-    // No include mechanism here either, so coat owns the file. Nothing to
-    // reload: swaylock reads it fresh at every invocation, so the next lock is
-    // already themed. This is why swaylock replaced gtklock, which needed its
-    // whole config owned AND a running instance killed.
-    render_to(tera, "swaylock", ctx, &home.join(".config/swaylock/config"))
+    // Colours and font only. swaylock's config has no sections, so every edit is
+    // addressed to INI_TOP. Nothing to reload: swaylock reads the file fresh at
+    // every invocation, so the next lock is already themed.
+    //
+    // This file used to be coat's outright, which meant indicator geometry and
+    // flags like show-failed-attempts were coat's opinion and came back on every
+    // theme change however the user set them.
+    apply_ini_edits(tera, ctx, "swaylock", &home.join(".config/swaylock/config"))
 }
 
 fn apply_waybar(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
@@ -1098,18 +971,6 @@ fn apply_waybar(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) 
     Ok(())
 }
 
-fn apply_wmenu(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    // wmenu has NO config file -- colours and font are command-line flags. So
-    // what gets written is a shell fragment, sourced by ~/.local/bin/menu and
-    // menu-run, which are what the compositor binds. Nothing to reload: the next
-    // launcher invocation sources the new colours.
-    //
-    // (wmenu ships its own wmenu-run, but it calls plain `wmenu` and therefore
-    // ignores all of this, which is why the wrappers exist.)
-    render_to(tera, "wmenu", ctx, &home.join(".config/wmenu/coat-flags"))
-}
-
 fn apply_tofi(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
     let dir = home.join(".config/tofi");
@@ -1126,32 +987,6 @@ pub fn apply_vesktop_shared(scheme: &Scheme, config: &CoatConfig, path: &Path) -
     render_to(&tera, "vesktop", &ctx, path)
 }
 
-fn apply_tsubu(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    let dest = home.join(".config/tsubu/coat-colors.h");
-    render_to(tera, "tsubu", ctx, &dest)?;
-    // Compile-time configured, same as dwl and mew: touch config.h so make does
-    // not skip the rebuild (tsubu.o depends on config.h, not on this header).
-    // Nothing to restart: tsubu is daemonless, so the next notification is themed.
-    run("d=\"$HOME/dotfiles/linux/pkg/tsubu\"; [ -d \"$d\" ] || exit 0; \
-         [ -f \"$d/config.h\" ] || cp \"$d/config.def.h\" \"$d/config.h\"; \
-         touch \"$d/config.h\"; \
-         make -C \"$d\" >/dev/null 2>&1 || true");
-    Ok(())
-}
-fn apply_wlock(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    let dest = home.join(".config/wlock/coat-colors.h");
-    render_to(tera, "wlock", ctx, &dest)?;
-    // Compile-time configured, same as dwl and mew: touch config.h so make does
-    // not skip the rebuild (wlock.o depends on config.h, not on this header).
-    // Nothing to restart: wlock only runs while the screen is locked.
-    run("d=\"$HOME/dotfiles/linux/pkg/wlock\"; [ -d \"$d\" ] || exit 0; \
-         [ -f \"$d/config.h\" ] || cp \"$d/config.def.h\" \"$d/config.h\"; \
-         touch \"$d/config.h\"; \
-         make -C \"$d\" >/dev/null 2>&1 || true");
-    Ok(())
-}
 fn apply_vesktop(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
     let paths = [
@@ -1518,19 +1353,6 @@ pub fn module_docs(name: &str) {
             println!("Configure its modules in ~/.config/swayrbar/config.toml.\n");
             println!("coat runs 'swaymsg reload' automatically.");
         }
-        "swayosd" => {
-            println!("Writes ~/.config/swayosd/style.css (GTK CSS).\n");
-            println!("No include needed — swayosd-server picks the file up at startup,");
-            println!("and coat restarts the server so a theme switch applies at once.\n");
-            println!("Run the server from your compositor config:\n");
-            println!("  exec swayosd-server\n");
-            println!("Then bind the keys, e.g. in sway:\n");
-            println!("  bindsym XF86AudioRaiseVolume exec swayosd-client --output-volume raise");
-            println!("  bindsym --release Caps_Lock exec swayosd-client --caps-lock\n");
-            println!("The caps/num/scroll-lock OSD works from a compositor bind like the");
-            println!("one above. swayosd-libinput-backend is only needed to catch those");
-            println!("keys without a bind, and it wants root plus a service manager unit.");
-        }
         "tofi" => {
             println!("Writes ~/.config/tofi/coat-theme (font + colours) and adds");
             println!("  include=coat-theme");
@@ -1553,21 +1375,6 @@ pub fn module_docs(name: &str) {
             println!("Theme is applied via gsettings automatically.\n");
             println!("Ensure 'adw-gtk3' and 'adw-gtk3-dark' are installed.");
             println!("Some apps may require a restart.");
-        }
-        "gtklock" => {
-            println!("Writes ~/.config/gtklock/coat-theme.css and adds");
-            println!("  @import url(\"coat-theme.css\");");
-            println!("to ~/.config/gtklock/style.css on first apply.\n");
-            println!("Point gtklock at it in ~/.config/gtklock/config.ini:");
-            println!("  [main]");
-            println!("  style=/home/you/.config/gtklock/style.css\n");
-            println!("Use an absolute path — a relative `style` resolves against");
-            println!("gtklock's working directory, whatever spawned it.\n");
-            println!("Note: gtklock's builder ids (#clock-label, #input-field,");
-            println!("#unlock-button) are NOT CSS selectors and match nothing. GTK3");
-            println!("doesn't turn a builder id into a CSS name and gtklock names only");
-            println!("the window, so style widget types (window, label, entry, button)");
-            println!("plus .suggested-action; it also sets .focused and .hidden.");
         }
         "dunst" => {
             println!("Writes the drop-in ~/.config/dunst/dunstrc.d/50-coat.conf");
@@ -1610,43 +1417,10 @@ pub fn module_docs(name: &str) {
             println!("To make permanent, add to ~/.xinitrc or ~/.xprofile:");
             println!("  xrdb -merge ~/.Xresources");
         }
-        "dwl" => {
-            println!("Writes ~/.config/dwl/coat-colors.h and rebuilds the dwl tree.\n");
-            println!("dwl is configured at compile time, so the colours are a header the");
-            println!("source includes; config.def.h uses __has_include and falls back to");
-            println!("its built-in colours when the header is absent.\n");
-            println!("A running dwl is NOT restarted -- restart it yourself to see the");
-            println!("change. Under wl-restart (wayland-socket-handover patch) that keeps");
-            println!("your clients alive.");
-        }
-        "tsubu" => {
-            println!("Writes ~/.config/tsubu/coat-colors.h and rebuilds the tsubu tree.\n");
-            println!("tsubu is daemonless -- nothing to restart, the next notification");
-            println!("is drawn with the new colours.");
-        }
-        "wlock" => {
-            println!("Writes ~/.config/wlock/coat-colors.h and rebuilds the wlock tree.\n");
-            println!("Nothing to restart; wlock only runs while the screen is locked.");
-        }
-        "mew" => {
-            println!("Writes ~/.config/mew/coat-colors.h and rebuilds the mew tree.\n");
-            println!("mew is compile-time configured, so colours are a header the source");
-            println!("includes. No restart needed -- the next launch picks it up.");
-        }
         "fuzzel" => {
             println!("Patches colour keys into ~/.config/fuzzel/fuzzel.ini in place.\n");
             println!("fuzzel colours are bare 8-digit hex (rrggbbaa) with NO leading");
             println!("'#'. Nothing to reload: fuzzel reads its config on each launch.");
-        }
-        "wayfire" => {
-            println!("Patches colour keys into ~/.config/wayfire.ini in place.\n");
-            println!("wayfire.ini has no include directive and holds all your keybinds,");
-            println!("so coat edits individual keys and leaves the rest alone. wayfire");
-            println!("watches the file, so the change applies live with no reload.");
-        }
-        "labwc" => {
-            println!("Theme is applied automatically via labwc --reconfigure.\n");
-            println!("If labwc is not running, start it and the theme will load.");
         }
         other => {
             println!("The {} theme has been applied.", other);

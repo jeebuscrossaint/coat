@@ -141,20 +141,29 @@ your current terminal. Already running elevated? No flag needed.
 
 ## Supported modules
 
+coat writes **colours and fonts. Nothing else.** Where an app has an include
+mechanism, coat writes a fragment beside your config and adds one include line;
+where it does not, coat patches only its own keys into your file and leaves every
+other line alone. Your geometry, timeouts, keybindings and behaviour stay yours
+across a theme change.
+
 | Category | Modules |
 |---|---|
-| Terminals | fish, foot |
+| Terminals | kitty, foot |
+| Shell | fish |
 | Editors | neovim, vscode |
-| WM / Compositors | sway, labwc, hyprland, mango, dwl, wayfire |
-| Bars | swaybar |
-| Screen locker | gtklock |
-| Launchers | tofi |
-| Notifications | dunst |
-| OSD | swayosd |
+| WM / Compositors | mango, hyprland, sway |
+| Bars | waybar, swaybar |
+| Screen locker | swaylock |
+| Launchers | fuzzel, tofi |
+| Notifications | fnott, dunst |
 | System | gtk, xresources |
-| Utilities | bat, btop, zathura |
-| Browsers | firefox |
+| Utilities | bat, btop, zathura, mpv |
+| Browsers | firefox (chrome + content) |
 | Other | vesktop |
+
+The one exception is `swaybar`: sway's parser rejects `include` inside a
+`bar { }` block, so coat has to emit the whole block. See [USAGE.md](USAGE.md).
 
 See [USAGE.md](USAGE.md) for per-application activation steps, or run `coat docs <app>`.
 
