@@ -17,24 +17,31 @@
 {% endif %}
 }
 
-/* Slightly translucent, not solid. Under wayfire this is what the blur shows through
- * -- an opaque bar would frost nothing, because blur only affects what is BEHIND a
- * surface. Under mango and labwc, which have no blur, this reads as a subtle tint of
- * the wallpaper and is still fully legible because base05 on base00 is the guaranteed
- * pair.
+/* ISLANDS. The bar WINDOW is fully transparent -- `background: transparent`, not
+ * base00 -- so the panel itself paints nothing at all. Every visible surface is a
+ * per-module slab below, which is what makes the row read as separate rectangles
+ * floating over the wallpaper instead of one welded-on brick.
  *
  * rgba() and NOT #rrggbbaa: GTK's CSS parser has no 8-digit hex form and rejects the
  * whole declaration with "Junk at end of value", which takes the entire stylesheet
  * down with it -- the bar came up completely unstyled. The r/g/b filters exist for
- * exactly this. */
-/* The bar WINDOW is transparent: the visible slabs are the module groups below, so the
- * bar reads as pills floating over the wallpaper instead of one bar welded to the screen
- * edge. Geometry (radius, margins, padding) is in style.css. */
-/* ONE background, on the bar itself. No per-module and no per-section backgrounds --
- * those boxes behind each field are the "section highlighting" that had to go. */
+ * exactly this. So the island tint is written as rgba() of base00's channels.
+ *
+ * Geometry -- radius, margins, the gaps BETWEEN islands -- is style.css. Only the
+ * fill is here. */
 window#waybar {
-  background: #{{ base00 }};
+  background: transparent;
   color: #{{ base05 }};
+}
+
+/* One island per module. `> widget > *` is the module widget itself: waybar wraps
+ * each in a GtkEventBox, and putting the background on the wrapper instead leaves
+ * the rounding clipped at the corners. 0.85 rather than solid so the wallpaper
+ * still tints through and any compositor blur has something to frost. */
+.modules-left > widget > *,
+.modules-center > widget > *,
+.modules-right > widget > * {
+  background: rgba({{ base00 | r }}, {{ base00 | g }}, {{ base00 | b }}, 0.85);
 }
 
 /* No background on the module groups and none on the clock. The bar is text over the
