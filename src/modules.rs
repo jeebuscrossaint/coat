@@ -116,6 +116,40 @@ pub fn make_tera() -> Result<Tera> {
 
 // ── Context builder ────────────────────────────────────────────────────────
 
+/// Relative luminance of an `RRGGBB` string, sRGB coefficients, no gamma step --
+/// this only ever has to ORDER colours, and gamma is monotonic.
+fn luminance(hex: &str) -> f32 {
+    let h = hex.trim_start_matches('#');
+    if h.len() < 6 {
+        return 1.0;
+    }
+    let ch = |i: usize| u8::from_str_radix(&h[i..i + 2], 16).unwrap_or(0) as f32 / 255.0;
+    0.2126 * ch(0) + 0.7152 * ch(2) + 0.0722 * ch(4)
+}
+
+/// The darkest colour on the scheme's neutral ramp.
+///
+/// A shadow is cast by a light source, so it is dark in EVERY scheme -- but it
+/// should still be the scheme's own dark rather than a hardcoded black, or coat
+/// is not theming it at all. base00 is the answer on a dark variant and the wrong
+/// end entirely on a light one, where it is the page. Picking by luminance gets
+/// both without branching on the variant field, which schemes are free to leave
+/// unset.
+fn darkest_neutral(s: &Scheme) -> String {
+    [
+        &s.base00, &s.base01, &s.base02, &s.base03, &s.base04, &s.base05, &s.base06, &s.base07,
+    ]
+    .into_iter()
+    .filter(|c| c.trim_start_matches('#').len() >= 6)
+    .min_by(|a, b| {
+        luminance(a)
+            .partial_cmp(&luminance(b))
+            .unwrap_or(std::cmp::Ordering::Equal)
+    })
+    .cloned()
+    .unwrap_or_else(|| "000000".to_string())
+}
+
 fn build_context(scheme: &Scheme, config: &CoatConfig) -> tera::Context {
     let mut ctx = tera::Context::new();
     // Colors — uppercase 6-char hex without '#'
@@ -150,6 +184,8 @@ fn build_context(scheme: &Scheme, config: &CoatConfig) -> tera::Context {
     ctx.insert("scheme_author", &scheme.author);
     ctx.insert("scheme_variant", &scheme.variant);
     ctx.insert("is_dark", &scheme.is_dark());
+    // The scheme's dark end, for shadows -- dark on light schemes too.
+    ctx.insert("shadow", &darkest_neutral(scheme));
     // Font
     ctx.insert("font_monospace", config.font_monospace());
     ctx.insert("font_sansserif", config.font_sansserif());

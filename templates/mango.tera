@@ -36,7 +36,7 @@ splitcolor=0x{{ base08 }}ff
 
 # Shadows are pure black at partial alpha regardless of scheme -- tinting them
 # with a palette colour reads as a glow rather than depth.
-shadowscolor=0x00000088
+shadowscolor=0x{{ shadow | lower_hex }}88
 
 # The group bar -- mango's per-window title strip, which is the nearest thing it has to a
 # titlebar (it has no titlebars and no buttons, so no traffic lights). Focused gets the
