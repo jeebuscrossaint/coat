@@ -1,9 +1,16 @@
 # coat — {{ scheme_name }}
-osd-color=#{{ base05 | lower_hex }}
-osd-border-color=#{{ base00 | lower_hex }}
-osd-back-color=#{{ base00 | lower_hex }}CC
-osd-shadow-color=#{{ base00 | lower_hex }}80
+#
+# Values are QUOTED. mpv.conf treats '#' as a comment character, so a bare
+# osd-color=#a6a28c parses as `osd-color=` with the value eaten and mpv reports
+# "Error parsing option osd-color (option requires parameter)".
+#
+# Alpha is FIRST: mpv colours are #AARRGGBB, not #RRGGBBAA like everything else
+# here. Written the other way round the alpha byte is read as red.
+osd-color="#{{ base05 | lower_hex }}"
+osd-border-color="#{{ base00 | lower_hex }}"
+osd-back-color="#CC{{ base00 | lower_hex }}"
+osd-shadow-color="#80{{ base00 | lower_hex }}"
 {% if font_sansserif -%}
-osd-font={{ font_sansserif }}
-sub-font={{ font_sansserif }}
+osd-font="{{ font_sansserif }}"
+sub-font="{{ font_sansserif }}"
 {% endif %}

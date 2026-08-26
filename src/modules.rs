@@ -785,10 +785,17 @@ fn apply_fuzzel(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) 
 
 fn apply_mpv(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
-    let dest = home.join(".config/mpv/coat-theme.conf");
-    render_to(tera, "mpv", ctx, &dest)?;
-    detail!("    Add to ~/.config/mpv/mpv.conf: include ~/.config/mpv/coat-theme.conf");
-    Ok(())
+    let dir = home.join(".config/mpv");
+    render_to(tera, "mpv", ctx, &dir.join("coat-theme.conf"))?;
+    // Was a printed hint telling the user to add this line themselves, which meant
+    // that on any machine where they had not, coat wrote a theme nothing read.
+    // Every other module with an include mechanism wires itself up; this one now
+    // does too.
+    ensure_include(
+        &dir.join("mpv.conf"),
+        &format!("include={}", dir.join("coat-theme.conf").display()),
+        ("#", ""),
+    )
 }
 
 fn apply_neovim(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
