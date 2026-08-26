@@ -104,6 +104,19 @@ pub fn make_tera() -> Result<Tera> {
     );
 
     // lower: lowercase a string (useful for hex that's uppercase in our store)
+    for (name, idx) in [("hue", 0usize), ("sat", 1), ("lum", 2)] {
+        tera.register_filter(
+            name,
+            move |v: &tera::Value, _: &std::collections::HashMap<String, tera::Value>| {
+                let s = v.as_str().unwrap_or("");
+                let hsl = hex_to_hsl(s);
+                let n = [hsl.0, hsl.1, hsl.2][idx];
+                // Three decimals, matching how Discord authors its own triplets.
+                Ok(tera::Value::from(format!("{:.3}", n)))
+            },
+        );
+    }
+
     tera.register_filter(
         "lower_hex",
         |val: &Value, _: &HashMap<String, Value>| {
@@ -118,6 +131,34 @@ pub fn make_tera() -> Result<Tera> {
 
 /// Relative luminance of an `RRGGBB` string, sRGB coefficients, no gamma step --
 /// this only ever has to ORDER colours, and gamma is monotonic.
+/// sRGB hex -> HSL. Discord's palette is authored in HSL and every one of its
+/// theme tokens bottoms out in an `hsl(var(--x-hsl)/a)`, so recolouring it means
+/// speaking HSL back at it.
+fn hex_to_hsl(hex: &str) -> (f32, f32, f32) {
+    let h = hex.trim_start_matches('#');
+    if h.len() < 6 {
+        return (0.0, 0.0, 0.0);
+    }
+    let ch = |i: usize| u8::from_str_radix(&h[i..i + 2], 16).unwrap_or(0) as f32 / 255.0;
+    let (r, g, b) = (ch(0), ch(2), ch(4));
+    let max = r.max(g).max(b);
+    let min = r.min(g).min(b);
+    let l = (max + min) / 2.0;
+    let d = max - min;
+    if d.abs() < f32::EPSILON {
+        return (0.0, 0.0, l * 100.0);
+    }
+    let s = if l > 0.5 { d / (2.0 - max - min) } else { d / (max + min) };
+    let hue = if max == r {
+        ((g - b) / d + if g < b { 6.0 } else { 0.0 }) * 60.0
+    } else if max == g {
+        ((b - r) / d + 2.0) * 60.0
+    } else {
+        ((r - g) / d + 4.0) * 60.0
+    };
+    (hue, s * 100.0, l * 100.0)
+}
+
 fn luminance(hex: &str) -> f32 {
     let h = hex.trim_start_matches('#');
     if h.len() < 6 {
@@ -186,6 +227,27 @@ fn build_context(scheme: &Scheme, config: &CoatConfig) -> tera::Context {
     ctx.insert("is_dark", &scheme.is_dark());
     // The scheme's dark end, for shadows -- dark on light schemes too.
     ctx.insert("shadow", &darkest_neutral(scheme));
+    // Endpoints of the scheme's neutral ramp, as lightness percentages. Discord's
+    // neutral ramp runs light (--neutral-1) to dark (--neutral-100) and coat
+    // remaps it onto these, so the recolour works from either variant without
+    // asking which one it is.
+    let neutrals = [
+        &scheme.base00, &scheme.base01, &scheme.base02, &scheme.base03,
+        &scheme.base04, &scheme.base05, &scheme.base06, &scheme.base07,
+    ];
+    let ls: Vec<f32> = neutrals.iter().map(|c| hex_to_hsl(c).2).collect();
+    let lmax = ls.iter().cloned().fold(f32::MIN, f32::max);
+    let lmin = ls.iter().cloned().fold(f32::MAX, f32::min);
+    ctx.insert("neutral_l_light", &lmax);
+    ctx.insert("neutral_l_dark", &lmin);
+    // Hue and saturation for the neutral ramp, taken from base03 and NOT base00.
+    // HSL saturation is meaningless at the ends of the lightness range: a cream
+    // white like #FFFCF0 reports S=100%, and applying that across the whole ramp
+    // turns the mid-tones bright orange. base03 sits mid-ramp where the number
+    // means something. Clamped anyway -- Discord's own neutrals run 0-7%.
+    let (nh, ns, _) = hex_to_hsl(&scheme.base03);
+    ctx.insert("neutral_h", &format!("{:.3}", nh));
+    ctx.insert("neutral_s", &format!("{:.3}", ns.min(10.0)));
     // Font
     ctx.insert("font_monospace", config.font_monospace());
     ctx.insert("font_sansserif", config.font_sansserif());

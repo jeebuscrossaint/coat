@@ -228,3 +228,46 @@
     --white-500: var(--base05) !important;
     --white: var(--base05) !important;
 }
+
+/* ── Discord's core ramps ────────────────────────────────────────────────────
+ *
+ * This is what actually themes Discord, and the named tokens above are the
+ * safety net rather than the mechanism.
+ *
+ * Measured against discord.com's live stylesheets: Discord defines 622 theme
+ * tokens under .theme-dark/.theme-light, and 393 of them are `var()` references
+ * with another 180 written `hsl(var(--x-hsl)/alpha)`. They nearly all bottom out
+ * in a handful of RAMPS -- --neutral-1..100, --primary-100..900 and one per
+ * accent. Recolour the ramps and all 622 follow. Enumerating the tokens by hand
+ * never can: coat listed 136 of them and only 45 were names Discord still uses.
+ *
+ * The `-hsl` TRIPLET is what gets overridden, not the solid colour. `--neutral-4`
+ * is itself just `hsl(var(--neutral-4-hsl)/1)`, so setting the triplet fixes the
+ * solid colour and every translucent token derived from it in one go.
+ *
+ * The `calc(var(--saturation-factor, 1)*...)` wrapper is Discord's own, and it is
+ * kept so their in-app saturation slider still works on the recoloured palette.
+ *
+ * Neutrals take the scheme's background hue and are remapped across the scheme's
+ * own lightness range, so this works from a light or a dark scheme without asking
+ * which it is -- Discord's ramp runs light at step 1 to dark at step 100, and the
+ * endpoints come from whichever of base00..base07 is lightest and darkest.
+ *
+ * Accents keep Discord's tonal STRUCTURE (the same 100 lightness steps) but take
+ * the scheme's hue and saturation, so a red stays a red-shaped ramp in the
+ * scheme's own red.
+ */
+:root,
+.theme-dark,
+.theme-light {
+{% for i in range(start=1, end=101) %}    --neutral-{{ i }}-hsl: {{ neutral_h }} calc(var(--saturation-factor, 1)*{{ neutral_s }}%) {{ (neutral_l_light - (neutral_l_light - neutral_l_dark) * (i - 1) / 99) | round(precision=2) }}%;
+{% endfor %}
+{% for i in [100,130,160,200,230,260,300,330,345,360,400,430,460,500,530,560,600,630,645,660,700,730,760,800,830,860,900] %}    --primary-{{ i }}-hsl: {{ neutral_h }} calc(var(--saturation-factor, 1)*{{ neutral_s }}%) {{ (neutral_l_light - (neutral_l_light - neutral_l_dark) * (i - 100) / 800) | round(precision=2) }}%;
+{% endfor %}
+{% for i in range(start=1, end=101) %}    --blurple-{{ i }}-hsl: {{ base0D | hue }} calc(var(--saturation-factor, 1)*{{ base0D | sat }}%) {{ (97 - (i - 1) * 0.95) | round(precision=2) }}%;
+    --blue-new-{{ i }}-hsl: {{ base0D | hue }} calc(var(--saturation-factor, 1)*{{ base0D | sat }}%) {{ (97 - (i - 1) * 0.95) | round(precision=2) }}%;
+    --red-new-{{ i }}-hsl: {{ base08 | hue }} calc(var(--saturation-factor, 1)*{{ base08 | sat }}%) {{ (97 - (i - 1) * 0.95) | round(precision=2) }}%;
+    --green-new-{{ i }}-hsl: {{ base0B | hue }} calc(var(--saturation-factor, 1)*{{ base0B | sat }}%) {{ (97 - (i - 1) * 0.95) | round(precision=2) }}%;
+    --yellow-new-{{ i }}-hsl: {{ base0A | hue }} calc(var(--saturation-factor, 1)*{{ base0A | sat }}%) {{ (97 - (i - 1) * 0.95) | round(precision=2) }}%;
+    --teal-new-{{ i }}-hsl: {{ base0C | hue }} calc(var(--saturation-factor, 1)*{{ base0C | sat }}%) {{ (97 - (i - 1) * 0.95) | round(precision=2) }}%;
+{% endfor %}}
