@@ -28,6 +28,20 @@
 .theme-dark,
 .theme-darker,
 .theme-midnight,
+/* Every Discord shell, not just the new one.
+ *
+ * These were scoped to `.visual-refresh` alone, which is the class Discord's
+ * redesigned UI puts on the root element -- so on any build or surface without
+ * it, none of the overrides below applied and Discord's own defaults showed
+ * through. That is what left white text on a light scheme: Discord's Light/Dark
+ * setting is INDEPENDENT of the coat scheme, so with the app in dark mode its
+ * defaults are white text, and coat only replaced the parts it could reach.
+ *
+ * Listing .theme-dark and .theme-light as well means coat wins in either app
+ * mode, at equal specificity, with !important on every declaration. */
+:root,
+.theme-dark,
+.theme-light,
 .visual-refresh {
     /* Backgrounds */
     --activity-card-background: var(--base01) !important;
@@ -167,6 +181,28 @@
     --status-warning: var(--base09) !important;
 
     /* Text */
+    /* Discord's redesign token names. The older --text-* set below did not cover
+     * these, so they fell through to Discord's own defaults -- which is why body
+     * text stayed white under a light scheme while the backgrounds changed.
+     *
+     * base03 rather than base04 for anything secondary: base01/02/04/06 sit at
+     * unreadable contrast in plenty of base16 schemes, and base05/base03 on
+     * base00 are the pairs that are safe everywhere. Those slots are used below
+     * only for borders and fills, never for text.
+     *
+     * A name Discord does not use is inert, so this list is additive and cannot
+     * break an older client. */
+    --text-default: var(--base05) !important;
+    --content-primary: var(--base05) !important;
+    --content-secondary: var(--base03) !important;
+    --text-muted-on-brand: var(--base00) !important;
+    --bg-base-primary: var(--base00) !important;
+    --bg-mod-faint: var(--base01) !important;
+    --bg-mod-subtle: var(--base01) !important;
+    --bg-mod-strong: var(--base02) !important;
+    --border-faint: var(--base01) !important;
+    --border-subtle: var(--base02) !important;
+    --border-strong: var(--base03) !important;
     --text-brand: var(--base07) !important;
     --text-feedback-positive: var(--base0B) !important;
     --text-feedback-negative: var(--base08) !important;
