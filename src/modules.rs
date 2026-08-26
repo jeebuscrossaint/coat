@@ -771,24 +771,16 @@ fn patch_ini_in_place(path: &Path, edits: &[(String, String, String)]) -> Result
 
 fn apply_fuzzel(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
-    let dest = home.join(".config/fuzzel/fuzzel.ini");
-
-    // fuzzel runs fine with no config at all, so an absent file means the user has not
-    // set one up -- writing one containing only colours would be a worse starting point
-    // than fuzzel's defaults, and would hide the fact that nothing else is configured.
-    if !dest.exists() {
-        detail!("  - {} (not present, skipped)", dest.display());
-        return Ok(());
-    }
-
-    let rendered = tera
-        .render("fuzzel", ctx)
-        .context("Failed to render template 'fuzzel'")?;
-    let edits = parse_ini_edits(&rendered);
-    patch_ini_in_place(&dest, &edits)?;
-    // Nothing to reload: fuzzel is not a daemon, it reads its config on each launch.
-    detail!("  ✓ {}", dest.display());
-    Ok(())
+    let dir = home.join(".config/fuzzel");
+    render_to(tera, "fuzzel", ctx, &dir.join("coat-theme.ini"))?;
+    // fuzzel resolves an include where the line appears, so this belongs at the
+    // top of fuzzel.ini and anything after it wins. Nothing to reload: fuzzel is
+    // not a daemon, it reads its config on each launch.
+    ensure_include(
+        &dir.join("fuzzel.ini"),
+        &format!("include={}", dir.join("coat-theme.ini").display()),
+        ("#", ""),
+    )
 }
 
 fn apply_mpv(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
