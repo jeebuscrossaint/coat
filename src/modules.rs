@@ -1012,11 +1012,27 @@ fn apply_fnott(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -
     // Doing it in one `sh -c` so the respawn cannot be orphaned if the kill
     // succeeds and coat exits immediately afterwards; setsid detaches it from
     // coat's process group so it outlives this command.
+    // Blocks until fnott owns the notification bus name again, and that wait is
+    // the point. coat used to fire-and-forget the respawn and return immediately,
+    // so `coat set` finished with fnott DEAD and org.freedesktop.Notifications
+    // unowned -- measured at 63ms for the whole apply, with no daemon at the end
+    // of it. Anything that themed and then notified (theme-pick, theme-random)
+    // sent its notification into a void and it was simply dropped. It looked like
+    // fnott being slow; it was fnott not being there.
+    //
+    // The bus name, not just the process: fnott is running for a few ms before it
+    // owns the name, and a notification in that window is lost the same way.
+    // busctl is elogind/systemd-provided, so there is a plain sleep as a fallback.
+    // ~36ms in practice, which is under a frame at 30Hz -- not perceptible.
     run("pgrep -x fnott >/dev/null 2>&1 || exit 0; \
          pkill -x fnott; \
          i=0; while pgrep -x fnott >/dev/null 2>&1 && [ $i -lt 20 ]; do \
-           sleep 0.1; i=$((i+1)); done; \
-         setsid fnott >/dev/null 2>&1 &");
+           sleep 0.05; i=$((i+1)); done; \
+         setsid fnott >/dev/null 2>&1 & \
+         if command -v busctl >/dev/null 2>&1; then \
+           i=0; while ! busctl --user status org.freedesktop.Notifications >/dev/null 2>&1 \
+                 && [ $i -lt 100 ]; do sleep 0.02; i=$((i+1)); done; \
+         else sleep 0.2; fi");
     Ok(())
 }
 
