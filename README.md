@@ -91,8 +91,14 @@ cannot produce a scheme whose foreground is invisible on its background.
 - **dark by default**, whatever the image's brightness. Inferring polarity means a
   snowy wallpaper turns the desktop white, which nobody asks for; `--auto` opts
   back into inference, `--light` forces the other way
-- `base00`–`base07` are a fixed lightness ramp tinted with the image's
-  chroma-weighted mean hue, so the background reads as *of* the wallpaper
+- `base00`–`base07` are a lightness/chroma ladder tinted with the image's
+  chroma-weighted mean hue, so the background reads as *of* the wallpaper. The
+  ladder is the **median of every scheme in the tinted-theming library** measured
+  in Oklch (406 dark, 127 light) rather than an invented one — dark `base00` lands
+  at L 0.229, where catppuccin-mocha (0.243), tokyo-night (0.226) and rose-pine
+  (0.213) all sit. The image's overall brightness nudges it within a narrow band
+- chroma humps at `base02`/`base03` rather than decaying from the background,
+  which is what both the corpus and the tinted schemes actually do
 - `base08`–`base0F` keep their conventional meanings: each slot takes the nearest
   matching hue from the image within 45°. A slot the image has no colour for keeps
   its identity but leans up to 30° toward the image's nearest hue — without that,

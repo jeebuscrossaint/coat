@@ -1,8 +1,9 @@
 //! `coat match` — derive a scheme from the wallpaper that is already on screen.
 //!
 //! Nothing here picks colours by taste. The image decides the HUES, the base16
-//! slot contract decides where they land, and lightness/chroma are pinned to
-//! per-polarity constants so a muddy photo cannot produce an illegible theme.
+//! slot contract decides where they land, and the lightness/chroma ladders are
+//! the measured medians of the tinted-theming library — so a generated scheme
+//! sits where real schemes sit instead of somewhere nobody ships.
 //! That split is deliberate: a generator that also honoured the image's own
 //! lightness would hand you base05 at 20% L over a base00 at 15% and call it a
 //! scheme.
@@ -59,22 +60,49 @@ const HUE_TOLERANCE: f64 = 45.0;
 /// CONVENTION, and separated by lightness rather than hue.
 const MIN_ACCENT_SEP: f64 = 20.0;
 
-/// Lightness ladder for base00..base07. Fixed, not sampled: this is the
-/// contrast structure every consumer relies on.
-const RAMP_DARK: [f64; 8] = [0.14, 0.21, 0.29, 0.45, 0.63, 0.80, 0.88, 0.95];
-const RAMP_LIGHT: [f64; 8] = [0.97, 0.93, 0.87, 0.70, 0.52, 0.34, 0.26, 0.18];
+/// Lightness ladder for base00..base07, and the chroma that goes with it.
+///
+/// These are not taste. They are the MEDIAN of every scheme in the tinted-theming
+/// library, measured in Oklch — 406 dark schemes and 127 light ones. A generator
+/// that invents its own ladder lands somewhere no real scheme sits: the first cut
+/// of this file put base00 at L 0.14, a near-black void, when the corpus median is
+/// 0.229 and the schemes people actually name — catppuccin-mocha 0.24, rose-pine
+/// 0.21, tokyo-night 0.23, gruvbox-dark-hard 0.24 — agree within a hair.
+const RAMP_DARK: [f64; 8] = [0.229, 0.277, 0.404, 0.537, 0.670, 0.810, 0.894, 0.967];
+const RAMP_LIGHT: [f64; 8] = [0.974, 0.915, 0.840, 0.684, 0.559, 0.411, 0.311, 0.231];
 
-/// Chroma across that ramp: the background keeps a visible cast of the
-/// wallpaper, the foreground ends up near-neutral so text does not read tinted.
-const RAMP_CHROMA: (f64, f64) = (0.024, 0.008);
+/// Chroma per slot, and the shape matters: it HUMPS at base02/base03 rather than
+/// decaying from the background, in both the corpus (0.010 → 0.017 → 0.003) and in
+/// the tinted schemes specifically. Values sit near the corpus p75 rather than its
+/// median, because half that library is deliberately greyscale and this generator
+/// exists to carry a wallpaper's cast — catppuccin-mocha runs 0.030 at base00 and
+/// 0.032 at base02, which is the territory being aimed at.
+const CHROMA_DARK: [f64; 8] = [0.028, 0.026, 0.032, 0.030, 0.024, 0.020, 0.016, 0.010];
+const CHROMA_LIGHT: [f64; 8] = [0.016, 0.020, 0.028, 0.030, 0.026, 0.022, 0.018, 0.012];
+
+/// How far the background may drift from that median with the image's overall
+/// brightness, and how fast the drift fades up the ramp.
+///
+/// Anchored on MEAN lightness, not on the image's darkest colour: every photo has
+/// something near-black in it, so a darkest-colour anchor pins itself to the
+/// bottom of the clamp on every wallpaper and stops being character at all. Mean
+/// brightness actually varies, and the range is narrow by design — a bright
+/// wallpaper lands around catppuccin's 0.24, a dark one around rose-pine's 0.21,
+/// and neither end reaches the void this replaced.
+const DRIFT_SCALE: f64 = 0.06;
+const DRIFT_RANGE: (f64, f64) = (-0.025, 0.035);
+const DRIFT_FADE: [f64; 8] = [1.0, 0.8, 0.5, 0.25, 0.0, 0.0, 0.0, 0.0];
 
 /// Where accents sit once their hue is chosen. Lightness is fixed — that is the
 /// legibility guarantee — but chroma is only a MIDPOINT: the image's own
 /// saturation scales it within the band below, so a washed-out photo gives muted
 /// accents instead of eight candy-bright canonical hues stapled onto it.
-const ACCENT_DARK_L: f64 = 0.78;
-const ACCENT_LIGHT_L: f64 = 0.52;
-const ACCENT_CHROMA_BAND: (f64, f64) = (0.075, 0.170);
+///
+/// Same provenance: dark-scheme accents in the library run L 0.712 median
+/// (p25 0.62, p75 0.77) and chroma 0.123 median (p25 0.086, p75 0.157).
+const ACCENT_DARK_L: f64 = 0.740;
+const ACCENT_LIGHT_L: f64 = 0.545;
+const ACCENT_CHROMA_BAND: (f64, f64) = (0.085, 0.165);
 
 /// Image chroma that maps to the top of that band. Anything more saturated than
 /// this is already vivid enough to clip.
@@ -319,11 +347,24 @@ pub fn scheme_from_image(path: &Path, polarity: Polarity, raw: bool) -> Result<(
     let (lo, hi) = ACCENT_CHROMA_BAND;
     let accent_c = lo + (hi - lo) * (image_chroma / CHROMA_REFERENCE).clamp(0.0, 1.0);
 
+    // A bright wallpaper lifts the background slightly, a dark one sinks it.
+    // Mirrored for light schemes, where "lifting" means going the other way.
+    let drift = {
+        let d = ((mean_l - 0.5) * DRIFT_SCALE).clamp(DRIFT_RANGE.0, DRIFT_RANGE.1);
+        if dark {
+            d
+        } else {
+            -d
+        }
+    };
+
+    let chroma_ramp = if dark { CHROMA_DARK } else { CHROMA_LIGHT };
     let mut palette: Vec<(String, String)> = Vec::with_capacity(16);
     for (i, l) in ramp.iter().enumerate() {
-        let t = i as f64 / (ramp.len() - 1) as f64;
-        let c = RAMP_CHROMA.0 + (RAMP_CHROMA.1 - RAMP_CHROMA.0) * t;
-        palette.push((format!("base0{:X}", i), hex(*l, c, tint)));
+        palette.push((
+            format!("base0{:X}", i),
+            hex(l + drift * DRIFT_FADE[i], chroma_ramp[i], tint),
+        ));
     }
 
     // --raw drops the guarantee that a slot holds the colour it is named after,
