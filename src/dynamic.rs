@@ -1,9 +1,14 @@
 //! `coat match` — derive a scheme from the wallpaper that is already on screen.
 //!
-//! Nothing here picks colours by taste. The image decides the HUES, the base16
-//! slot contract decides where they land, and the lightness/chroma ladders are
-//! the measured medians of the tinted-theming library — so a generated scheme
-//! sits where real schemes sit instead of somewhere nobody ships.
+//! Nothing here picks colours by taste. The image supplies the colours; the
+//! lightness/chroma ladders are the measured medians of the tinted-theming
+//! library, so a generated scheme sits where real schemes sit instead of
+//! somewhere nobody ships.
+//!
+//! By default the image's colours go into the accent slots as they are,
+//! pywal-style, and a wallpaper with one strong hue gives eight shades of it.
+//! `--slots` is the other bargain: every accent holds the colour it is named
+//! after, at the cost of accents that vary less from wallpaper to wallpaper.
 //! That split is deliberate: a generator that also honoured the image's own
 //! lightness would hand you base05 at 20% L over a base00 at 15% and call it a
 //! scheme.
@@ -26,10 +31,11 @@ const SAMPLE_EDGE: u32 = 160;
 const CLUSTERS: usize = 12;
 const ITERATIONS: usize = 12;
 
-/// Conventional base16 accent hues, as Oklch degrees. The image's own hues are
-/// snapped to whichever of these they are nearest, so `base0B` holds something
-/// green even when the wallpaper is mostly teal — the slots keep meaning what
-/// they say they mean.
+/// Conventional base16 accent hues, as Oklch degrees. Under `--slots` an image
+/// hue is snapped to whichever of these it is nearest, so `base0B` holds
+/// something green even when the wallpaper is mostly teal. By default they only
+/// order the assignment: each of the image's colours goes to the slot whose hue
+/// it is closest to, and is then kept as it is.
 const ACCENTS: [(&str, f64); 8] = [
     ("base08", 25.0),  // red
     ("base09", 55.0),  // orange
@@ -367,8 +373,8 @@ pub fn scheme_from_image(path: &Path, polarity: Polarity, raw: bool) -> Result<(
         ));
     }
 
-    // --raw drops the guarantee that a slot holds the colour it is named after,
-    // and spreads the image's actual colours across the eight accents instead.
+    // The default: spread the image's actual colours across the eight accents,
+    // giving up the guarantee that a slot holds the colour it is named after.
     //
     // It is a one-cluster-per-slot assignment, NOT "each slot takes its nearest
     // cluster" -- that scores every slot against the same dominant colour and
@@ -445,8 +451,8 @@ pub fn scheme_from_image(path: &Path, polarity: Polarity, raw: bool) -> Result<(
             taken.push(hue);
         }
 
-        // In raw mode the matched colour's own saturation carries through, only
-        // lifted into the legible band; otherwise every accent shares the
+        // By default the matched colour's own saturation carries through, only
+        // lifted into the legible band; under --slots every accent shares the
         // image-wide chroma so the row reads as one family.
         let (lo, hi) = ACCENT_CHROMA_BAND;
         let chroma = match (raw, best) {
@@ -464,7 +470,7 @@ pub fn scheme_from_image(path: &Path, polarity: Polarity, raw: bool) -> Result<(
     let slug = format!(
         "wall-{}{}{}",
         slugify(&stem),
-        if raw { "-raw" } else { "" },
+        if raw { "" } else { "-slots" },
         if dark { "" } else { "-light" }
     );
     let name = format!("Wall {}", stem.replace(['_', '-'], " "));

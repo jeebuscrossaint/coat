@@ -101,7 +101,7 @@ fn print_usage(prog: &str) {
     println!("  {} match             Build a scheme from the current wallpaper", prog);
     println!("  {} match --light     Build a light one instead of a dark one", prog);
     println!("  {} match --auto      Let the wallpaper's brightness decide", prog);
-    println!("  {} match --raw       Image hues verbatim, pywal-style, no slot rules", prog);
+    println!("  {} match --slots     Keep base16 slot meanings: red is red, green is green", prog);
     println!("  {} match --dry       Generate and preview it, apply nothing", prog);
     println!("  {} apply             Apply current scheme to all enabled apps", prog);
     println!("  {} apply foot        Apply current scheme only to foot", prog);
@@ -359,7 +359,7 @@ fn cmd_remove(args: &[String]) -> Result<()> {
     Ok(())
 }
 
-/// `coat match [image] [--light|--auto] [--raw] [--dry]`
+/// `coat match [image] [--light|--auto] [--slots] [--dry]`
 fn cmd_match(args: &[String]) -> Result<()> {
     use dynamic::Polarity;
 
@@ -373,7 +373,9 @@ fn cmd_match(args: &[String]) -> Result<()> {
         Polarity::Dark
     };
     let dry = args.iter().any(|a| a == "--dry" || a == "--dry-run");
-    let raw = args.iter().any(|a| a == "--raw");
+    // Raw is the default: the image's colours as they are. --slots opts into the
+    // semantic palette, where every accent holds the colour its name promises.
+    let raw = !args.iter().any(|a| a == "--slots");
 
     let image = match args.iter().find(|a| !a.starts_with('-')) {
         Some(p) => std::path::PathBuf::from(p),

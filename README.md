@@ -70,7 +70,7 @@ coat match
 coat match ~/walls/whatever.png   # or a specific image
 coat match --light                # a light scheme instead (dark is the default)
 coat match --auto                 # let the image's own brightness decide
-coat match --raw                  # pywal-style: image hues verbatim, no slot rules
+coat match --slots                # keep base16 slot meanings instead
 coat match --dry                  # generate and preview, apply nothing
 
 # Undo one app: delete the files coat generated for it, strip the include line
@@ -82,9 +82,16 @@ coat remove foot --keep-enabled   # clean up but leave it enabled
 
 ### How `coat match` picks colours
 
-The image decides the **hues**; the base16 slot contract decides where they land.
-Lightness and chroma come from fixed per-polarity ladders, so a muddy photo
-cannot produce a scheme whose foreground is invisible on its background.
+The image supplies the **colours**; fixed per-polarity ladders supply the
+**lightness**, so a muddy photo cannot produce a scheme whose foreground is
+invisible on its background.
+
+By default the accents are the image's own colours — the eight most prominent,
+assigned one per slot (closest slot/colour pair first, never the same colour
+twice), at their own saturation. That is pywal's bargain: a wallpaper with one
+strong hue gives you eight shades of that hue, and `base0B` is not necessarily
+green. `--slots` takes the other bargain — every accent holds the colour its name
+promises, at the cost of varying less between wallpapers.
 
 - the image is downscaled to 160px and clustered in Oklab (k=12, farthest-point
   seeded, so the same wallpaper always yields the same scheme)
@@ -99,21 +106,19 @@ cannot produce a scheme whose foreground is invisible on its background.
   (0.213) all sit. The image's overall brightness nudges it within a narrow band
 - chroma humps at `base02`/`base03` rather than decaying from the background,
   which is what both the corpus and the tinted schemes actually do
-- `base08`–`base0F` keep their conventional meanings: each slot takes the nearest
-  matching hue from the image within 45°. A slot the image has no colour for keeps
-  its identity but leans up to 30° toward the image's nearest hue — without that,
-  every photo lacking a red produced the *same* red, and wildly different
-  wallpapers came out with identical accent rows
-- accent chroma scales with how colourful the image actually is, so a washed-out
-  photo gives muted accents rather than eight candy-bright hues stapled on
+- `base08`–`base0F` are the image's colours, one per slot, at their own saturation
+  lifted into a legible band
+
+Under `--slots` instead:
+
+- each slot takes the nearest matching image hue within 45°. A slot the image has
+  no colour for keeps its identity but leans up to 30° toward the image's nearest
+  hue — without that, every photo lacking a red produced the *same* red, and
+  wildly different wallpapers came out with identical accent rows
+- accent chroma scales with how colourful the image is overall, so the row reads
+  as one family and a washed-out photo gives muted accents
 - no two accents may sit within 20° of each other, so `base0D` and `base0E` cannot
   collapse into the same blue
-
-`--raw` drops all of that: the image's eight most prominent colours are assigned
-one-per-slot (globally nearest pair first, never the same cluster twice) at their
-own saturation, with only the lightness ladder left in place. That is pywal's
-behaviour — on a wallpaper with one strong hue it will hand you eight shades of
-that hue, which is the point of asking for it.
 
 Generated schemes are written to `~/.config/coat/schemes/generated/`, so
 `coat set`, `coat list` and `coat browse` see them like any other scheme.
