@@ -42,8 +42,9 @@ complete -c coat -n '__fish_seen_subcommand_from list search browse random' -l d
 complete -c coat -n '__fish_seen_subcommand_from list search browse random' -l light -d 'Only light variant schemes'
 complete -c coat -n '__fish_seen_subcommand_from list search' -l no-preview -d 'Skip color swatches'
 complete -c coat -n '__fish_seen_subcommand_from random match' -l dry -d 'Preview without applying'
-complete -c coat -n '__fish_seen_subcommand_from match' -l dark  -d 'Force a dark palette'
+complete -c coat -n '__fish_seen_subcommand_from match' -l auto  -d "Let the image's brightness decide (default: dark)"
 complete -c coat -n '__fish_seen_subcommand_from match' -l light -d 'Force a light palette'
+complete -c coat -n '__fish_seen_subcommand_from match' -l raw -d 'pywal-style: image hues verbatim'
 complete -c coat -n '__fish_seen_subcommand_from match' -F -d 'Image to sample'
 complete -c coat -n '__fish_seen_subcommand_from remove' -l dry -d 'Show what would be undone'
 complete -c coat -n '__fish_seen_subcommand_from remove' -l keep-enabled -d 'Do not touch coat.yaml'

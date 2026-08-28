@@ -98,6 +98,11 @@ fn print_usage(prog: &str) {
     println!("  {} random --dark     Pick a random dark scheme", prog);
     println!("  {} random -y         Pick and apply a random scheme, no prompt", prog);
     println!("  {} random --dry      Preview a random scheme without applying", prog);
+    println!("  {} match             Build a scheme from the current wallpaper", prog);
+    println!("  {} match --light     Build a light one instead of a dark one", prog);
+    println!("  {} match --auto      Let the wallpaper's brightness decide", prog);
+    println!("  {} match --raw       Image hues verbatim, pywal-style, no slot rules", prog);
+    println!("  {} match --dry       Generate and preview it, apply nothing", prog);
     println!("  {} apply             Apply current scheme to all enabled apps", prog);
     println!("  {} apply foot        Apply current scheme only to foot", prog);
     println!("  {} list --dark       List dark schemes", prog);
@@ -354,18 +359,21 @@ fn cmd_remove(args: &[String]) -> Result<()> {
     Ok(())
 }
 
-/// `coat match [image] [--light|--dark] [--dry]`
+/// `coat match [image] [--light|--auto] [--raw] [--dry]`
 fn cmd_match(args: &[String]) -> Result<()> {
     use dynamic::Polarity;
 
+    // Dark unless told otherwise. Inferring polarity from the image was the
+    // default once and it was wrong: a snowy wallpaper turned the desktop white.
     let polarity = if args.iter().any(|a| a == "--light") {
-        Some(Polarity::Light)
-    } else if args.iter().any(|a| a == "--dark") {
-        Some(Polarity::Dark)
+        Polarity::Light
+    } else if args.iter().any(|a| a == "--auto") {
+        Polarity::Auto
     } else {
-        None
+        Polarity::Dark
     };
     let dry = args.iter().any(|a| a == "--dry" || a == "--dry-run");
+    let raw = args.iter().any(|a| a == "--raw");
 
     let image = match args.iter().find(|a| !a.starts_with('-')) {
         Some(p) => std::path::PathBuf::from(p),
@@ -377,7 +385,7 @@ fn cmd_match(args: &[String]) -> Result<()> {
     }
 
     println!("Sampling: {}\n", image.display());
-    let (scheme, path) = dynamic::scheme_from_image(&image, polarity)?;
+    let (scheme, path) = dynamic::scheme_from_image(&image, polarity, raw)?;
 
     println!("{}", scheme::header_string(&scheme));
     scheme::print_color_preview(&scheme);

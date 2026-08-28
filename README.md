@@ -68,7 +68,9 @@ coat apply foot
 # write it into the schemes directory, and apply it
 coat match
 coat match ~/walls/whatever.png   # or a specific image
-coat match --light                # force the polarity instead of inferring it
+coat match --light                # a light scheme instead (dark is the default)
+coat match --auto                 # let the image's own brightness decide
+coat match --raw                  # pywal-style: image hues verbatim, no slot rules
 coat match --dry                  # generate and preview, apply nothing
 
 # Undo one app: delete the files coat generated for it, strip the include line
@@ -86,12 +88,26 @@ cannot produce a scheme whose foreground is invisible on its background.
 
 - the image is downscaled to 160px and clustered in Oklab (k=12, farthest-point
   seeded, so the same wallpaper always yields the same scheme)
+- **dark by default**, whatever the image's brightness. Inferring polarity means a
+  snowy wallpaper turns the desktop white, which nobody asks for; `--auto` opts
+  back into inference, `--light` forces the other way
 - `base00`–`base07` are a fixed lightness ramp tinted with the image's
   chroma-weighted mean hue, so the background reads as *of* the wallpaper
 - `base08`–`base0F` keep their conventional meanings: each slot takes the nearest
-  matching hue from the image within 45°, or its canonical hue if the image has
-  nothing that colour. Two accents are never allowed within 20° of each other
-- polarity is inferred from mean lightness unless `--light` / `--dark` says otherwise
+  matching hue from the image within 45°. A slot the image has no colour for keeps
+  its identity but leans up to 30° toward the image's nearest hue — without that,
+  every photo lacking a red produced the *same* red, and wildly different
+  wallpapers came out with identical accent rows
+- accent chroma scales with how colourful the image actually is, so a washed-out
+  photo gives muted accents rather than eight candy-bright hues stapled on
+- no two accents may sit within 20° of each other, so `base0D` and `base0E` cannot
+  collapse into the same blue
+
+`--raw` drops all of that: the image's eight most prominent colours are assigned
+one-per-slot (globally nearest pair first, never the same cluster twice) at their
+own saturation, with only the lightness ladder left in place. That is pywal's
+behaviour — on a wallpaper with one strong hue it will hand you eight shades of
+that hue, which is the point of asking for it.
 
 Generated schemes are written to `~/.config/coat/schemes/generated/`, so
 `coat set`, `coat list` and `coat browse` see them like any other scheme.
