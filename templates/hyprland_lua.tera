@@ -15,6 +15,11 @@
 -- one spelling that also works inside a gradient table.
 
 return {
+    -- From font.monospace / font.sizes.desktop in coat.yaml.  `c.font` is what
+    -- hyprbars' bar_text_font should be set to, rather than a literal family.
+{% if font_monospace %}    font      = "{{ font_monospace }}",
+{% endif %}    font_size = {{ font_size_desktop }},
+
     base00 = "rgba({{ base00 | lower_hex }}ff)",
     base01 = "rgba({{ base01 | lower_hex }}ff)",
     base02 = "rgba({{ base02 | lower_hex }}ff)",
