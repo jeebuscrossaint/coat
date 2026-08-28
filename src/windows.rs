@@ -95,7 +95,8 @@ fn set_accent_color(scheme: &Scheme) -> Result<()> {
     )?;
     acc.set_value("AccentColorMenu", &abgr)?;
     acc.set_raw_value("AccentPalette", &winreg::RegValue {
-        bytes: palette.to_vec(),
+        // winreg 0.56 changed RegValue.bytes from Vec<u8> to Cow<[u8]>.
+        bytes: palette.to_vec().into(),
         vtype: winreg::enums::REG_BINARY,
     })?;
     acc.set_value("StartColorMenu", &abgr_bg)?; // UWP modal bg = scheme background
@@ -634,7 +635,8 @@ fn write_elevated_keys(accent: &str, bg: &str, bg1: &str, dark: bool) -> Result<
         .context("HKU\\.DEFAULT accent key")?;
     acc.set_value("AccentColorMenu", &abgr)?;
     acc.set_raw_value("AccentPalette", &winreg::RegValue {
-        bytes: palette.to_vec(),
+        // winreg 0.56 changed RegValue.bytes from Vec<u8> to Cow<[u8]>.
+        bytes: palette.to_vec().into(),
         vtype: winreg::enums::REG_BINARY,
     })?;
     acc.set_value("StartColorMenu", &abgr_bg)?;

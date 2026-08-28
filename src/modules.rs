@@ -5,7 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
-use tera::{Tera, Value};
+use tera::{Kwargs, State, Tera};
 
 use crate::config::CoatConfig;
 use crate::scheme::Scheme;
@@ -67,63 +67,37 @@ static TEMPLATES: &[(&str, &str)] = &[
 
 pub fn make_tera() -> Result<Tera> {
     let mut tera = Tera::default();
+    // tera 2 filters: |value, kwargs, state| returning a plain value. In tera 1
+    // these took (&Value, &HashMap) and returned Result<Value>, and Value was
+    // serde_json's -- Value::String/Value::Number no longer exist.
+    tera.register_filter("nohash", |v: &str, _: Kwargs, _: &State| {
+        v.trim_start_matches('#').to_string()
+    });
+
+    // r / g / b: one channel of a 6-char hex, as an integer.
+    tera.register_filter("r", |v: &str, _: Kwargs, _: &State| Scheme::hex_to_rgb(v).0);
+    tera.register_filter("g", |v: &str, _: Kwargs, _: &State| Scheme::hex_to_rgb(v).1);
+    tera.register_filter("b", |v: &str, _: Kwargs, _: &State| Scheme::hex_to_rgb(v).2);
+
+    // hue / sat / lum: Discord's palette is authored in HSL, so recolouring it
+    // means speaking HSL back. Three decimals, matching how it writes its own.
+    for (name, idx) in [("hue", 0usize), ("sat", 1), ("lum", 2)] {
+        tera.register_filter(name, move |v: &str, _: Kwargs, _: &State| {
+            let hsl = hex_to_hsl(v);
+            format!("{:.3}", [hsl.0, hsl.1, hsl.2][idx])
+        });
+    }
+
+    tera.register_filter("lower_hex", |v: &str, _: Kwargs, _: &State| v.to_lowercase());
+
+    // Templates are added AFTER the filters, and that order is load-bearing in
+    // tera 2: it resolves filter names while PARSING, so a template using
+    // lower_hex fails with "Unknown filter" if it is added first. tera 1 resolved
+    // at render time and did not care.
     for (name, src) in TEMPLATES {
         tera.add_raw_template(name, src)
             .with_context(|| format!("Failed to parse template '{}'", name))?;
     }
-
-    // nohash: strips '#' from a hex color string
-    tera.register_filter(
-        "nohash",
-        |val: &Value, _: &HashMap<String, Value>| {
-            let s = val.as_str().unwrap_or("");
-            Ok(Value::String(s.trim_start_matches('#').to_string()))
-        },
-    );
-
-    // r / g / b: extract R, G, B integer from 6-char uppercase hex
-    tera.register_filter(
-        "r",
-        |val: &Value, _: &HashMap<String, Value>| {
-            let (r, _, _) = Scheme::hex_to_rgb(val.as_str().unwrap_or("000000"));
-            Ok(Value::Number(r.into()))
-        },
-    );
-    tera.register_filter(
-        "g",
-        |val: &Value, _: &HashMap<String, Value>| {
-            let (_, g, _) = Scheme::hex_to_rgb(val.as_str().unwrap_or("000000"));
-            Ok(Value::Number(g.into()))
-        },
-    );
-    tera.register_filter(
-        "b",
-        |val: &Value, _: &HashMap<String, Value>| {
-            let (_, _, b) = Scheme::hex_to_rgb(val.as_str().unwrap_or("000000"));
-            Ok(Value::Number(b.into()))
-        },
-    );
-
-    // lower: lowercase a string (useful for hex that's uppercase in our store)
-    for (name, idx) in [("hue", 0usize), ("sat", 1), ("lum", 2)] {
-        tera.register_filter(
-            name,
-            move |v: &tera::Value, _: &std::collections::HashMap<String, tera::Value>| {
-                let s = v.as_str().unwrap_or("");
-                let hsl = hex_to_hsl(s);
-                let n = [hsl.0, hsl.1, hsl.2][idx];
-                // Three decimals, matching how Discord authors its own triplets.
-                Ok(tera::Value::from(format!("{:.3}", n)))
-            },
-        );
-    }
-
-    tera.register_filter(
-        "lower_hex",
-        |val: &Value, _: &HashMap<String, Value>| {
-            Ok(Value::String(val.as_str().unwrap_or("").to_lowercase()))
-        },
-    );
 
     Ok(tera)
 }
