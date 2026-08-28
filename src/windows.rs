@@ -369,14 +369,37 @@ fn restart_explorer() {
             }
         }
 
-        // 4. Relaunch the shell. A clean "Exit Explorer" deliberately does not
-        //    auto-restart it (measured: the taskbar stays gone indefinitely),
-        //    so this is what brings it back — but only when it really is gone.
-        //    Running explorer.exe while a shell is up opens a *folder window*
-        //    instead, which is where the stray "This PC" window after an apply
-        //    came from.
-        if !win32::shell_running() {
-            spawn_shell();
+        // 4. Relaunch the shell, and do not give up until the taskbar is
+        //    actually back. A clean "Exit Explorer" deliberately does not
+        //    auto-restart it, so this is the only thing that brings it back,
+        //    and coat must not exit leaving the user with no desktop and no
+        //    way to get one except a terminal they may not have open.
+        //
+        //    Each attempt is less isolated than the last. The isolation only
+        //    exists to keep the shell alive and handle-free after coat exits;
+        //    none of it is worth a missing taskbar, so the final attempt is
+        //    exactly the plain spawn this used to do.
+        //    Windows sometimes restarts the shell itself after the exit. Give
+        //    it a moment to do so before spawning one, or both shells come up
+        //    and the loser lingers as an explorer.exe with no taskbar.
+        for _ in 0..15 {
+            std::thread::sleep(Duration::from_millis(100));
+            if win32::shell_running() {
+                break;
+            }
+        }
+
+        for attempt in 0..SPAWN_ATTEMPTS {
+            if win32::shell_running() {
+                break;
+            }
+            spawn_shell(attempt);
+            for _ in 0..30 {
+                std::thread::sleep(Duration::from_millis(100));
+                if win32::shell_running() {
+                    break;
+                }
+            }
         }
 
         // 5. Only after a forced kill: clear the Start/Search hosts so they
@@ -410,8 +433,12 @@ fn restart_explorer() {
 /// So: CreateProcessW directly, with `bInheritHandles = FALSE`.
 /// DETACHED_PROCESS keeps the shell off the terminal's console as well, so
 /// closing the terminal can no longer take the taskbar down with it.
+/// How many flag combinations `spawn_shell` will work through.
 #[cfg(windows)]
-fn spawn_shell() -> bool {
+const SPAWN_ATTEMPTS: u32 = 3;
+
+#[cfg(windows)]
+fn spawn_shell(attempt: u32) -> bool {
     use windows_sys::Win32::Foundation::CloseHandle;
     use windows_sys::Win32::System::Threading::{
         CreateProcessW, PROCESS_INFORMATION, STARTUPINFOW,
@@ -455,15 +482,16 @@ fn spawn_shell() -> bool {
             )
         };
 
-        // A job that does not permit breakaway fails the call outright, so fall
-        // back to a plain detached spawn rather than leaving the user with no
-        // taskbar at all.
-        let base = DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP;
-        let mut ok = spawn(base | CREATE_BREAKAWAY_FROM_JOB);
-        if ok == 0 {
-            ok = spawn(base);
-        }
-        if ok == 0 {
+        // A job that does not permit breakaway fails CreateProcessW outright,
+        // and a detached shell is not worth a missing taskbar either, so each
+        // attempt drops one layer of isolation. Attempt 2 is a plain spawn —
+        // what this did before, and what is known to work everywhere.
+        let flags = match attempt {
+            0 => DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_BREAKAWAY_FROM_JOB,
+            1 => DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP,
+            _ => 0,
+        };
+        if spawn(flags) == 0 {
             return false;
         }
         // We never wait on the shell; drop both handles so nothing of ours
