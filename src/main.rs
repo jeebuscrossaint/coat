@@ -2,6 +2,8 @@
 
 mod browse;
 mod config;
+mod dynamic;
+mod manifest;
 mod modules;
 mod normalize;
 mod scheme;
@@ -69,7 +71,9 @@ fn print_usage(prog: &str) {
     println!("  search <term>       Search schemes by name or author");
     println!("  set <scheme>        Switch to a scheme and apply everywhere");
     println!("  random [OPTIONS]    Pick a random scheme, preview it, and apply");
+    println!("  match [image]       Build a scheme from the current wallpaper, and apply");
     println!("  apply [app]         Apply current scheme to all apps or one specific app");
+    println!("  remove <app>        Undo an app's theming and disable its module");
     println!("  docs <app>          Show setup instructions for an app");
     println!("  completions <shell> Install shell completions (fish, powershell)");
     println!("  help                Show this help message");
@@ -159,6 +163,55 @@ fn cmd_apply(args: &[String], _prog: &str) -> Result<()> {
     );
 
     Ok(())
+}
+
+/// Whether coat.yaml's enabled list mentions this app.
+fn module_is_enabled(app: &str) -> Result<bool> {
+    let canonical = module_aliases(app).unwrap_or(app);
+    Ok(CoatConfig::load()
+        .map(|c| c.enabled.iter().any(|m| m == canonical || m == app))
+        .unwrap_or(false))
+}
+
+/// Drop `  - <app>` from the enabled list in coat.yaml, leaving every comment
+/// and every other key exactly as it was. Returns whether a line was removed.
+fn disable_module_in_config(app: &str) -> Result<bool> {
+    let path = CoatConfig::path()?;
+    if !path.exists() {
+        return Ok(false);
+    }
+    let content = fs::read_to_string(&path)
+        .with_context(|| format!("Failed to read {}", path.display()))?;
+
+    let canonical = modules::module_aliases(app).unwrap_or(app);
+    let mut removed = false;
+    let kept: Vec<&str> = content
+        .lines()
+        .filter(|line| {
+            let t = line.trim();
+            let Some(item) = t.strip_prefix("- ") else {
+                return true;
+            };
+            // Only inside a list, and only an exact name — `- fish` must never
+            // take out `- fishy` or a `scheme: fish` line.
+            let item = item.trim();
+            if item == canonical || item == app {
+                removed = true;
+                return false;
+            }
+            true
+        })
+        .collect();
+
+    if removed {
+        let mut out = kept.join("\n");
+        if content.ends_with('\n') {
+            out.push('\n');
+        }
+        fs::write(&path, out)
+            .with_context(|| format!("Failed to write {}", path.display()))?;
+    }
+    Ok(removed)
 }
 
 /// Rewrite the `scheme:` line in coat.yaml in-place, preserving everything else.
@@ -254,6 +307,89 @@ fn set_and_apply(scheme: &Scheme, elevate: bool) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// `coat remove <app> [--dry] [--keep-enabled]`
+///
+/// The inverse of `coat apply <app>`, driven off the manifest the apply wrote.
+fn cmd_remove(args: &[String]) -> Result<()> {
+    let Some(app) = args.iter().find(|a| !a.starts_with('-')) else {
+        eprintln!("Error: remove requires an app name\n");
+        eprintln!("Usage: coat remove <app> [--dry] [--keep-enabled]");
+        eprintln!("\nApplied modules coat can remove:");
+        let m = manifest::load();
+        if m.modules.is_empty() {
+            eprintln!("  (none recorded yet — they are recorded on apply)");
+        } else {
+            for name in m.modules.keys() {
+                eprintln!("  {}", name);
+            }
+        }
+        std::process::exit(1);
+    };
+    let dry = args.iter().any(|a| a == "--dry" || a == "--dry-run");
+    let keep_enabled = args.iter().any(|a| a == "--keep-enabled");
+
+    let done = modules::remove_module(app, dry)?;
+
+    if done.is_empty() {
+        println!("Nothing left to undo for {}.", app);
+    } else {
+        println!("{} {}:\n", if dry { "Would clean up" } else { "Cleaned up" }, app);
+        for line in &done {
+            println!("  {}", line);
+        }
+        println!();
+    }
+
+    if keep_enabled {
+        println!("Left enabled in coat.yaml — the next apply will write it again.");
+    } else if dry {
+        if module_is_enabled(app)? {
+            println!("Would also drop '{}' from the enabled list in coat.yaml.", app);
+        }
+    } else if disable_module_in_config(app)? {
+        println!("Disabled '{}' in coat.yaml.", app);
+    }
+    Ok(())
+}
+
+/// `coat match [image] [--light|--dark] [--dry]`
+fn cmd_match(args: &[String]) -> Result<()> {
+    use dynamic::Polarity;
+
+    let polarity = if args.iter().any(|a| a == "--light") {
+        Some(Polarity::Light)
+    } else if args.iter().any(|a| a == "--dark") {
+        Some(Polarity::Dark)
+    } else {
+        None
+    };
+    let dry = args.iter().any(|a| a == "--dry" || a == "--dry-run");
+
+    let image = match args.iter().find(|a| !a.starts_with('-')) {
+        Some(p) => std::path::PathBuf::from(p),
+        None => dynamic::current_wallpaper()?,
+    };
+    if !image.is_file() {
+        eprintln!("No such image: {}", image.display());
+        std::process::exit(1);
+    }
+
+    println!("Sampling: {}\n", image.display());
+    let (scheme, path) = dynamic::scheme_from_image(&image, polarity)?;
+
+    println!("{}", scheme::header_string(&scheme));
+    scheme::print_color_preview(&scheme);
+    println!();
+
+    if dry {
+        println!("Written to {} — not applied.", path.display());
+        println!("Apply it later with: coat set {}", scheme.slug);
+        return Ok(());
+    }
+
+    set_and_apply(&scheme, wants_elevation(args))
 }
 
 fn cmd_set(args: &[String]) -> Result<()> {
@@ -602,9 +738,12 @@ fn main() {
             "list"            => cmd_list(&args[2..]),
             "search"          => cmd_search(&args[2..]),
             "set"             => cmd_set(&args[2..]),
+            // `dynamic` is an alias: it is what this reads as in conversation.
+            "match" | "dynamic" => cmd_match(&args[2..]),
             "random"          => cmd_random(&args[2..]),
             "browse"          => cmd_browse(&args[2..]),
             "apply"           => cmd_apply(&args[2..], prog),
+            "remove" | "rm"   => cmd_remove(&args[2..]),
             "docs"            => cmd_docs(&args[2..], prog),
             "completions"     => cmd_completions(&args[2..]),
             "__complete"      => cmd_complete(&args[2..]),

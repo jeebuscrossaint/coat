@@ -261,6 +261,7 @@ fn render_to(tera: &Tera, name: &str, ctx: &tera::Context, dest: &Path) -> Resul
         .with_context(|| format!("Failed to render template '{}'", name))?;
     fs::write(dest, &content)
         .with_context(|| format!("Failed to write {}", dest.display()))?;
+    crate::manifest::record_write(dest);
     detail!("  ✓ {}", dest.display());
     Ok(())
 }
@@ -283,6 +284,9 @@ fn render_to(tera: &Tera, name: &str, ctx: &tera::Context, dest: &Path) -> Resul
 /// ("!", "") for Xresources, ("/*", " */") for CSS. Getting this wrong writes a
 /// file the app refuses to parse, which is worse than no theme at all.
 fn ensure_include(config: &Path, include_line: &str, comment: (&str, &str)) -> Result<()> {
+    // Recorded whether or not it has to be added: the line is coat's either way,
+    // and `coat remove` has to know to strip it.
+    crate::manifest::record_include(config, include_line);
     let existing = fs::read_to_string(config).unwrap_or_default();
     if existing.lines().any(|l| l.trim() == include_line) {
         return Ok(());
@@ -348,6 +352,7 @@ pub fn module_aliases(name: &str) -> Option<&'static str> {
 
 pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Tera) -> Result<()> {
     let name = module_aliases(name).unwrap_or(name);
+    crate::manifest::begin(name);
     let ctx = build_context(scheme, config);
 
     // On Windows, cross-platform apps live at native locations (%APPDATA%, …)
@@ -364,7 +369,7 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         }
     }
 
-    match name {
+    let result = match name {
         "bat"        => apply_bat(tera, &ctx, scheme, config),
         "btop"       => apply_btop(tera, &ctx, scheme, config),
         "dunst"      => apply_dunst(tera, &ctx, scheme, config),
@@ -389,7 +394,130 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "xresources" => apply_xresources(tera, &ctx, scheme, config),
         "zathura"    => apply_zathura(tera, &ctx, scheme, config),
         other        => bail!("Unknown module: {}", other),
+    };
+
+    // Committed even on failure: the files written before the error exist, and
+    // `coat remove` should be able to clean up a half-finished apply.
+    crate::manifest::commit();
+    result
+}
+
+/// Undo what the last apply recorded for `name`: delete the files coat
+/// generated, strip the include lines it patched into files it does not own, and
+/// drop the ini keys it merged. Returns a human-readable list of what it did.
+///
+/// Nothing here guesses. If the manifest has no entry for the module, there is
+/// nothing coat can prove it wrote, and it says so rather than deleting a path
+/// it merely believes it owns.
+pub fn remove_module(name: &str, dry: bool) -> Result<Vec<String>> {
+    let name = module_aliases(name).unwrap_or(name);
+    let manifest = crate::manifest::load();
+    let Some(entry) = manifest.modules.get(name) else {
+        bail!(
+            "coat has no record of applying '{}'.\n\
+             The record is written on apply, so a module last applied by an older\n\
+             coat has none. Run `coat apply {}` once, then remove it.",
+            name,
+            name
+        );
+    };
+
+    let mut done = Vec::new();
+
+    for file in &entry.written {
+        if !file.exists() {
+            continue;
+        }
+        if !dry {
+            fs::remove_file(file).with_context(|| format!("Failed to delete {}", file.display()))?;
+        }
+        done.push(format!("deleted  {}", file.display()));
     }
+
+    for (config, line) in &entry.includes {
+        let Ok(text) = fs::read_to_string(config) else {
+            continue;
+        };
+        let stripped = strip_include(&text, line);
+        if stripped == text {
+            continue;
+        }
+        if !dry {
+            fs::write(config, &stripped)
+                .with_context(|| format!("Failed to rewrite {}", config.display()))?;
+        }
+        done.push(format!("un-included  {}", config.display()));
+    }
+
+    for (file, keys) in &entry.ini_keys {
+        let Ok(text) = fs::read_to_string(file) else {
+            continue;
+        };
+        let kept: Vec<&str> = text
+            .lines()
+            .filter(|l| {
+                let Some((k, _)) = l.split_once('=') else {
+                    return true;
+                };
+                !keys.iter().any(|key| key == k.trim())
+            })
+            .collect();
+        let out = format!("{}\n", kept.join("\n"));
+        if out == text {
+            continue;
+        }
+        if !dry {
+            fs::write(file, &out).with_context(|| format!("Failed to rewrite {}", file.display()))?;
+        }
+        done.push(format!(
+            "dropped {} key(s) from  {}",
+            keys.len(),
+            file.display()
+        ));
+    }
+
+    if !dry {
+        crate::manifest::forget(name);
+    }
+    Ok(done)
+}
+
+/// Drop `line` from `text`, along with the comment block `ensure_include`
+/// prepends above it — two comment lines and the blank line after, all of which
+/// are coat's and none of which mean anything once the include is gone.
+fn strip_include(text: &str, line: &str) -> String {
+    let lines: Vec<&str> = text.lines().collect();
+    let Some(idx) = lines.iter().position(|l| l.trim() == line.trim()) else {
+        return text.to_string();
+    };
+
+    // Walk back over the comment header coat wrote (it always mentions coat).
+    let mut start = idx;
+    while start > 0 {
+        let prev = lines[start - 1].trim();
+        let is_coat_comment = prev.contains("Added by coat")
+            || prev.contains("coat rewrites the fragment")
+            || prev.contains("never this file");
+        if is_coat_comment {
+            start -= 1;
+        } else {
+            break;
+        }
+    }
+
+    let mut end = idx + 1;
+    if lines.get(end).map(|l| l.trim().is_empty()).unwrap_or(false) {
+        end += 1;
+    }
+
+    let mut kept: Vec<&str> = Vec::with_capacity(lines.len());
+    kept.extend_from_slice(&lines[..start]);
+    kept.extend_from_slice(&lines[end..]);
+    let mut out = kept.join("\n");
+    if text.ends_with('\n') {
+        out.push('\n');
+    }
+    out
 }
 
 // ── Individual module functions ────────────────────────────────────────────
@@ -618,6 +746,10 @@ fn apply_ini_edits(
         .render(name, ctx)
         .with_context(|| format!("Failed to render template '{}'", name))?;
     let edits = parse_ini_edits(&rendered);
+    crate::manifest::record_ini_keys(
+        dest,
+        &edits.iter().map(|(_, k, _)| k.clone()).collect::<Vec<_>>(),
+    );
 
     if dest.exists() {
         patch_ini_in_place(dest, &edits)?;

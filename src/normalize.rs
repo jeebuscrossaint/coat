@@ -78,7 +78,7 @@ fn rgb_to_hex(r: f64, g: f64, b: f64) -> String {
     format!("{:02X}{:02X}{:02X}", q(r), q(g), q(b))
 }
 
-fn rgb_to_oklch(r: f64, g: f64, b: f64) -> Oklch {
+pub(crate) fn rgb_to_oklch(r: f64, g: f64, b: f64) -> Oklch {
     let (r, g, b) = (srgb_to_linear(r), srgb_to_linear(g), srgb_to_linear(b));
 
     let l = 0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b;
@@ -131,7 +131,7 @@ fn in_gamut(rgb: (f64, f64, f64)) -> bool {
 /// Clipping each channel independently shifts hue (a too-saturated blue clips to
 /// a purple); walking chroma down holds hue and lightness steady, which is the
 /// whole point of doing this in a perceptual space.
-fn oklch_to_hex(col: Oklch) -> String {
+pub(crate) fn oklch_to_hex(col: Oklch) -> String {
     let direct = oklch_to_rgb_raw(col);
     if in_gamut(direct) {
         let (r, g, b) = direct;

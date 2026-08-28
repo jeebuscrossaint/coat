@@ -27,6 +27,10 @@ anyhow = "1"
 walkdir = "2"
 indicatif = "0.18"
 console = "0.16"
+# `coat match` decodes the wallpaper. Explicit format list rather than the
+# default features: this covers everything awww/swww will display and leaves out
+# avif/exr, which together cost more build time than the rest of coat.
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "webp", "bmp", "tiff", "pnm"] }
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.56"

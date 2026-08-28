@@ -8,6 +8,8 @@ A Rust CLI that applies Base16/Base24 color schemes across 22 Linux applications
 - **Windows support** — accent color, dark/light mode, Windows Terminal, and VSCode via `coat set`
 - **Base16 & Base24** — compatible with the full [tinted-theming](https://github.com/tinted-theming/home) ecosystem (~700 schemes)
 - **Scheme browser** — search and preview with live RGB color swatches in the terminal
+- **Wallpaper matching** — `coat match` samples whatever the wallpaper daemon is displaying and builds a scheme from it
+- **Reversible** — `coat remove <app>` undoes an app's theming from a manifest the apply wrote
 - **Font & opacity** — centralized font and transparency settings across all modules
 
 ## Project structure
@@ -61,7 +63,38 @@ coat apply
 
 # Apply to a single app
 coat apply foot
+
+# Build a scheme from the wallpaper that is on screen right now (awww or swww),
+# write it into the schemes directory, and apply it
+coat match
+coat match ~/walls/whatever.png   # or a specific image
+coat match --light                # force the polarity instead of inferring it
+coat match --dry                  # generate and preview, apply nothing
+
+# Undo one app: delete the files coat generated for it, strip the include line
+# it added to your own config, and drop it from the enabled list
+coat remove foot
+coat remove foot --dry            # show what that would do
+coat remove foot --keep-enabled   # clean up but leave it enabled
 ```
+
+### How `coat match` picks colours
+
+The image decides the **hues**; the base16 slot contract decides where they land.
+Lightness and chroma come from fixed per-polarity ladders, so a muddy photo
+cannot produce a scheme whose foreground is invisible on its background.
+
+- the image is downscaled to 160px and clustered in Oklab (k=12, farthest-point
+  seeded, so the same wallpaper always yields the same scheme)
+- `base00`–`base07` are a fixed lightness ramp tinted with the image's
+  chroma-weighted mean hue, so the background reads as *of* the wallpaper
+- `base08`–`base0F` keep their conventional meanings: each slot takes the nearest
+  matching hue from the image within 45°, or its canonical hue if the image has
+  nothing that colour. Two accents are never allowed within 20° of each other
+- polarity is inferred from mean lightness unless `--light` / `--dark` says otherwise
+
+Generated schemes are written to `~/.config/coat/schemes/generated/`, so
+`coat set`, `coat list` and `coat browse` see them like any other scheme.
 
 ## Shell completions
 
