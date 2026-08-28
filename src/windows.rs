@@ -12,8 +12,16 @@ use crate::config::CoatConfig;
 use crate::detail;
 use crate::scheme::Scheme;
 
-/// Run one apply step behind a spinner that freezes into a ✓/✗ result line.
-fn step<F: FnOnce() -> Result<()>>(label: &str, f: F) {
+/// How one apply step ended. `Skipped` is for work that was deliberately not
+/// attempted — a missing app, or a key this token can't write — and is printed
+/// dimmed rather than as a failure, so a normal run has no red in it.
+pub enum Outcome {
+    Done,
+    Skipped(String),
+}
+
+/// Run one apply step behind a spinner that freezes into a result line.
+fn step<F: FnOnce() -> Result<Outcome>>(label: &str, f: F) {
     let pb = ProgressBar::new_spinner();
     pb.set_style(
         ProgressStyle::with_template("{spinner:.cyan} {msg}")
@@ -25,7 +33,10 @@ fn step<F: FnOnce() -> Result<()>>(label: &str, f: F) {
     let result = f();
     pb.finish_and_clear();
     match result {
-        Ok(_) => println!("{} {}", style("✓").green(), label),
+        Ok(Outcome::Done) => println!("{} {}", style("✓").green(), label),
+        Ok(Outcome::Skipped(why)) => {
+            println!("{} {}  {}", style("–").dim(), label, style(why).dim())
+        }
         Err(e) => println!("{} {}  {}", style("✗").red(), label, style(e.to_string()).red()),
     }
 }
@@ -191,6 +202,22 @@ mod win32 {
         !shell_tray().is_null()
     }
 
+    /// PID of the process that owns the taskbar, or 0 when the shell is down.
+    /// Lets the force-kill fallback target the shell specifically instead of
+    /// every explorer.exe on the machine.
+    pub fn shell_pid() -> u32 {
+        use windows_sys::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId;
+        let hwnd = shell_tray();
+        if hwnd.is_null() {
+            return 0;
+        }
+        let mut pid: u32 = 0;
+        unsafe {
+            GetWindowThreadProcessId(hwnd, &mut pid);
+        }
+        pid
+    }
+
     /// Post the taskbar's undocumented "Exit Explorer" message (WM_USER+436),
     /// the same one Ctrl+Shift+right-click on the taskbar sends.
     pub fn post_exit_explorer() -> bool {
@@ -308,11 +335,13 @@ fn restart_explorer() {
         // 1. Graceful "Exit Explorer": PostMessage(Shell_TrayWnd, 0x5B4).
         let posted = win32::post_exit_explorer();
 
-        // 2. Wait (up to ~5s) for the shell to actually exit on its own.
+        // 2. Wait for the taskbar to actually go away. It takes ~0.6s in
+        //    practice; polling at 100ms keeps the window we're blind for
+        //    shorter than the gap we're waiting on.
         let mut exited = false;
         if posted {
-            for _ in 0..25 {
-                std::thread::sleep(Duration::from_millis(200));
+            for _ in 0..50 {
+                std::thread::sleep(Duration::from_millis(100));
                 if !win32::shell_running() {
                     exited = true;
                     break;
@@ -320,16 +349,35 @@ fn restart_explorer() {
             }
         }
 
-        // 3. Fallback: if the graceful exit didn't take, force it. This path can
-        //    orphan the Start/Search hosts, so refresh them afterwards.
+        // 3. Fallback: if the graceful exit didn't take, force it — but kill
+        //    the process that owns the taskbar, not every explorer.exe.
+        //    `/im explorer.exe` also closes whatever folder windows the user
+        //    happened to have open, which is not ours to close.
         let forced = !exited;
         if forced {
-            let _ = Command::new("taskkill").args(["/f", "/im", "explorer.exe"]).output();
-            std::thread::sleep(Duration::from_millis(800));
+            let pid = win32::shell_pid();
+            if pid != 0 {
+                let _ = Command::new("taskkill")
+                    .args(["/f", "/pid", &pid.to_string()])
+                    .output();
+                for _ in 0..20 {
+                    std::thread::sleep(Duration::from_millis(100));
+                    if !win32::shell_running() {
+                        break;
+                    }
+                }
+            }
         }
 
-        // 4. Relaunch the shell (a clean "Exit Explorer" does not auto-restart it).
-        let _ = Command::new("explorer.exe").spawn();
+        // 4. Relaunch the shell. A clean "Exit Explorer" deliberately does not
+        //    auto-restart it (measured: the taskbar stays gone indefinitely),
+        //    so this is what brings it back — but only when it really is gone.
+        //    Running explorer.exe while a shell is up opens a *folder window*
+        //    instead, which is where the stray "This PC" window after an apply
+        //    came from.
+        if !win32::shell_running() {
+            spawn_shell();
+        }
 
         // 5. Only after a forced kill: clear the Start/Search hosts so they
         //    re-attach to the fresh shell (they respawn on next use). Covers
@@ -343,6 +391,86 @@ fn restart_explorer() {
             kill("SearchHost.exe");
             kill("SearchUI.exe");
         }
+    }
+}
+
+/// Launch explorer.exe as the shell, inheriting nothing from this process.
+///
+/// The relaunched shell outlives coat by the whole login session, so it must
+/// not end up holding any of coat's handles. `std::process::Command` cannot
+/// express that: it always passes `bInheritHandles = TRUE`, which hands the
+/// child *every* inheritable handle coat owns — including the stdout pipe coat
+/// itself inherited from its caller. Redirecting the child's stdio to null
+/// does not help, because the pipe comes across as an extra open handle rather
+/// than as a standard one. The pipe then stays open for the rest of the login
+/// session, and any caller that reads coat's output to completion — a script,
+/// a wrapper, `coat set nord | tee`, PowerShell's `*>` redirection — blocks
+/// forever waiting for an EOF that the taskbar is holding.
+///
+/// So: CreateProcessW directly, with `bInheritHandles = FALSE`.
+/// DETACHED_PROCESS keeps the shell off the terminal's console as well, so
+/// closing the terminal can no longer take the taskbar down with it.
+#[cfg(windows)]
+fn spawn_shell() -> bool {
+    use windows_sys::Win32::Foundation::CloseHandle;
+    use windows_sys::Win32::System::Threading::{
+        CreateProcessW, PROCESS_INFORMATION, STARTUPINFOW,
+    };
+
+    const DETACHED_PROCESS: u32 = 0x0000_0008;
+    const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+    // The shell must outlive whatever launched coat. A terminal or task runner
+    // commonly puts its children in a job object with KILL_ON_JOB_CLOSE, and a
+    // child inherits that job — so without breakaway the new taskbar dies the
+    // moment that job closes, leaving the desktop with no shell. Neither
+    // DETACHED_PROCESS nor a new process group escapes a job; only this does.
+    const CREATE_BREAKAWAY_FROM_JOB: u32 = 0x0100_0000;
+
+    // Absolute path rather than a PATH search: this runs while the shell is
+    // down, and it should not be possible to satisfy with some other
+    // explorer.exe earlier on PATH.
+    let exe = std::env::var("WINDIR").unwrap_or_else(|_| r"C:\Windows".into()) + r"\explorer.exe";
+    let app = win32::wide(&exe);
+    // CreateProcessW may write into the command-line buffer, so it cannot be
+    // shared or const.
+    let mut cmd = win32::wide(&format!("\"{}\"", exe));
+
+    unsafe {
+        let mut si: STARTUPINFOW = std::mem::zeroed();
+        si.cb = std::mem::size_of::<STARTUPINFOW>() as u32;
+        let mut pi: PROCESS_INFORMATION = std::mem::zeroed();
+
+        let mut spawn = |flags: u32| {
+            CreateProcessW(
+                app.as_ptr(),
+                cmd.as_mut_ptr(),
+                std::ptr::null(),
+                std::ptr::null(),
+                0, // bInheritHandles = FALSE — see above
+                flags,
+                std::ptr::null(),
+                std::ptr::null(),
+                &si,
+                &mut pi,
+            )
+        };
+
+        // A job that does not permit breakaway fails the call outright, so fall
+        // back to a plain detached spawn rather than leaving the user with no
+        // taskbar at all.
+        let base = DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP;
+        let mut ok = spawn(base | CREATE_BREAKAWAY_FROM_JOB);
+        if ok == 0 {
+            ok = spawn(base);
+        }
+        if ok == 0 {
+            return false;
+        }
+        // We never wait on the shell; drop both handles so nothing of ours
+        // outlives this call.
+        CloseHandle(pi.hThread);
+        CloseHandle(pi.hProcess);
+        true
     }
 }
 
@@ -545,12 +673,12 @@ fn discord_theme_paths() -> Vec<std::path::PathBuf> {
     paths
 }
 
-pub fn apply_discord(scheme: &Scheme, config: &CoatConfig) -> Result<()> {
+pub fn apply_discord(scheme: &Scheme, config: &CoatConfig) -> Result<Outcome> {
     let paths = discord_theme_paths();
     if paths.is_empty() {
-        detail!("  (no Discord mod found — skipping)");
-        detail!("  Supported: Vencord, BetterDiscord, Vesktop");
-        return Ok(());
+        return Ok(Outcome::Skipped(
+            "no Vencord/BetterDiscord/Vesktop install".into(),
+        ));
     }
     for dir in &paths {
         fs::create_dir_all(dir)
@@ -559,7 +687,7 @@ pub fn apply_discord(scheme: &Scheme, config: &CoatConfig) -> Result<()> {
         crate::modules::apply_vesktop_shared(scheme, config, &dest)?;
     }
     detail!("  Enable the 'coat' theme in your Discord mod's theme settings.");
-    Ok(())
+    Ok(Outcome::Done)
 }
 
 // ── VSCode on Windows ──────────────────────────────────────────────────────
@@ -584,16 +712,15 @@ pub fn apply_mode(scheme: &Scheme) -> Result<()> {
     Ok(())
 }
 
-pub fn apply_terminal(scheme: &Scheme, config: &CoatConfig) -> Result<()> {
+fn apply_terminal(scheme: &Scheme, config: &CoatConfig) -> Result<Outcome> {
     let paths = windows_terminal_paths();
     if paths.is_empty() {
-        detail!("  (Windows Terminal not found — skipping)");
-        return Ok(());
+        return Ok(Outcome::Skipped("not installed".into()));
     }
     for path in &paths {
         apply_windows_terminal_to(path, scheme, config)?;
     }
-    Ok(())
+    Ok(Outcome::Done)
 }
 
 /// `font.monospace` from coat.yaml, or `None` when it's unset — the shared
@@ -602,13 +729,14 @@ fn configured_font(config: &CoatConfig) -> Option<&str> {
     Some(config.font_monospace()).filter(|f| !f.is_empty())
 }
 
-pub fn apply_vscode(scheme: &Scheme, config: &CoatConfig) -> Result<()> {
+pub fn apply_vscode(scheme: &Scheme, config: &CoatConfig) -> Result<Outcome> {
     // Re-use the same JSON building logic from modules.rs but on the Windows path
-    let Some(path) = vscode_settings_path_windows() else {
-        detail!("  (VSCode not found at %APPDATA%\\Code — skipping)");
-        return Ok(());
+    let path = vscode_settings_path_windows().filter(|p| p.exists());
+    let Some(path) = path else {
+        return Ok(Outcome::Skipped("not installed".into()));
     };
     crate::modules::apply_vscode_shared(scheme, &path, configured_font(config))
+        .map(|_| Outcome::Done)
 }
 
 /// Write the registry keys that require admin: the logon-screen accent
@@ -681,18 +809,25 @@ pub fn cmd_elevated_keys(args: &[String]) -> Result<()> {
 
 /// Apply the admin-only keys, relaunching under UAC when `elevate` is set.
 ///
-/// Without `--elevate` we still attempt the writes — they succeed outright if
-/// coat was launched from an already-elevated shell — and only then report
-/// that the flag exists.
+/// An already-elevated shell needs no flag — the writes just succeed in
+/// process. Unelevated and without `--elevate`, this is reported as skipped
+/// rather than attempted: `HKU\.DEFAULT` and `HKLM` are unwritable by an
+/// unelevated token no matter whose account it is, so the attempt could only
+/// ever end in access-denied, and printing that as a failure made every
+/// ordinary `coat set` look broken when the only thing missing was the logon
+/// screen.
 #[cfg(windows)]
-fn apply_elevated(scheme: &Scheme, dark: bool, elevate: bool) -> Result<()> {
+fn apply_elevated(scheme: &Scheme, dark: bool, elevate: bool) -> Result<Outcome> {
     let write = || write_elevated_keys(&scheme.base0d, &scheme.base00, &scheme.base01, dark);
 
     if win32::is_elevated() {
-        return write();
+        write()?;
+        return Ok(Outcome::Done);
     }
     if !elevate {
-        return write().context("needs admin — re-run with --elevate");
+        return Ok(Outcome::Skipped(
+            "logon screen unchanged — pass --elevate for it".into(),
+        ));
     }
 
     let exe = std::env::current_exe()
@@ -708,16 +843,18 @@ fn apply_elevated(scheme: &Scheme, dark: bool, elevate: bool) -> Result<()> {
     match win32::run_elevated_and_wait(&exe.to_string_lossy(), &params) {
         Some(0) => {
             detail!("  ✓ Logon screen + HKLM keys (elevated)");
-            Ok(())
+            Ok(Outcome::Done)
         }
         Some(code) => anyhow::bail!("elevated helper exited with code {}", code),
-        None => anyhow::bail!("elevation declined or failed"),
+        // Dismissing the UAC prompt is a choice, not a fault — everything else
+        // in the apply still happened.
+        None => Ok(Outcome::Skipped("elevation declined".into())),
     }
 }
 
 #[cfg(not(windows))]
-fn apply_elevated(_scheme: &Scheme, _dark: bool, _elevate: bool) -> Result<()> {
-    Ok(())
+fn apply_elevated(_scheme: &Scheme, _dark: bool, _elevate: bool) -> Result<Outcome> {
+    Ok(Outcome::Done)
 }
 
 /// Apply all Windows platform defaults for a given scheme.
@@ -729,19 +866,19 @@ pub fn apply_all(scheme: &Scheme, config: &CoatConfig, elevate: bool) -> Result<
 
     crate::modules::set_quiet(true);
 
-    step("Accent color", || apply_accent(scheme));
-    step("Dark/light mode", || apply_mode(scheme));
+    step("Accent color", || apply_accent(scheme).map(|_| Outcome::Done));
+    step("Dark/light mode", || apply_mode(scheme).map(|_| Outcome::Done));
     step("Logon/HKLM keys", || apply_elevated(scheme, scheme.is_dark(), elevate));
     step("Windows Terminal", || apply_terminal(scheme, config));
     step("VSCode", || apply_vscode(scheme, config));
     step("Firefox", || {
         let tera = crate::modules::make_tera()?;
-        crate::modules::apply_module("firefox", scheme, config, &tera)
+        crate::modules::apply_module("firefox", scheme, config, &tera).map(|_| Outcome::Done)
     });
     step("Discord (Vencord/BetterDiscord)", || apply_discord(scheme, config));
     step("Explorer restart", || {
         restart_explorer();
-        Ok(())
+        Ok(Outcome::Done)
     });
 
     crate::modules::set_quiet(false);

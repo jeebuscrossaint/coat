@@ -356,8 +356,10 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
     #[cfg(windows)]
     {
         match name {
-            "vscode"   => return crate::windows::apply_vscode(scheme, config),
-            "vesktop"  => return crate::windows::apply_discord(scheme, config),
+            // These return a step Outcome for the `coat set` summary; from
+            // here only success or failure matters.
+            "vscode"   => return crate::windows::apply_vscode(scheme, config).map(|_| ()),
+            "vesktop"  => return crate::windows::apply_discord(scheme, config).map(|_| ()),
             _ => {}
         }
     }
