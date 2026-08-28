@@ -113,6 +113,22 @@ impl Default for NormalizeConfig {
     }
 }
 
+/// Drop NUL bytes before the YAML parser sees them.
+///
+/// A file that was open when the machine lost power comes back from NTFS
+/// zero-padded to its allocated length — `scheme: gruvbox\n` followed by forty
+/// NULs. YAML rejects those outright ("control characters are not allowed"),
+/// and because every command loads the config first, one unclean shutdown took
+/// coat out entirely until the file was edited by hand. A NUL is never
+/// meaningful in a config, so dropping it is always the right repair.
+///
+/// `update_scheme_in_config` sanitizes on the same path, so the next `coat set`
+/// also writes the padding back out of existence rather than preserving it as
+/// an unrecognized line.
+pub fn sanitize(content: &str) -> String {
+    content.replace('\0', "")
+}
+
 #[derive(Debug, Deserialize)]
 pub struct CoatConfig {
     pub scheme: String,
@@ -138,7 +154,7 @@ impl CoatConfig {
         let path = Self::path()?;
         let content = fs::read_to_string(&path)
             .with_context(|| format!("Failed to read {}", path.display()))?;
-        serde_yaml::from_str(&content)
+        serde_yaml::from_str(&sanitize(&content))
             .with_context(|| format!("Failed to parse {}", path.display()))
     }
 

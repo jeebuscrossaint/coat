@@ -167,8 +167,10 @@ fn update_scheme_in_config(name: &str) -> Result<()> {
     let path = CoatConfig::path()?;
 
     if path.exists() {
-        let content = fs::read_to_string(&path)
-            .with_context(|| format!("Failed to read {}", path.display()))?;
+        let content = config::sanitize(
+            &fs::read_to_string(&path)
+                .with_context(|| format!("Failed to read {}", path.display()))?,
+        );
 
         let mut found = false;
         let mut new_lines: Vec<String> = content
@@ -216,11 +218,16 @@ fn wants_elevation(args: &[String]) -> bool {
 /// `elevate` only means anything on Windows, where it authorizes a UAC prompt
 /// for the logon-screen and HKLM registry keys.
 fn set_and_apply(scheme: &Scheme, elevate: bool) -> Result<()> {
+    // Load *before* the rewrite. Only fonts, opacity and the enabled list are
+    // read from here — the scheme itself arrives as an argument — so this is
+    // the same config we'd get afterwards, and a coat.yaml that doesn't parse
+    // now stops us before the file has been touched. Loading afterwards meant
+    // a bad config left coat.yaml naming a scheme that was never applied.
+    let config = CoatConfig::load().context("Failed to load coat.yaml")?;
+
     // Persist the new scheme name into coat.yaml
     update_scheme_in_config(&scheme.slug)?;
     println!();
-
-    let config = CoatConfig::load().context("Failed to load coat.yaml")?;
 
     // Platform-specific theming
     #[cfg(windows)]
