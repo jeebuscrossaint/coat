@@ -48,6 +48,7 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("foot",      "foot.tera"),
     tpl!("gtk",       "gtk.tera"),
     tpl!("hyprland",  "hyprland.tera"),
+    tpl!("hyprland_lua", "hyprland_lua.tera"),
     tpl!("kitty",     "kitty.tera"),
     tpl!("mango",     "mango.tera"),
     tpl!("mpv",       "mpv.tera"),
@@ -555,8 +556,14 @@ fn apply_hyprland(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig
     // talk to when Hyprland is not the running compositor, which is the normal
     // case here -- the file is still written so the session is themed when it
     // does come up.
+    // Also emit the Lua form, for a hyprland.lua config. A .conf config ignores
+    // it and a .lua config ignores coat-theme.conf, so writing both means the
+    // theme survives switching between them.
+    render_to(tera, "hyprland_lua", ctx, &home.join(".config/hypr/coat-colors.lua"))?;
+
     run("hyprctl reload 2>/dev/null");
     Ok(())
+
 }
 
 /// Parse a rendered edit-list template into (section, key, value) triples.
