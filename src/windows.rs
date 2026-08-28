@@ -866,16 +866,33 @@ pub fn apply_all(scheme: &Scheme, config: &CoatConfig, elevate: bool) -> Result<
 
     crate::modules::set_quiet(true);
 
+    // The OS-level steps are the whole point of `coat set` on Windows and
+    // always run. The application steps are modules like any other, so an
+    // explicit `enabled` list in coat.yaml governs them — previously it was
+    // ignored here, which meant someone who had moved Firefox onto an
+    // extension got their userChrome.css written back on every apply with no
+    // way to opt out. An empty list still means "everything coat can find",
+    // so a bare coat.yaml behaves as before.
+    let wants = |module: &str| {
+        config.enabled.is_empty() || config.enabled.iter().any(|e| e == module)
+    };
+    let off = || Ok(Outcome::Skipped("not in coat.yaml `enabled`".into()));
+
     step("Accent color", || apply_accent(scheme).map(|_| Outcome::Done));
     step("Dark/light mode", || apply_mode(scheme).map(|_| Outcome::Done));
     step("Logon/HKLM keys", || apply_elevated(scheme, scheme.is_dark(), elevate));
     step("Windows Terminal", || apply_terminal(scheme, config));
-    step("VSCode", || apply_vscode(scheme, config));
+    step("VSCode", || if wants("vscode") { apply_vscode(scheme, config) } else { off() });
     step("Firefox", || {
+        if !wants("firefox") {
+            return off();
+        }
         let tera = crate::modules::make_tera()?;
         crate::modules::apply_module("firefox", scheme, config, &tera).map(|_| Outcome::Done)
     });
-    step("Discord (Vencord/BetterDiscord)", || apply_discord(scheme, config));
+    step("Discord (Vencord/BetterDiscord)", || {
+        if wants("vesktop") { apply_discord(scheme, config) } else { off() }
+    });
     step("Explorer restart", || {
         restart_explorer();
         Ok(Outcome::Done)
