@@ -944,7 +944,23 @@ fn apply_neovim(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) 
     let dest = data.join("nvim/site/colors/coat.lua");
     render_to(tera, "neovim", ctx, &dest)?;
     detail!("    Set in your Neovim config: vim.cmd.colorscheme(\"coat\")");
-    detail!("    (Running Neovim instances: run  :colorscheme coat  to reload.)");
+
+    // Recolour every running Neovim. `:colorscheme coat` re-sources the file we
+    // just wrote, so an open editor follows the scheme without restarting.
+    //
+    // --remote-expr, NOT --remote-send: keystrokes would be typed into the
+    // buffer of an instance sitting in insert mode. An expression evaluates
+    // whatever the mode.
+    //
+    // Guarded on g:colors_name so an instance where a different scheme was
+    // chosen by hand keeps it -- coat should follow that choice, not overrule it.
+    run(concat!(
+        r#"d="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"; "#,
+        r#"for s in "$d"/nvim.*; do [ -S "$s" ] || continue; "#,
+        r#"nvim --server "$s" --remote-expr "#,
+        r#""exists('g:colors_name') && g:colors_name ==# 'coat' ? execute('colorscheme coat') : ''" "#,
+        r#">/dev/null 2>&1; done; true"#,
+    ));
     Ok(())
 }
 
@@ -1276,7 +1292,18 @@ fn apply_zathura(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig)
     let dir = home.join(".config/zathura");
     render_to(tera, "zathura", ctx, &dir.join("coat-theme"))?;
     // girara resolves a relative include against the config being processed.
-    ensure_include(&dir.join("zathurarc"), "include coat-theme", ("#", ""))
+    ensure_include(&dir.join("zathurarc"), "include coat-theme", ("#", ""))?;
+
+    // zathura re-reads its config over D-Bus, so a document that is already open
+    // recolours in place instead of waiting to be reopened. Each instance owns a
+    // well-known name of the form org.pwmt.zathura.PID-<pid>.
+    run(concat!(
+        r#"busctl --user list --no-legend 2>/dev/null "#,
+        r#"| awk '/^org\.pwmt\.zathura\.PID-/{print $1}' "#,
+        r#"| while read -r n; do busctl --user call "$n" /org/pwmt/zathura "#,
+        r#"org.pwmt.zathura SourceConfig >/dev/null 2>&1; done; true"#,
+    ));
+    Ok(())
 }
 
 // ── JSONC-safe settings reading ───────────────────────────────────────────
