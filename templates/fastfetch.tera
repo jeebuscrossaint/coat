@@ -12,18 +12,13 @@
   // so it costs nothing to render but only works in a terminal that reads the
   // file itself (kitty, ghostty) -- not over SSH.
   //
-  // A PNG, not the wallpaper itself: kitty's graphics protocol takes PNG or raw
-  // pixels only, and most of these wallpapers are progressive JPEGs, which
-  // fastfetch's own decoder cannot read either. Pointed straight at a .jpg the
-  // space gets reserved and nothing draws.
-  //
   // fastfetch cannot run a command to find the wallpaper, so the path has to be
-  // stable: ~/.local/bin/awww writes this copy on every wallpaper change. If it
-  // is missing, fastfetch quietly falls back to the built-in distro logo, which
-  // is why the colours below are still worth setting.
+  // stable: ~/.local/bin/awww maintains this symlink on every wallpaper change.
+  // If it is missing or dangling, fastfetch quietly falls back to the built-in
+  // distro logo, which is why the colours below are still worth setting.
   "logo": {
     "type": "kitty-direct",
-    "source": "~/.cache/current-wallpaper.png",
+    "source": "~/.cache/current-wallpaper",
     "width": 32,
     "height": 16,
     "preserveAspectRatio": true,
