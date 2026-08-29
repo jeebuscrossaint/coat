@@ -1,0 +1,11 @@
+# coat — {{ scheme_name }} — imv
+#
+# imv takes hex WITHOUT a leading '#', which is why nohash is used here and
+# nowhere else in coat.
+
+[options]
+background = {{ base00 | nohash | lower_hex }}
+overlay_text = {{ base05 | nohash | lower_hex }}
+overlay_background = {{ base00 | nohash | lower_hex }}
+overlay_background_alpha = e6
+overlay_font = {{ font_monospace }}:{{ font_size_terminal }}

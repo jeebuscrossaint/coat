@@ -1,0 +1,54 @@
+# coat — {{ scheme_name }} — lsd colours
+#
+# lsd takes hex STRINGS here. `rgb: [r, g, b]` parses without complaint and is
+# then silently ignored, falling back to the built-in 256-colour theme -- verified
+# by diffing the emitted escape sequences (38;2;r;g;b vs 38;5;230).
+#
+# This file is only read when config.yaml sets `color: theme: custom`; the module
+# writes that too when lsd has no config of its own.
+
+user: "#{{ base0A | lower_hex }}"
+group: "#{{ base03 | lower_hex }}"
+
+permission:
+  read: "#{{ base0B | lower_hex }}"
+  write: "#{{ base0A | lower_hex }}"
+  exec: "#{{ base08 | lower_hex }}"
+  exec-sticky: "#{{ base0E | lower_hex }}"
+  no-access: "#{{ base03 | lower_hex }}"
+  octal: "#{{ base0C | lower_hex }}"
+  acl: "#{{ base0C | lower_hex }}"
+  context: "#{{ base0E | lower_hex }}"
+
+date:
+  hour-old: "#{{ base0B | lower_hex }}"
+  day-old: "#{{ base0C | lower_hex }}"
+  older: "#{{ base03 | lower_hex }}"
+
+size:
+  none: "#{{ base03 | lower_hex }}"
+  small: "#{{ base0B | lower_hex }}"
+  medium: "#{{ base0A | lower_hex }}"
+  large: "#{{ base09 | lower_hex }}"
+
+inode:
+  valid: "#{{ base0E | lower_hex }}"
+  invalid: "#{{ base03 | lower_hex }}"
+
+links:
+  valid: "#{{ base0E | lower_hex }}"
+  invalid: "#{{ base03 | lower_hex }}"
+
+tree-edge: "#{{ base03 | lower_hex }}"
+
+git-status:
+  default: "#{{ base05 | lower_hex }}"
+  unmodified: "#{{ base03 | lower_hex }}"
+  ignored: "#{{ base03 | lower_hex }}"
+  new-in-index: "#{{ base0B | lower_hex }}"
+  new-in-workdir: "#{{ base0B | lower_hex }}"
+  typechange: "#{{ base0A | lower_hex }}"
+  deleted: "#{{ base08 | lower_hex }}"
+  renamed: "#{{ base0B | lower_hex }}"
+  modified: "#{{ base0A | lower_hex }}"
+  conflicted: "#{{ base08 | lower_hex }}"

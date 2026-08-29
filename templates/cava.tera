@@ -1,0 +1,42 @@
+; coat — {{ scheme_name }} — cava
+;
+; cava has no include mechanism and its config is only settings coat cares about
+; plus a handful of defaults, so this file is owned outright.
+;
+; The gradient runs base0D -> base0E -> base08 -> base09 -> base0A -> base0B ->
+; base0C: the scheme's own hue wheel in spectrum order, taken literally. A
+; gradient invented from the accent would look the same under every scheme,
+; which defeats the point of drawing it at all.
+
+[general]
+framerate = 60
+autosens = 1
+bars = 0
+bar_width = 2
+bar_spacing = 1
+
+[input]
+method = pulse
+source = auto
+
+[output]
+method = ncurses
+channels = stereo
+mono_option = average
+
+[color]
+background = '#{{ base00 | lower_hex }}'
+foreground = '#{{ base0D | lower_hex }}'
+
+gradient = 1
+gradient_count = 7
+gradient_color_1 = '#{{ base0D | lower_hex }}'
+gradient_color_2 = '#{{ base0E | lower_hex }}'
+gradient_color_3 = '#{{ base08 | lower_hex }}'
+gradient_color_4 = '#{{ base09 | lower_hex }}'
+gradient_color_5 = '#{{ base0A | lower_hex }}'
+gradient_color_6 = '#{{ base0B | lower_hex }}'
+gradient_color_7 = '#{{ base0C | lower_hex }}'
+
+[smoothing]
+noise_reduction = 77

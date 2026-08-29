@@ -39,9 +39,11 @@ macro_rules! tpl {
 static TEMPLATES: &[(&str, &str)] = &[
     tpl!("bat",       "bat.tera"),
     tpl!("btop",      "btop.tera"),
+    tpl!("cava",      "cava.tera"),
     tpl!("dunst",     "dunst.tera"),
     tpl!("firefox",   "firefox.tera"),
     tpl!("firefox_content", "firefox_content.tera"),
+    tpl!("fastfetch", "fastfetch.tera"),
     tpl!("fish",      "fish.tera"),
     tpl!("fnott",     "fnott.tera"),
     tpl!("fuzzel",    "fuzzel.tera"),
@@ -49,10 +51,15 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("gtk",       "gtk.tera"),
     tpl!("hyprland",  "hyprland.tera"),
     tpl!("hyprland_lua", "hyprland_lua.tera"),
+    tpl!("imv",       "imv.tera"),
     tpl!("kitty",     "kitty.tera"),
+    tpl!("lsd",       "lsd.tera"),
     tpl!("mango",     "mango.tera"),
     tpl!("mpv",       "mpv.tera"),
+    tpl!("msteams",   "msteams.tera"),
     tpl!("neovim",    "neovim.tera"),
+    tpl!("prismlauncher", "prismlauncher.tera"),
+    tpl!("satty",     "satty.tera"),
     tpl!("sway",      "sway.tera"),
     tpl!("swaylock",  "swaylock.tera"),
     tpl!("swaybar",   "swaybar.tera"),
@@ -60,6 +67,7 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("vesktop",   "vesktop.tera"),
     tpl!("waybar",    "waybar.tera"),
     tpl!("xresources","xresources.tera"),
+    tpl!("yazi",      "yazi.tera"),
     tpl!("zathura",   "zathura.tera"),
 ];
 
@@ -335,9 +343,11 @@ fn run(cmd: &str) {
 // ── Module dispatch ────────────────────────────────────────────────────────
 
 pub const ALL_MODULES: &[&str] = &[
-    "bat", "btop", "dunst", "firefox", "fish", "fnott", "foot", "gtk",
-    "fuzzel", "hyprland", "kitty", "mango", "swaylock", "waybar", "mpv", "neovim",
-    "sway", "swaybar", "tofi", "vesktop", "vscode", "xresources", "zathura",
+    "bat", "btop", "cava", "dunst", "fastfetch", "firefox", "fish", "fnott",
+    "foot", "gtk", "fuzzel", "hyprland", "imv", "kitty", "lsd", "mango",
+    "msteams", "prismlauncher", "satty", "swaylock", "waybar", "mpv", "neovim",
+    "sway", "swaybar", "tofi", "vesktop", "vscode", "xresources", "yazi",
+    "zathura",
 ];
 
 pub fn module_aliases(name: &str) -> Option<&'static str> {
@@ -346,6 +356,8 @@ pub fn module_aliases(name: &str) -> Option<&'static str> {
         "nvim" | "vim" => Some("neovim"),
         "bar" | "swaybar-colors" => Some("swaybar"),
         "hypr" => Some("hyprland"),
+        "teams" | "outlook" | "teams-for-linux" | "outlook-for-linux" => Some("msteams"),
+        "prism" | "prism-launcher" => Some("prismlauncher"),
         _ => None,
     }
 }
@@ -372,6 +384,14 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
     let result = match name {
         "bat"        => apply_bat(tera, &ctx, scheme, config),
         "btop"       => apply_btop(tera, &ctx, scheme, config),
+        "cava"       => apply_cava(tera, &ctx, scheme, config),
+        "fastfetch"  => apply_fastfetch(tera, &ctx, scheme, config),
+        "imv"        => apply_imv(tera, &ctx, scheme, config),
+        "lsd"        => apply_lsd(tera, &ctx, scheme, config),
+        "msteams"    => apply_msteams(tera, &ctx, scheme, config),
+        "prismlauncher" => apply_prismlauncher(tera, &ctx, scheme, config),
+        "satty"      => apply_satty(tera, &ctx, scheme, config),
+        "yazi"       => apply_yazi(tera, &ctx, scheme, config),
         "dunst"      => apply_dunst(tera, &ctx, scheme, config),
         "firefox"    => apply_firefox(tera, &ctx, scheme, config),
         "fish"       => apply_fish(tera, &ctx, scheme, config),
@@ -1523,6 +1543,121 @@ fn apply_vscode(scheme: &Scheme, config: &CoatConfig) -> Result<()> {
 
 // ── Docs strings ───────────────────────────────────────────────────────────
 
+fn apply_yazi(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    render_to(tera, "yazi", ctx, &home.join(".config/yazi/theme.toml"))
+}
+
+fn apply_cava(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    render_to(tera, "cava", ctx, &home.join(".config/cava/config"))?;
+    // cava re-reads its config on SIGUSR1, so a running visualiser picks up the
+    // new gradient without being restarted.
+    run("pkill -USR1 -x cava 2>/dev/null; true");
+    Ok(())
+}
+
+fn apply_fastfetch(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    render_to(tera, "fastfetch", ctx, &home.join(".config/fastfetch/config.jsonc"))
+}
+
+fn apply_imv(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    render_to(tera, "imv", ctx, &home.join(".config/imv/config"))
+}
+
+fn apply_satty(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    render_to(tera, "satty", ctx, &home.join(".config/satty/config.toml"))
+}
+
+fn apply_prismlauncher(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    render_to(
+        tera,
+        "prismlauncher",
+        ctx,
+        &home.join(".local/share/PrismLauncher/themes/coat/theme.json"),
+    )
+}
+
+fn apply_lsd(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    let dir = home.join(".config/lsd");
+    render_to(tera, "lsd", ctx, &dir.join("colors.yaml"))?;
+
+    // colors.yaml is read ONLY when config.yaml opts in. Without it lsd falls
+    // back to its built-in 256-colour theme and says nothing -- the file parses,
+    // it is simply never consulted -- so a module that wrote colours alone would
+    // look like it worked and change nothing.
+    let cfg = dir.join("config.yaml");
+    if !cfg.exists() {
+        ensure_dir(&dir)?;
+        fs::write(&cfg, "color:\n  theme: custom\n")
+            .with_context(|| format!("Failed to write {}", cfg.display()))?;
+        crate::manifest::record_write(&cfg);
+        detail!("  ✓ {}", cfg.display());
+    } else {
+        let existing = fs::read_to_string(&cfg).unwrap_or_default();
+        if !existing.contains("theme: custom") {
+            detail!(
+                "  note: add `color:\n    theme: custom` to {} or the colours are ignored",
+                cfg.display()
+            );
+        }
+    }
+    Ok(())
+}
+
+/// Point an Electron wrapper's config.json at a CSS file, preserving whatever
+/// else the user has set. Both teams-for-linux and outlook-for-linux read
+/// `customCSSLocation`.
+fn set_electron_custom_css(config: &Path, css: &Path) -> Result<()> {
+    let mut root: JsonValue = if config.exists() {
+        let text = fs::read_to_string(config)
+            .with_context(|| format!("Failed to read {}", config.display()))?;
+        // A hand-broken config.json is not ours to discard, but neither should it
+        // stop the rest of the apply -- start fresh only when there is nothing
+        // parseable there.
+        serde_json::from_str(&text).unwrap_or_else(|_| JsonValue::Object(Default::default()))
+    } else {
+        JsonValue::Object(Default::default())
+    };
+    if !root.is_object() {
+        root = JsonValue::Object(Default::default());
+    }
+    root["customCSSLocation"] = JsonValue::String(css.to_string_lossy().into_owned());
+    ensure_dir(config.parent().unwrap_or(Path::new("/")))?;
+    fs::write(config, serde_json::to_string_pretty(&root)? + "\n")
+        .with_context(|| format!("Failed to write {}", config.display()))?;
+    crate::manifest::record_write(config);
+    detail!("  ✓ {} (customCSSLocation)", config.display());
+    Ok(())
+}
+
+fn apply_msteams(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    // One stylesheet, both apps: they are Electron wrappers around the same two
+    // Fluent v9 web apps, so the token map is identical.
+    let css = home.join(".config/coat/msteams.css");
+    render_to(tera, "msteams", ctx, &css)?;
+
+    let mut wired = false;
+    for app in ["teams-for-linux", "outlook-for-linux"] {
+        let dir = home.join(".config").join(app);
+        if !dir.is_dir() {
+            continue;
+        }
+        set_electron_custom_css(&dir.join("config.json"), &css)?;
+        wired = true;
+    }
+    if !wired {
+        detail!("  note: neither teams-for-linux nor outlook-for-linux is set up; CSS written anyway");
+    }
+    Ok(())
+}
+
 pub fn module_docs(name: &str) {
     let name = module_aliases(name).unwrap_or(name);
     println!("=== {} Setup Instructions ===\n", name);
@@ -1616,6 +1751,41 @@ pub fn module_docs(name: &str) {
             println!("never be read.\n");
             println!("If it doesn't reload, run manually:");
             println!("  dunstctl reload");
+        }
+        "yazi" => {
+            println!("theme.toml is written whole; yazi picks it up on next launch.");
+        }
+        "cava" => {
+            println!("~/.config/cava/config is written whole (input method: pulse).");
+            println!("A running cava is reloaded via SIGUSR1.");
+        }
+        "fastfetch" => {
+            println!("config.jsonc is written whole. Just run `fastfetch`.");
+        }
+        "lsd" => {
+            println!("Colours live in ~/.config/lsd/colors.yaml, which lsd reads");
+            println!("ONLY when ~/.config/lsd/config.yaml contains:\n");
+            println!("  color:");
+            println!("    theme: custom\n");
+            println!("coat writes that file when lsd has none of its own.");
+        }
+        "imv" => {
+            println!("~/.config/imv/config is written whole.");
+        }
+        "satty" => {
+            println!("~/.config/satty/config.toml is written whole.");
+            println!("The annotation palette becomes the scheme's accent wheel.");
+        }
+        "prismlauncher" => {
+            println!("To activate:\n");
+            println!("  Settings > Appearance > Themes > coat");
+        }
+        "msteams" => {
+            println!("Themes the Teams and Outlook DESKTOP apps (Electron wrappers).\n");
+            println!("coat writes ~/.config/coat/msteams.css and points each app's");
+            println!("config.json at it via customCSSLocation. Restart the app to");
+            println!("pick up a new scheme -- the CSS is read at startup.\n");
+            println!("Browser tabs are handled separately by coat-webapps.");
         }
         "btop" => {
             println!("To activate:\n");
