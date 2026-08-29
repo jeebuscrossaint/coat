@@ -7,22 +7,8 @@
 // looking monochrome is not this file being wrong.
 {
   "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
-  // The logo is the current wallpaper, drawn with kitty's graphics protocol.
-  // kitty-direct hands the terminal a PATH instead of transmitting the pixels,
-  // so it costs nothing to render but only works in a terminal that reads the
-  // file itself (kitty, ghostty) -- not over SSH.
-  //
-  // fastfetch cannot run a command to find the wallpaper, so the path has to be
-  // stable: ~/.local/bin/awww maintains this symlink on every wallpaper change.
-  // If it is missing or dangling, fastfetch quietly falls back to the built-in
-  // distro logo, which is why the colours below are still worth setting.
   "logo": {
-    "type": "kitty-direct",
-    "source": "~/.cache/current-wallpaper",
-    "width": 32,
-    "height": 16,
-    "preserveAspectRatio": true,
-    "padding": { "top": 1, "right": 3 },
+    "type": "small",
     "color": {
       "1": "#{{ base0D | lower_hex }}",
       "2": "#{{ base0E | lower_hex }}"
