@@ -62,6 +62,7 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("satty",     "satty.tera"),
     tpl!("sway",      "sway.tera"),
     tpl!("swaylock",  "swaylock.tera"),
+    tpl!("quickshell","quickshell.tera"),
     tpl!("swaybar",   "swaybar.tera"),
     tpl!("tofi",      "tofi.tera"),
     tpl!("vesktop",   "vesktop.tera"),
@@ -345,7 +346,8 @@ fn run(cmd: &str) {
 pub const ALL_MODULES: &[&str] = &[
     "bat", "btop", "cava", "dunst", "fastfetch", "firefox", "fish", "fnott",
     "foot", "gtk", "fuzzel", "hyprland", "imv", "kitty", "lsd", "mango",
-    "msteams", "prismlauncher", "satty", "swaylock", "waybar", "mpv", "neovim",
+    "msteams", "prismlauncher", "quickshell", "satty", "swaylock", "waybar", "mpv",
+    "neovim",
     "sway", "swaybar", "tofi", "vesktop", "vscode", "xresources", "yazi",
     "zathura",
 ];
@@ -356,6 +358,7 @@ pub fn module_aliases(name: &str) -> Option<&'static str> {
         "nvim" | "vim" => Some("neovim"),
         "bar" | "swaybar-colors" => Some("swaybar"),
         "hypr" => Some("hyprland"),
+        "qs" | "shell" => Some("quickshell"),
         "teams" | "outlook" | "teams-for-linux" | "outlook-for-linux" => Some("msteams"),
         "prism" | "prism-launcher" => Some("prismlauncher"),
         _ => None,
@@ -403,6 +406,7 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "fnott"      => apply_fnott(tera, &ctx, scheme, config),
         "fuzzel"     => apply_fuzzel(tera, &ctx, scheme, config),
         "swaylock"   => apply_swaylock(tera, &ctx, scheme, config),
+        "quickshell" => apply_quickshell(tera, &ctx, scheme, config),
         "waybar"     => apply_waybar(tera, &ctx, scheme, config),
         "mpv"        => apply_mpv(tera, &ctx, scheme, config),
         "neovim"     => apply_neovim(tera, &ctx, scheme, config),
@@ -1190,6 +1194,20 @@ fn apply_swaylock(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig
     // flags like show-failed-attempts were coat's opinion and came back on every
     // theme change however the user set them.
     apply_ini_edits(tera, ctx, "swaylock", &home.join(".config/swaylock/config"))
+}
+
+fn apply_quickshell(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    render_to(
+        tera,
+        "quickshell",
+        ctx,
+        &home.join(".config/quickshell/coat.json"),
+    )
+    // No reload, and that is the point of shipping JSON instead of a QML
+    // singleton: the shell's Colours singleton watches this path with a
+    // FileView, so the repaint happens on the write. Every other module here
+    // has to signal, restart or ask the user to reload something.
 }
 
 fn apply_waybar(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
