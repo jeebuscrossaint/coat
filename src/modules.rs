@@ -368,6 +368,12 @@ pub fn module_aliases(name: &str) -> Option<&'static str> {
 pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Tera) -> Result<()> {
     let name = module_aliases(name).unwrap_or(name);
     crate::manifest::begin(name);
+
+    // Per-module overrides are folded in HERE, once, so nothing downstream has
+    // to know they exist.
+    let merged = config.merged_for(name);
+    let config = &merged;
+
     let ctx = build_context(scheme, config);
 
     // On Windows, cross-platform apps live at native locations (%APPDATA%, …)
