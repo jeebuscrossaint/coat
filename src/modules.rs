@@ -664,8 +664,16 @@ fn apply_kitty(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -
     // control enabled (allow_remote_control + listen_on in kitty.conf) and talks over the
     // socket that listen_on names. If that fails -- remote control off, no instance
     // running -- fall back to SIGUSR1, which makes kitty re-read its config.
+    //
+    // The socket is globbed, not named directly. kitty APPENDS its pid to whatever
+    // listen_on says, so `listen_on unix:/tmp/kitty` produces /tmp/kitty-1234 and
+    // talking to /tmp/kitty always failed -- this path never once ran, and every
+    // apply silently took the SIGUSR1 fallback. Stale sockets from dead instances
+    // are left behind too, so a failure on one must not stop the others.
     let live = format!(
-        "kitty @ --to unix:/tmp/kitty set-colors --all --configured {} 2>/dev/null",
+        "ok=1; for s in /tmp/kitty /tmp/kitty-*; do [ -S \"$s\" ] || continue; \
+         kitty @ --to \"unix:$s\" set-colors --all --configured {} 2>/dev/null && ok=0; \
+         done; exit $ok",
         dest.to_string_lossy()
     );
     let ok = Command::new("sh")
