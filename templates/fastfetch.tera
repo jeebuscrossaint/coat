@@ -1,0 +1,47 @@
+// coat — {{ scheme_name }} — fastfetch
+//
+// fastfetch takes hex directly and expands it to a truecolor SGR itself.
+// Verified: --color-keys "#ff0000" emits 38;2;255;0;0.
+//
+// It also strips ALL colour when stdout is not a TTY, so a piped `fastfetch`
+// looking monochrome is not this file being wrong.
+{
+  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
+  "logo": {
+    "type": "small",
+    "color": {
+      "1": "#{{ base0D | lower_hex }}",
+      "2": "#{{ base0E | lower_hex }}"
+    }
+  },
+  "display": {
+    "color": {
+      "keys": "#{{ base0D | lower_hex }}",
+      "title": "#{{ base0E | lower_hex }}",
+      "output": "#{{ base05 | lower_hex }}",
+      "separator": "#{{ base03 | lower_hex }}"
+    },
+    "separator": " → ",
+    "key": { "width": 12 }
+  },
+  "modules": [
+    "title",
+    "separator",
+    { "type": "os", "key": "os" },
+    { "type": "kernel", "key": "kernel" },
+    { "type": "uptime", "key": "uptime" },
+    { "type": "packages", "key": "pkgs" },
+    { "type": "shell", "key": "shell" },
+    { "type": "wm", "key": "wm" },
+    { "type": "terminal", "key": "term" },
+    { "type": "cpu", "key": "cpu" },
+    { "type": "gpu", "key": "gpu" },
+    { "type": "memory", "key": "mem" },
+    { "type": "swap", "key": "swap" },
+    { "type": "disk", "key": "disk" },
+    { "type": "battery", "key": "battery" },
+    { "type": "custom", "format": "coat: {{ scheme_name }}" },
+    "break",
+    "colors"
+  ]
+}

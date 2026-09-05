@@ -153,6 +153,19 @@ impl Scheme {
     }
 }
 
+/// Every directory a scheme can be loaded from, in the order they are searched.
+/// `generated` holds what `coat match` builds; it is listed here so a generated
+/// scheme is an ordinary scheme afterwards — `coat set`, `list`, `browse` and
+/// `random` all reach it with no special-casing.
+pub fn scheme_dirs(prefer_base24: bool) -> Result<Vec<PathBuf>> {
+    let sdir = schemes_dir()?;
+    Ok(if prefer_base24 {
+        vec![sdir.join("base24"), sdir.join("base16"), sdir.join("generated")]
+    } else {
+        vec![sdir.join("base16"), sdir.join("base24"), sdir.join("generated")]
+    })
+}
+
 pub fn schemes_dir() -> Result<PathBuf> {
     let home = dirs::home_dir().context("Cannot determine home directory")?;
     Ok(home.join(".config/coat/schemes"))
@@ -296,8 +309,7 @@ fn parse_all(dirs: &[PathBuf]) -> Vec<Scheme> {
 /// Load every scheme in the library (base16 then base24), backed by the on-disk
 /// index cache. Rebuilds the cache transparently when it is missing or stale.
 pub fn load_all_schemes() -> Result<Vec<Scheme>> {
-    let sdir = schemes_dir()?;
-    let dirs = [sdir.join("base16"), sdir.join("base24")];
+    let dirs = scheme_dirs(false)?;
     let (count, max_mtime) = library_signature(&dirs);
 
     // Fast path: a present, current cache.
@@ -426,11 +438,7 @@ pub fn all_slugs() -> Result<Vec<String>> {
 pub fn find_scheme(name: &str, prefer_base24: bool) -> Result<Scheme> {
     let sdir = schemes_dir()?;
 
-    let dirs_to_try: Vec<PathBuf> = if prefer_base24 {
-        vec![sdir.join("base24"), sdir.join("base16")]
-    } else {
-        vec![sdir.join("base16"), sdir.join("base24")]
-    };
+    let dirs_to_try = scheme_dirs(prefer_base24)?;
 
     // First pass: match by filename stem
     for dir in &dirs_to_try {
@@ -491,8 +499,11 @@ pub fn pick_random_scheme(variant_filter: Option<&str>, _prefer_base24: bool) ->
 
     // No filter: collect paths (cheap, no parsing) and load exactly one. The
     // selection is uniform, so directory order doesn't matter here.
+    // scheme_dirs, not a list of its own: the variant-filtered path above goes
+    // through load_all_schemes and would otherwise see a different library than
+    // this one does.
     let mut candidates: Vec<PathBuf> = Vec::new();
-    for dir in &[sdir.join("base16"), sdir.join("base24")] {
+    for dir in &scheme_dirs(false)? {
         if !dir.is_dir() {
             continue;
         }

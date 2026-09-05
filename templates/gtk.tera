@@ -17,7 +17,15 @@
 @define-color base0E #{{ base0E }};
 @define-color base0F #{{ base0F }};
 
-/* Libadwaita named colors */
+{% if font_monospace %}/* Font, from font.monospace / font.sizes.desktop in coat.yaml.  It lives here
+ * because settings.ini has no include mechanism, so a gtk-font-name there is a
+ * second source of truth that drifts. */
+* {
+  font-family: "{{ font_monospace }}";
+  font-size: {{ font_size_desktop }}pt;
+}
+
+{% endif %}/* Libadwaita named colors */
 @define-color accent_bg_color @base0D;
 @define-color accent_fg_color @base00;
 @define-color accent_color @base0D;

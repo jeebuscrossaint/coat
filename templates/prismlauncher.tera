@@ -1,0 +1,28 @@
+{
+  "_comment": "coat — {{ scheme_name }} — PrismLauncher",
+  "name": "coat",
+  "palette": {
+    "Window": "#{{ base00 | lower_hex }}",
+    "WindowText": "#{{ base05 | lower_hex }}",
+    "Base": "#{{ base00 | lower_hex }}",
+    "AlternateBase": "#{% if is_base24 %}{{ base10 | lower_hex }}{% else %}{{ base00 | lower_hex }}{% endif %}",
+    "ToolTipBase": "#{{ base00 | lower_hex }}",
+    "ToolTipText": "#{{ base05 | lower_hex }}",
+    "Text": "#{{ base05 | lower_hex }}",
+    "Button": "#{% if is_base24 %}{{ base10 | lower_hex }}{% else %}{{ base00 | lower_hex }}{% endif %}",
+    "ButtonText": "#{{ base05 | lower_hex }}",
+    "BrightText": "#{{ base07 | lower_hex }}",
+    "Link": "#{{ base0D | lower_hex }}",
+    "Highlight": "#{{ base0D | lower_hex }}",
+    "HighlightedText": "#{{ base00 | lower_hex }}",
+    "PlaceholderText": "#{{ base03 | lower_hex }}",
+    "Light": "#{{ base03 | lower_hex }}",
+    "Midlight": "#{{ base03 | lower_hex }}",
+    "Dark": "#{{ shadow | lower_hex }}",
+    "Mid": "#{{ base03 | lower_hex }}",
+    "Shadow": "#{{ shadow | lower_hex }}"
+  },
+  "fadeAmount": 0.5,
+  "fadeColor": "#{{ base03 | lower_hex }}",
+  "widgets": ""
+}

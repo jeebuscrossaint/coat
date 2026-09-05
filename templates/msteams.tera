@@ -1,0 +1,118 @@
+/* coat — {{ scheme_name }} — Fluent UI v9 (Teams / Outlook desktop)
+ *
+ * teams-for-linux and outlook-for-linux are Electron wrappers around the same
+ * web apps the browser extension themes, and both support customCSSLocation.
+ * So this is the extension's Fluent token map delivered a different way -- the
+ * research behind these names is the same.
+ *
+ * Elevation uses color-mix() rather than base01/base02. Those slots are ramp
+ * steps plenty of published schemes fill with a saturated ANSI colour, so a
+ * panel built on them goes illegible; mixing base05 into base00 by percentage
+ * is a step that every scheme survives. Electron is current Chromium, so
+ * color-mix is available.
+ */
+
+:root,
+html,
+body {
+  --coat-bg: #{{ base00 | lower_hex }};
+  --coat-fg: #{{ base05 | lower_hex }};
+  --coat-accent: #{{ base0D | lower_hex }};
+
+  --colorNeutralBackground1: var(--coat-bg) !important;
+  --colorNeutralBackground1Hover: color-mix(in srgb, var(--coat-bg) 94%, var(--coat-fg)) !important;
+  --colorNeutralBackground1Pressed: color-mix(in srgb, var(--coat-bg) 90%, var(--coat-fg)) !important;
+  --colorNeutralBackground1Selected: rgba({{ base0D | r }}, {{ base0D | g }}, {{ base0D | b }}, 0.32) !important;
+  --colorNeutralBackground2: color-mix(in srgb, var(--coat-bg) 97%, var(--coat-fg)) !important;
+  --colorNeutralBackground3: color-mix(in srgb, var(--coat-bg) 94%, var(--coat-fg)) !important;
+  --colorNeutralBackground4: color-mix(in srgb, var(--coat-bg) 91%, var(--coat-fg)) !important;
+  --colorNeutralBackground5: color-mix(in srgb, var(--coat-bg) 89%, var(--coat-fg)) !important;
+  --colorNeutralBackground6: color-mix(in srgb, var(--coat-bg) 87%, var(--coat-fg)) !important;
+  --colorNeutralBackgroundDisabled: color-mix(in srgb, var(--coat-bg) 97%, var(--coat-fg)) !important;
+
+  --colorSubtleBackground: transparent !important;
+  --colorSubtleBackgroundHover: rgba({{ base0D | r }}, {{ base0D | g }}, {{ base0D | b }}, 0.18) !important;
+  --colorSubtleBackgroundPressed: rgba({{ base0D | r }}, {{ base0D | g }}, {{ base0D | b }}, 0.32) !important;
+  --colorSubtleBackgroundSelected: rgba({{ base0D | r }}, {{ base0D | g }}, {{ base0D | b }}, 0.32) !important;
+  /* Fluent's overlay set for controls on a BRANDED fill. The app rail
+   * re-declares these below :root, which is why they are repeated on html/body
+   * rather than set once. */
+  --colorSubtleBackgroundLightAlphaHover: rgba({{ base0D | r }}, {{ base0D | g }}, {{ base0D | b }}, 0.18) !important;
+  --colorSubtleBackgroundLightAlphaPressed: rgba({{ base0D | r }}, {{ base0D | g }}, {{ base0D | b }}, 0.32) !important;
+  --colorSubtleBackgroundLightAlphaSelected: rgba({{ base0D | r }}, {{ base0D | g }}, {{ base0D | b }}, 0.32) !important;
+
+  --colorNeutralForeground1: var(--coat-fg) !important;
+  --colorNeutralForeground2: rgba({{ base05 | r }}, {{ base05 | g }}, {{ base05 | b }}, 0.88) !important;
+  --colorNeutralForeground3: rgba({{ base05 | r }}, {{ base05 | g }}, {{ base05 | b }}, 0.7) !important;
+  --colorNeutralForeground4: rgba({{ base05 | r }}, {{ base05 | g }}, {{ base05 | b }}, 0.58) !important;
+  --colorNeutralForegroundDisabled: rgba({{ base05 | r }}, {{ base05 | g }}, {{ base05 | b }}, 0.38) !important;
+  --colorNeutralForegroundInverted: var(--coat-bg) !important;
+
+  --colorNeutralStroke1: rgba({{ base05 | r }}, {{ base05 | g }}, {{ base05 | b }}, 0.22) !important;
+  --colorNeutralStroke2: rgba({{ base05 | r }}, {{ base05 | g }}, {{ base05 | b }}, 0.14) !important;
+  --colorNeutralStroke3: rgba({{ base05 | r }}, {{ base05 | g }}, {{ base05 | b }}, 0.14) !important;
+  --colorTransparentStroke: transparent !important;
+
+  --colorBrandBackground: var(--coat-accent) !important;
+  --colorBrandBackground2: rgba({{ base0D | r }}, {{ base0D | g }}, {{ base0D | b }}, 0.15) !important;
+  --colorBrandForeground1: var(--coat-accent) !important;
+  --colorBrandForegroundLink: var(--coat-accent) !important;
+  --colorBrandStroke1: var(--coat-accent) !important;
+  --colorCompoundBrandBackground: var(--coat-accent) !important;
+  --colorCompoundBrandForeground1: var(--coat-accent) !important;
+  --colorCompoundBrandStroke: var(--coat-accent) !important;
+
+  /* Status slots taken literally from the scheme rather than re-derived. */
+  --colorPaletteRedForeground1: #{{ base08 | lower_hex }} !important;
+  --colorPaletteRedBackground3: #{{ base08 | lower_hex }} !important;
+  --colorPaletteGreenForeground1: #{{ base0B | lower_hex }} !important;
+  --colorPaletteGreenBackground3: #{{ base0B | lower_hex }} !important;
+  --colorPaletteYellowForeground1: #{{ base0A | lower_hex }} !important;
+  --colorPaletteYellowBackground3: #{{ base0A | lower_hex }} !important;
+  --colorStatusDangerForeground1: #{{ base08 | lower_hex }} !important;
+  --colorStatusSuccessForeground1: #{{ base0B | lower_hex }} !important;
+  --colorStatusWarningForeground1: #{{ base0A | lower_hex }} !important;
+
+  /* Legacy Office palette -- Outlook only, inert in Teams. --themePrimary
+   * paints the blue subject lines and has by far the most uses of the three
+   * generations Outlook runs at once. */
+  --themePrimary: var(--coat-accent) !important;
+  --themeLighter: rgba({{ base0D | r }}, {{ base0D | g }}, {{ base0D | b }}, 0.32) !important;
+  --themeLighterAlt: rgba({{ base0D | r }}, {{ base0D | g }}, {{ base0D | b }}, 0.18) !important;
+  --neutralPrimarySurface: var(--coat-bg) !important;
+  --neutralSecondarySurface: color-mix(in srgb, var(--coat-bg) 94%, var(--coat-fg)) !important;
+  --neutralTertiarySurface: color-mix(in srgb, var(--coat-bg) 91%, var(--coat-fg)) !important;
+  --headerBackground: color-mix(in srgb, var(--coat-bg) 91%, var(--coat-fg)) !important;
+  --headerTextIcons: var(--coat-fg) !important;
+  --headerBrandText: var(--coat-fg) !important;
+}
+
+/* Outlook's message rows paint from --white, which is NOT the literal its name
+ * suggests -- Outlook swaps it with --black by mode. Redefining it at :root
+ * inverts contrast on icon fills and on text over brand-coloured buttons, so it
+ * is redefined only inside Outlook's stable data-app-section regions. Custom
+ * properties inherit, so this reaches the generated class names without naming
+ * any of them. Inert in Teams, which has no such sections. */
+[data-app-section="MessageList"],
+[data-app-section="NavigationPane"],
+[data-app-section="Ribbon"],
+[data-app-section="MailReadCompose"],
+[data-app-section="ConversationContainer"],
+[data-app-section="CalendarModule"],
+[data-app-section="CalendarModuleSurface"],
+[data-app-section^="Surface_"],
+[data-app-section^="calendar-view"] {
+  --white: #{{ base00 | lower_hex }};
+}
+
+[role="option"] { background-color: #{{ base00 | lower_hex }} !important; }
+[role="option"]:hover { background-color: rgba({{ base0D | r }}, {{ base0D | g }}, {{ base0D | b }}, 0.18) !important; }
+[role="option"][aria-selected="true"] { background-color: rgba({{ base0D | r }}, {{ base0D | g }}, {{ base0D | b }}, 0.32) !important; }
+[role="listbox"], [role="grid"] { background-color: #{{ base00 | lower_hex }} !important; }
+
+/* Fluent points the scrollbar thumb at a BORDER token, which makes the bar the
+ * brightest thing in a quiet list. */
+html, body { scrollbar-color: rgba({{ base05 | r }}, {{ base05 | g }}, {{ base05 | b }}, 0.15) transparent; }
+::-webkit-scrollbar-track { background: transparent !important; }
+::-webkit-scrollbar-thumb { background-color: rgba({{ base05 | r }}, {{ base05 | g }}, {{ base05 | b }}, 0.15) !important; border-radius: 4px !important; }
+::-webkit-scrollbar-thumb:hover { background-color: rgba({{ base05 | r }}, {{ base05 | g }}, {{ base05 | b }}, 0.3) !important; }

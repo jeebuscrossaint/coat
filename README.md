@@ -8,6 +8,8 @@ A Rust CLI that applies Base16/Base24 color schemes across 22 Linux applications
 - **Windows support** — accent color, dark/light mode, Windows Terminal, and VSCode via `coat set`
 - **Base16 & Base24** — compatible with the full [tinted-theming](https://github.com/tinted-theming/home) ecosystem (~700 schemes)
 - **Scheme browser** — search and preview with live RGB color swatches in the terminal
+- **Wallpaper matching** — `coat match` samples whatever the wallpaper daemon is displaying and builds a scheme from it
+- **Reversible** — `coat remove <app>` undoes an app's theming from a manifest the apply wrote
 - **Font & opacity** — centralized font and transparency settings across all modules
 
 ## Project structure
@@ -61,7 +63,65 @@ coat apply
 
 # Apply to a single app
 coat apply foot
+
+# Build a scheme from the wallpaper that is on screen right now (awww or swww),
+# write it into the schemes directory, and apply it
+coat match
+coat match ~/walls/whatever.png   # or a specific image
+coat match --light                # a light scheme instead (dark is the default)
+coat match --auto                 # let the image's own brightness decide
+coat match --slots                # keep base16 slot meanings instead
+coat match --dry                  # generate and preview, apply nothing
+
+# Undo one app: delete the files coat generated for it, strip the include line
+# it added to your own config, and drop it from the enabled list
+coat remove foot
+coat remove foot --dry            # show what that would do
+coat remove foot --keep-enabled   # clean up but leave it enabled
 ```
+
+### How `coat match` picks colours
+
+The image supplies the **colours**; fixed per-polarity ladders supply the
+**lightness**, so a muddy photo cannot produce a scheme whose foreground is
+invisible on its background.
+
+By default the accents are the image's own colours — the eight most prominent,
+assigned one per slot (closest slot/colour pair first, never the same colour
+twice), at their own saturation. That is pywal's bargain: a wallpaper with one
+strong hue gives you eight shades of that hue, and `base0B` is not necessarily
+green. `--slots` takes the other bargain — every accent holds the colour its name
+promises, at the cost of varying less between wallpapers.
+
+- the image is downscaled to 160px and clustered in Oklab (k=12, farthest-point
+  seeded, so the same wallpaper always yields the same scheme)
+- **dark by default**, whatever the image's brightness. Inferring polarity means a
+  snowy wallpaper turns the desktop white, which nobody asks for; `--auto` opts
+  back into inference, `--light` forces the other way
+- `base00`–`base07` are a lightness/chroma ladder tinted with the image's
+  chroma-weighted mean hue, so the background reads as *of* the wallpaper. The
+  ladder is the **median of every scheme in the tinted-theming library** measured
+  in Oklch (406 dark, 127 light) rather than an invented one — dark `base00` lands
+  at L 0.229, where catppuccin-mocha (0.243), tokyo-night (0.226) and rose-pine
+  (0.213) all sit. The image's overall brightness nudges it within a narrow band
+- chroma humps at `base02`/`base03` rather than decaying from the background,
+  which is what both the corpus and the tinted schemes actually do
+- `base08`–`base0F` are the image's colours, one per slot, at their own saturation
+  lifted into a legible band
+
+Under `--slots` instead:
+
+- each slot takes the nearest matching image hue within 45°. A slot the image has
+  no colour for keeps its identity but leans up to 30° toward the image's nearest
+  hue — without that, every photo lacking a red produced the *same* red, and
+  wildly different wallpapers came out with identical accent rows
+- accent chroma scales with how colourful the image is overall, so the row reads
+  as one family and a washed-out photo gives muted accents
+- no two accents may sit within 20° of each other, so `base0D` and `base0E` cannot
+  collapse into the same blue
+
+Generated schemes are written to `~/.config/coat/schemes/generated/`, so
+`coat set`, `coat list` and `coat browse` see them like any other scheme.
 
 ## Shell completions
 

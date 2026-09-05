@@ -1,0 +1,104 @@
+# coat — {{ scheme_name }} — yazi theme
+#
+# Schema is yazi 25.x+ ([mgr], not the old [manager]).
+#
+# Selections and active chunks are drawn as scheme colour ON base00 rather than
+# base05 on base02: base02 is a ramp step plenty of published schemes fill with a
+# saturated ANSI colour, so text on it goes illegible. base00 under a real accent
+# is the one pairing every scheme guarantees.
+
+[mgr]
+cwd = { fg = "#{{ base0C | lower_hex }}" }
+
+find_keyword  = { fg = "#{{ base0A | lower_hex }}", bold = true, italic = true, underline = true }
+find_position = { fg = "#{{ base0E | lower_hex }}", bg = "reset", bold = true, italic = true }
+
+marker_copied   = { fg = "#{{ base0B | lower_hex }}", bg = "#{{ base0B | lower_hex }}" }
+marker_cut      = { fg = "#{{ base08 | lower_hex }}", bg = "#{{ base08 | lower_hex }}" }
+marker_marked   = { fg = "#{{ base0C | lower_hex }}", bg = "#{{ base0C | lower_hex }}" }
+marker_selected = { fg = "#{{ base0A | lower_hex }}", bg = "#{{ base0A | lower_hex }}" }
+
+count_copied   = { fg = "#{{ base00 | lower_hex }}", bg = "#{{ base0B | lower_hex }}" }
+count_cut      = { fg = "#{{ base00 | lower_hex }}", bg = "#{{ base08 | lower_hex }}" }
+count_selected = { fg = "#{{ base00 | lower_hex }}", bg = "#{{ base0A | lower_hex }}" }
+
+border_symbol = "│"
+border_style  = { fg = "#{{ base03 | lower_hex }}" }
+
+[tabs]
+active   = { fg = "#{{ base00 | lower_hex }}", bg = "#{{ base0D | lower_hex }}", bold = true }
+inactive = { fg = "#{{ base0D | lower_hex }}", bg = "#{{ base00 | lower_hex }}" }
+
+[mode]
+normal_main = { fg = "#{{ base00 | lower_hex }}", bg = "#{{ base0D | lower_hex }}", bold = true }
+normal_alt  = { fg = "#{{ base0D | lower_hex }}", bg = "#{{ base00 | lower_hex }}" }
+select_main = { fg = "#{{ base00 | lower_hex }}", bg = "#{{ base0B | lower_hex }}", bold = true }
+select_alt  = { fg = "#{{ base0B | lower_hex }}", bg = "#{{ base00 | lower_hex }}" }
+unset_main  = { fg = "#{{ base00 | lower_hex }}", bg = "#{{ base08 | lower_hex }}", bold = true }
+unset_alt   = { fg = "#{{ base08 | lower_hex }}", bg = "#{{ base00 | lower_hex }}" }
+
+[status]
+perm_sep   = { fg = "#{{ base03 | lower_hex }}" }
+perm_type  = { fg = "#{{ base0D | lower_hex }}" }
+perm_read  = { fg = "#{{ base0A | lower_hex }}" }
+perm_write = { fg = "#{{ base08 | lower_hex }}" }
+perm_exec  = { fg = "#{{ base0B | lower_hex }}" }
+
+progress_label  = { fg = "#{{ base05 | lower_hex }}", bold = true }
+progress_normal = { fg = "#{{ base0B | lower_hex }}", bg = "#{{ base00 | lower_hex }}" }
+progress_error  = { fg = "#{{ base00 | lower_hex }}", bg = "#{{ base08 | lower_hex }}" }
+
+[pick]
+border   = { fg = "#{{ base0D | lower_hex }}" }
+active   = { fg = "#{{ base0E | lower_hex }}", bold = true }
+inactive = {}
+
+[input]
+border   = { fg = "#{{ base0D | lower_hex }}" }
+title    = {}
+value    = {}
+selected = { reversed = true }
+
+[cmp]
+border = { fg = "#{{ base0D | lower_hex }}" }
+
+[tasks]
+border  = { fg = "#{{ base0D | lower_hex }}" }
+title   = {}
+hovered = { fg = "#{{ base0E | lower_hex }}", bold = true }
+
+[which]
+border          = { fg = "#{{ base0D | lower_hex }}" }
+cand            = { fg = "#{{ base0C | lower_hex }}" }
+rest            = { fg = "#{{ base03 | lower_hex }}" }
+desc            = { fg = "#{{ base0E | lower_hex }}" }
+separator       = "  "
+separator_style = { fg = "#{{ base03 | lower_hex }}" }
+
+[help]
+on      = { fg = "#{{ base0C | lower_hex }}" }
+run     = { fg = "#{{ base0E | lower_hex }}" }
+hovered = { reversed = true, bold = true }
+footer  = { fg = "#{{ base00 | lower_hex }}", bg = "#{{ base05 | lower_hex }}" }
+
+[spot]
+border   = { fg = "#{{ base0D | lower_hex }}" }
+title    = { fg = "#{{ base0D | lower_hex }}" }
+tbl_col  = { fg = "#{{ base0C | lower_hex }}" }
+tbl_cell = { fg = "#{{ base00 | lower_hex }}", bg = "#{{ base0E | lower_hex }}" }
+
+[notify]
+title_info  = { fg = "#{{ base0B | lower_hex }}" }
+title_warn  = { fg = "#{{ base0A | lower_hex }}" }
+title_error = { fg = "#{{ base08 | lower_hex }}" }
+
+[filetype]
+rules = [
+	{ mime = "**/image/*", fg = "#{{ base0C | lower_hex }}" },
+	{ mime = "**/{audio,video}/*", fg = "#{{ base0A | lower_hex }}" },
+	{ mime = "**/application/{zip,rar,7z*,tar,gzip,xz,zstd,bzip*,lzma,compress,archive,cpio,arj,xar,ms-cab*}", fg = "#{{ base0E | lower_hex }}" },
+	{ mime = "**/application/{pdf,doc,rtf}", fg = "#{{ base0B | lower_hex }}" },
+	{ mime = "vfs/{absent,stale}", fg = "#{{ base03 | lower_hex }}" },
+	{ url = "*", fg = "#{{ base05 | lower_hex }}" },
+	{ url = "*/", fg = "#{{ base0D | lower_hex }}" },
+]

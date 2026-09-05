@@ -1,15 +1,16 @@
 use anyhow::{Context, Result};
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::fs;
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Default, Clone)]
 pub struct FontSizes {
     pub terminal: Option<u32>,
     pub desktop: Option<u32>,
     pub popups: Option<u32>,
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Default, Clone)]
 pub struct FontConfig {
     pub monospace: Option<String>,
     pub sansserif: Option<String>,
@@ -18,7 +19,7 @@ pub struct FontConfig {
     pub sizes: Option<FontSizes>,
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Default, Clone)]
 pub struct OpacityConfig {
     pub terminal: Option<f64>,
     pub applications: Option<f64>,
@@ -129,6 +130,25 @@ pub fn sanitize(content: &str) -> String {
     content.replace('\0', "")
 }
 
+/// Per-app overrides of the global font and opacity, in the spirit of stylix's
+/// per-target settings.
+///
+/// The global block stays the answer for "what does this desktop look like";
+/// this is for the places where one app genuinely needs something else. The
+/// motivating case: the shell wants SF Pro, because a UI drawn in a monospace
+/// font never reads right, while the terminal obviously must stay on SF Mono.
+/// Expressing that globally is impossible — there is one `sansserif` key.
+///
+/// Only the keys present are overridden; everything else falls through to the
+/// global block, so an override is a patch and not a replacement.
+#[derive(Debug, Deserialize, Default, Clone)]
+pub struct ModuleOverride {
+    #[serde(default)]
+    pub font: FontConfig,
+    #[serde(default)]
+    pub opacity: OpacityConfig,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct CoatConfig {
     pub scheme: String,
@@ -142,6 +162,9 @@ pub struct CoatConfig {
     pub font: FontConfig,
     #[serde(default)]
     pub opacity: OpacityConfig,
+    /// Keyed by module name, exactly as it appears under `enabled:`.
+    #[serde(default)]
+    pub overrides: HashMap<String, ModuleOverride>,
 }
 
 impl CoatConfig {
@@ -156,6 +179,77 @@ impl CoatConfig {
             .with_context(|| format!("Failed to read {}", path.display()))?;
         serde_yaml::from_str(&sanitize(&content))
             .with_context(|| format!("Failed to parse {}", path.display()))
+    }
+
+    /// The config as one module sees it: the global block with that module's
+    /// override patched over the top.
+    ///
+    /// Returns a whole merged CoatConfig rather than threading a module name
+    /// through every accessor, so the ~30 `apply_*` functions and every template
+    /// keep reading plain `config.font_monospace()` and cannot forget to ask for
+    /// the override.
+    pub fn merged_for(&self, module: &str) -> CoatConfig {
+        let Some(ov) = self.overrides.get(module) else {
+            return self.shallow_clone();
+        };
+
+        let mut out = self.shallow_clone();
+
+        if ov.font.monospace.is_some() {
+            out.font.monospace = ov.font.monospace.clone();
+        }
+        if ov.font.sansserif.is_some() {
+            out.font.sansserif = ov.font.sansserif.clone();
+        }
+        if ov.font.serif.is_some() {
+            out.font.serif = ov.font.serif.clone();
+        }
+        if ov.font.emoji.is_some() {
+            out.font.emoji = ov.font.emoji.clone();
+        }
+
+        // Sizes merge per-key too. An override that sets only `popups` must not
+        // silently reset `terminal` and `desktop` to their defaults.
+        if let Some(sizes) = &ov.font.sizes {
+            let mut base = out.font.sizes.clone().unwrap_or_default();
+            if sizes.terminal.is_some() {
+                base.terminal = sizes.terminal;
+            }
+            if sizes.desktop.is_some() {
+                base.desktop = sizes.desktop;
+            }
+            if sizes.popups.is_some() {
+                base.popups = sizes.popups;
+            }
+            out.font.sizes = Some(base);
+        }
+
+        if ov.opacity.terminal.is_some() {
+            out.opacity.terminal = ov.opacity.terminal;
+        }
+        if ov.opacity.applications.is_some() {
+            out.opacity.applications = ov.opacity.applications;
+        }
+        if ov.opacity.desktop.is_some() {
+            out.opacity.desktop = ov.opacity.desktop;
+        }
+        if ov.opacity.popups.is_some() {
+            out.opacity.popups = ov.opacity.popups;
+        }
+
+        out
+    }
+
+    fn shallow_clone(&self) -> CoatConfig {
+        CoatConfig {
+            scheme: self.scheme.clone(),
+            prefer_base24: self.prefer_base24,
+            normalize: self.normalize.clone(),
+            enabled: self.enabled.clone(),
+            font: self.font.clone(),
+            opacity: self.opacity.clone(),
+            overrides: HashMap::new(),
+        }
     }
 
     pub fn font_monospace(&self) -> &str {

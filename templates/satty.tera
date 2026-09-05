@@ -1,0 +1,38 @@
+# coat — {{ scheme_name }} — satty
+#
+# The annotation palette is the scheme's own accent wheel, so a screenshot marked
+# up on a themed desktop is marked up in the same colours it sits on. `palette`
+# is what the toolbar shows; `custom` seeds the colour picker with the neutrals,
+# which the toolbar has no room for.
+
+[general]
+fullscreen = false
+early-exit = true
+initial-tool = "brush"
+copy-command = "wl-copy"
+annotation-size-factor = 2
+save-after-copy = false
+default-hide-toolbars = false
+primary-highlighter = "block"
+disable-notifications = false
+output-filename = "~/Pictures/Screenshots/%Y%m%d_%H%M%S.png"
+
+[font]
+family = "{{ font_sansserif }}"
+
+[color-palette]
+palette = [
+  "#{{ base08 | lower_hex }}",
+  "#{{ base09 | lower_hex }}",
+  "#{{ base0A | lower_hex }}",
+  "#{{ base0B | lower_hex }}",
+  "#{{ base0C | lower_hex }}",
+  "#{{ base0D | lower_hex }}",
+  "#{{ base0E | lower_hex }}",
+]
+custom = [
+  "#{{ base00 | lower_hex }}",
+  "#{{ base03 | lower_hex }}",
+  "#{{ base05 | lower_hex }}",
+  "#{{ base07 | lower_hex }}",
+]
