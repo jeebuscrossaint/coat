@@ -218,6 +218,73 @@ mod win32 {
         pid
     }
 
+    /// Block until `pid` exits, or `timeout_ms` elapses. `true` if it is gone.
+    ///
+    /// Explorer destroys `Shell_TrayWnd` early in its teardown and keeps
+    /// running for a while afterwards — sometimes indefinitely, when a shell
+    /// extension or an open folder window holds it. So the tray window
+    /// vanishing is not proof the shell has exited, and treating it as proof
+    /// is what left a second explorer.exe resident after every apply.
+    pub fn wait_for_pid_exit(pid: u32, timeout_ms: u32) -> bool {
+        use windows_sys::Win32::Foundation::WAIT_OBJECT_0;
+        use windows_sys::Win32::System::Threading::{
+            OpenProcess, WaitForSingleObject, PROCESS_SYNCHRONIZE,
+        };
+        if pid == 0 {
+            return true;
+        }
+        unsafe {
+            // Null here means the process is already gone (or was never ours
+            // to wait on); either way there is nothing left to wait for.
+            let h = OpenProcess(PROCESS_SYNCHRONIZE, 0, pid);
+            if h.is_null() {
+                return true;
+            }
+            let r = WaitForSingleObject(h, timeout_ms);
+            CloseHandle(h);
+            r == WAIT_OBJECT_0
+        }
+    }
+
+    /// This process's linked (unelevated) token, or null when it has none.
+    ///
+    /// A UAC-elevated process belonging to a split-token administrator carries
+    /// a link to the limited token that login would otherwise run under.
+    /// Explorer will not serve as the shell under an elevated token — it exits
+    /// on the spot — so when coat itself was started from an admin terminal,
+    /// the relaunch has to drop back to this token or the desktop never
+    /// returns. The caller owns the handle.
+    pub fn linked_token() -> HANDLE {
+        use windows_sys::Win32::Security::{
+            GetTokenInformation, TokenLinkedToken, TOKEN_LINKED_TOKEN, TOKEN_QUERY,
+        };
+        use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
+
+        unsafe {
+            let mut token: HANDLE = std::ptr::null_mut();
+            if OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token) == 0 {
+                return std::ptr::null_mut();
+            }
+            let mut linked = TOKEN_LINKED_TOKEN {
+                LinkedToken: std::ptr::null_mut(),
+            };
+            let mut returned: u32 = 0;
+            let ok = GetTokenInformation(
+                token,
+                TokenLinkedToken,
+                &mut linked as *mut _ as *mut std::ffi::c_void,
+                std::mem::size_of::<TOKEN_LINKED_TOKEN>() as u32,
+                &mut returned,
+            );
+            CloseHandle(token);
+            if ok == 0 {
+                std::ptr::null_mut()
+            } else {
+                linked.LinkedToken
+            }
+        }
+    }
+
     /// Post the taskbar's undocumented "Exit Explorer" message (WM_USER+436),
     /// the same one Ctrl+Shift+right-click on the taskbar sends.
     pub fn post_exit_explorer() -> bool {
@@ -332,69 +399,54 @@ fn restart_explorer() {
     {
         use std::process::Command;
 
-        // 1. Graceful "Exit Explorer": PostMessage(Shell_TrayWnd, 0x5B4).
-        let posted = win32::post_exit_explorer();
-
-        // 2. Wait for the taskbar to actually go away. It takes ~0.6s in
-        //    practice; polling at 100ms keeps the window we're blind for
-        //    shorter than the gap we're waiting on.
-        let mut exited = false;
-        if posted {
-            for _ in 0..50 {
-                std::thread::sleep(Duration::from_millis(100));
-                if !win32::shell_running() {
-                    exited = true;
-                    break;
-                }
-            }
+        // 1. Note who owns the taskbar before we ask it to leave. Every later
+        //    step is about *this* process: it is the one that must be gone
+        //    before a replacement starts, and the one to kill if it will not
+        //    go. Without the pid there is no shell to restart, so there is
+        //    nothing to do here at all.
+        let old_pid = win32::shell_pid();
+        if old_pid == 0 {
+            // No shell to begin with — make sure there is one, and stop.
+            ensure_shell();
+            return;
         }
 
-        // 3. Fallback: if the graceful exit didn't take, force it — but kill
-        //    the process that owns the taskbar, not every explorer.exe.
+        // 2. Graceful "Exit Explorer": PostMessage(Shell_TrayWnd, 0x5B4).
+        let posted = win32::post_exit_explorer();
+
+        // 3. Wait for that *process* to end — not for its window to vanish.
+        //    Explorer destroys Shell_TrayWnd early in its teardown and can
+        //    outlive it by seconds, or forever when a shell extension or an
+        //    open folder window holds a reference. Waiting on the window
+        //    instead declared victory the moment the taskbar blinked out, so
+        //    coat started a second shell while the first was still resident:
+        //    one stray explorer.exe per `coat set`, a couple hundred MB each,
+        //    with no taskbar and no way to notice it except Task Manager.
+        //
+        //    8s is well past a healthy shell's exit (~1s measured) and only
+        //    costs anything on the path that ends in a kill anyway.
+        let exited = posted && win32::wait_for_pid_exit(old_pid, 8_000);
+
+        // 4. Fallback: if the graceful exit didn't take, force it — but kill
+        //    the process that owned the taskbar, not every explorer.exe.
         //    `/im explorer.exe` also closes whatever folder windows the user
         //    happened to have open, which is not ours to close.
         let forced = !exited;
         if forced {
-            let pid = win32::shell_pid();
-            if pid != 0 {
-                let _ = Command::new("taskkill")
-                    .args(["/f", "/pid", &pid.to_string()])
-                    .output();
-                for _ in 0..20 {
-                    std::thread::sleep(Duration::from_millis(100));
-                    if !win32::shell_running() {
-                        break;
-                    }
-                }
-            }
+            let _ = Command::new("taskkill")
+                .args(["/f", "/pid", &old_pid.to_string()])
+                .output();
+            win32::wait_for_pid_exit(old_pid, 5_000);
         }
 
-        // 4. Relaunch the shell, and do not give up until the taskbar is
-        //    actually back. A clean "Exit Explorer" deliberately does not
-        //    auto-restart it, so this is the only thing that brings it back,
-        //    and coat must not exit leaving the user with no desktop and no
-        //    way to get one except a terminal they may not have open.
-        //
-        //    Each attempt is less isolated than the last. The isolation only
-        //    exists to keep the shell alive and handle-free after coat exits;
-        //    none of it is worth a missing taskbar, so the final attempt is
-        //    exactly the plain spawn this used to do.
-        //    Windows sometimes restarts the shell itself after the exit. Give
-        //    it a moment to do so before spawning one, or both shells come up
-        //    and the loser lingers as an explorer.exe with no taskbar.
-        for _ in 0..15 {
-            std::thread::sleep(Duration::from_millis(100));
-            if win32::shell_running() {
-                break;
-            }
-        }
-
-        for attempt in 0..SPAWN_ATTEMPTS {
-            if win32::shell_running() {
-                break;
-            }
-            spawn_shell(attempt);
-            for _ in 0..30 {
+        // 5. The old shell is gone, so any taskbar from here on belongs to a
+        //    new one. Windows restarts the shell itself after a *kill* but
+        //    deliberately not after a clean "Exit Explorer", so only the
+        //    forced path is worth waiting on — waiting on the graceful path
+        //    just delayed the relaunch, and if Windows had come back late we
+        //    would have ended up with two shells regardless.
+        if forced {
+            for _ in 0..20 {
                 std::thread::sleep(Duration::from_millis(100));
                 if win32::shell_running() {
                     break;
@@ -402,7 +454,9 @@ fn restart_explorer() {
             }
         }
 
-        // 5. Only after a forced kill: clear the Start/Search hosts so they
+        ensure_shell();
+
+        // 7. Only after a forced kill: clear the Start/Search hosts so they
         //    re-attach to the fresh shell (they respawn on next use). Covers
         //    Win11 (SearchHost.exe) and Win10 (SearchUI.exe).
         if forced {
@@ -413,6 +467,34 @@ fn restart_explorer() {
             kill("StartMenuExperienceHost.exe");
             kill("SearchHost.exe");
             kill("SearchUI.exe");
+        }
+    }
+}
+
+/// Bring the shell back, and do not return until the taskbar is actually
+/// there or every way of starting one has been tried.
+///
+/// A clean "Exit Explorer" deliberately does not auto-restart the shell, so
+/// this is the only thing that brings it back, and coat must not exit leaving
+/// the user with no desktop and no way to get one except a terminal they may
+/// not have open.
+///
+/// Each attempt is less isolated than the last. The isolation only exists to
+/// keep the shell alive and handle-free after coat exits; none of it is worth
+/// a missing taskbar, so the final attempt is exactly the plain spawn this
+/// used to do.
+#[cfg(windows)]
+fn ensure_shell() {
+    for attempt in 0..SPAWN_ATTEMPTS {
+        if win32::shell_running() {
+            return;
+        }
+        spawn_shell(attempt);
+        for _ in 0..30 {
+            std::thread::sleep(Duration::from_millis(100));
+            if win32::shell_running() {
+                return;
+            }
         }
     }
 }
@@ -441,7 +523,7 @@ const SPAWN_ATTEMPTS: u32 = 3;
 fn spawn_shell(attempt: u32) -> bool {
     use windows_sys::Win32::Foundation::CloseHandle;
     use windows_sys::Win32::System::Threading::{
-        CreateProcessW, PROCESS_INFORMATION, STARTUPINFOW,
+        CreateProcessW, CreateProcessWithTokenW, PROCESS_INFORMATION, STARTUPINFOW,
     };
 
     const DETACHED_PROCESS: u32 = 0x0000_0008;
@@ -467,8 +549,53 @@ fn spawn_shell(attempt: u32) -> bool {
         si.cb = std::mem::size_of::<STARTUPINFOW>() as u32;
         let mut pi: PROCESS_INFORMATION = std::mem::zeroed();
 
-        let mut spawn = |flags: u32| {
-            CreateProcessW(
+        // A job that does not permit breakaway fails CreateProcessW outright,
+        // and a detached shell is not worth a missing taskbar either, so each
+        // attempt drops one layer of isolation. Attempt 2 is a plain spawn —
+        // what this did before, and what is known to work everywhere.
+        let flags = match attempt {
+            0 => DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_BREAKAWAY_FROM_JOB,
+            1 => DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP,
+            _ => 0,
+        };
+
+        // Run from an admin terminal, coat holds an elevated token, and a
+        // child spawned the ordinary way inherits it. Explorer refuses to act
+        // as the shell under an elevated token — it exits immediately — so
+        // this is precisely the case where the taskbar never comes back, and
+        // it is the one a user hits after being told to re-run as admin.
+        // Drop to the linked limited token instead. CreateProcessWithTokenW
+        // accepts neither DETACHED_PROCESS nor CREATE_BREAKAWAY_FROM_JOB and
+        // fails the call if given them, so the token path keeps only the
+        // process group; when it fails at all we fall through to the plain
+        // spawn rather than leaving the desktop empty.
+        // The final attempt is always the plain spawn, so there is a genuine
+        // last resort even if the token path is the thing that is broken.
+        let ok = if win32::is_elevated() && attempt < SPAWN_ATTEMPTS - 1 {
+            let token = win32::linked_token();
+            if token.is_null() {
+                0
+            } else {
+                let r = CreateProcessWithTokenW(
+                    token,
+                    0,
+                    app.as_ptr(),
+                    cmd.as_mut_ptr(),
+                    flags & CREATE_NEW_PROCESS_GROUP,
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    &si,
+                    &mut pi,
+                );
+                CloseHandle(token);
+                r
+            }
+        } else {
+            0
+        };
+
+        if ok == 0
+            && CreateProcessW(
                 app.as_ptr(),
                 cmd.as_mut_ptr(),
                 std::ptr::null(),
@@ -479,19 +606,8 @@ fn spawn_shell(attempt: u32) -> bool {
                 std::ptr::null(),
                 &si,
                 &mut pi,
-            )
-        };
-
-        // A job that does not permit breakaway fails CreateProcessW outright,
-        // and a detached shell is not worth a missing taskbar either, so each
-        // attempt drops one layer of isolation. Attempt 2 is a plain spawn —
-        // what this did before, and what is known to work everywhere.
-        let flags = match attempt {
-            0 => DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_BREAKAWAY_FROM_JOB,
-            1 => DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP,
-            _ => 0,
-        };
-        if spawn(flags) == 0 {
+            ) == 0
+        {
             return false;
         }
         // We never wait on the shell; drop both handles so nothing of ours
@@ -822,6 +938,74 @@ fn write_elevated_keys(accent: &str, bg: &str, bg1: &str, dark: bool) -> Result<
     Ok(())
 }
 
+/// Do the admin-only keys already hold what `write_elevated_keys` would write?
+///
+/// Reading them needs no elevation — only writing does. When they already
+/// match there is nothing to elevate *for*, and saying "pass --elevate" anyway
+/// is how an ordinary unprivileged `coat set` came to look like it needed
+/// admin: `ForceEffectMode` is written once and stays, and re-applying the
+/// same scheme leaves the logon-screen keys untouched too, so the nag fired
+/// on every run of a machine that was already fully themed.
+#[cfg(windows)]
+fn elevated_keys_current(accent: &str, bg: &str, bg1: &str, dark: bool) -> bool {
+    use winreg::enums::*;
+    use winreg::RegKey;
+
+    let (r,  g,  b)  = Scheme::hex_to_rgb(accent);
+    let (r0, g0, b0) = Scheme::hex_to_rgb(bg);
+    let (r1, g1, b1) = Scheme::hex_to_rgb(bg1);
+    let abgr:          u32 = 0xFF000000 | ((b  as u32) << 16) | ((g  as u32) << 8) | (r  as u32);
+    let abgr_bg:       u32 = 0xFF000000 | ((b0 as u32) << 16) | ((g0 as u32) << 8) | (r0 as u32);
+    let abgr_inactive: u32 = 0xFF000000 | ((b1 as u32) << 16) | ((g1 as u32) << 8) | (r1 as u32);
+    let palette = build_accent_palette((r, g, b), (r0, g0, b0), (r1, g1, b1));
+    let light: u32 = if dark { 0 } else { 1 };
+
+    // Any key we cannot open or value we cannot read counts as "not current",
+    // which reports the step as needing admin — the pre-existing behaviour,
+    // and the safe direction to be wrong in.
+    let dword = |key: &RegKey, name: &str, want: u32| {
+        key.get_value::<u32, _>(name).map(|v| v == want).unwrap_or(false)
+    };
+
+    let hku = RegKey::predef(HKEY_USERS);
+    let Ok(acc) = hku.open_subkey(
+        r".DEFAULT\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Accent",
+    ) else {
+        return false;
+    };
+    let palette_matches = acc
+        .get_raw_value("AccentPalette")
+        .map(|v| v.bytes.as_ref() == palette.as_slice())
+        .unwrap_or(false);
+    if !palette_matches
+        || !dword(&acc, "AccentColorMenu", abgr)
+        || !dword(&acc, "StartColorMenu", abgr_bg)
+    {
+        return false;
+    }
+
+    let Ok(dwm) = hku.open_subkey(r".DEFAULT\SOFTWARE\Microsoft\Windows\DWM") else {
+        return false;
+    };
+    if !dword(&dwm, "AccentColor", abgr) || !dword(&dwm, "AccentColorInactive", abgr_inactive) {
+        return false;
+    }
+
+    let Ok(pers) = hku.open_subkey(
+        r".DEFAULT\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize",
+    ) else {
+        return false;
+    };
+    if !dword(&pers, "AppsUseLightTheme", light) || !dword(&pers, "SystemUsesLightTheme", light) {
+        return false;
+    }
+
+    RegKey::predef(HKEY_LOCAL_MACHINE)
+        .open_subkey(r"SOFTWARE\Microsoft\Windows\Dwm")
+        .map(|k| dword(&k, "ForceEffectMode", 1))
+        .unwrap_or(false)
+}
+
 /// Hidden `coat __winelevate <base0D> <base00> <base01> <dark|light>` entry
 /// point. This is what the UAC-elevated child process runs: only the registry
 /// writes above, with the colours passed on the command line so the child
@@ -848,13 +1032,22 @@ pub fn cmd_elevated_keys(args: &[String]) -> Result<()> {
 fn apply_elevated(scheme: &Scheme, dark: bool, elevate: bool) -> Result<Outcome> {
     let write = || write_elevated_keys(&scheme.base0d, &scheme.base00, &scheme.base01, dark);
 
+    // Nothing to write, so nothing to elevate for — and no reason to make an
+    // unprivileged run look like it fell short.
+    if elevated_keys_current(&scheme.base0d, &scheme.base00, &scheme.base01, dark) {
+        return Ok(Outcome::Done);
+    }
+
     if win32::is_elevated() {
         write()?;
         return Ok(Outcome::Done);
     }
     if !elevate {
         return Ok(Outcome::Skipped(
-            "logon screen unchanged — pass --elevate for it".into(),
+            // Named as the optional extra it is. The desktop is fully themed
+            // by the steps above; this one only repaints the logon screen,
+            // and nothing about the rest of the apply is waiting on admin.
+            "optional: logon screen only, needs --elevate".into(),
         ));
     }
 
