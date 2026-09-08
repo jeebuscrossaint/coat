@@ -43,6 +43,7 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("dunst",     "dunst.tera"),
     tpl!("firefox",   "firefox.tera"),
     tpl!("firefox_content", "firefox_content.tera"),
+    tpl!("conky",     "conky.tera"),
     tpl!("fastfetch", "fastfetch.tera"),
     tpl!("fish",      "fish.tera"),
     tpl!("fnott",     "fnott.tera"),
@@ -344,7 +345,7 @@ fn run(cmd: &str) {
 // ── Module dispatch ────────────────────────────────────────────────────────
 
 pub const ALL_MODULES: &[&str] = &[
-    "bat", "btop", "cava", "dunst", "fastfetch", "firefox", "fish", "fnott",
+    "bat", "btop", "cava", "conky", "dunst", "fastfetch", "firefox", "fish", "fnott",
     "foot", "gtk", "fuzzel", "hyprland", "imv", "kitty", "lsd", "mango",
     "msteams", "prismlauncher", "quickshell", "satty", "swaylock", "waybar", "mpv",
     "neovim",
@@ -408,6 +409,7 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "gtk"        => apply_gtk(tera, &ctx, scheme, config),
         "hyprland"   => apply_hyprland(tera, &ctx, scheme, config),
         "kitty"      => apply_kitty(tera, &ctx, scheme, config),
+        "conky"      => apply_conky(tera, &ctx, scheme, config),
         "mango"      => apply_mango(tera, &ctx, scheme, config),
         "fnott"      => apply_fnott(tera, &ctx, scheme, config),
         "fuzzel"     => apply_fuzzel(tera, &ctx, scheme, config),
@@ -1139,6 +1141,18 @@ fn apply_swaybar(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig)
     Ok(())
 }
 
+fn apply_conky(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    render_to(tera, "conky", ctx, &home.join(".config/conky/coat-colors.lua"))?;
+
+    // conky watches conky.conf for changes and reloads itself, but this writes a
+    // file conky.conf only `dofile`s -- which that watch does not cover. So the
+    // reload has to be asked for. SIGUSR1 is conky's documented reload signal and
+    // it re-executes the config, picking the new table up.
+    run("pkill -USR1 -x conky 2>/dev/null || true");
+    Ok(())
+}
+
 fn apply_mango(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
     let dir = home.join(".config/mango");
@@ -1724,6 +1738,16 @@ pub fn module_docs(name: &str) {
         "mpv" => {
             println!("Add to ~/.config/mpv/mpv.conf:\n");
             println!("  include ~/.config/mpv/coat-theme.conf");
+        }
+        "conky" => {
+            println!("coat writes ~/.config/conky/coat-colors.lua as a Lua table.\n");
+            println!("Load it at the top of ~/.config/conky/conky.conf:\n");
+            println!("  local c = dofile(os.getenv(\"HOME\") .. \"/.config/conky/coat-colors.lua\")\n");
+            println!("Then reference it in the config table and the text block:\n");
+            println!("  conky.config = {{ default_color = c.base05, color1 = c.base0D }}");
+            println!("  conky.text = [[ ${{color1}}label${{color}} ]]\n");
+            println!("Colours are bare hex, no leading '#'; conky rejects the '#' form.");
+            println!("coat sends SIGUSR1 after writing, which is conky's reload signal.");
         }
         "firefox" => {
             println!("userChrome.css and userContent.css are written automatically.\n");
