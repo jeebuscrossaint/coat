@@ -823,6 +823,21 @@ fn patch_ini_in_place(path: &Path, edits: &[(String, String, String)]) -> Result
     let original = fs::read_to_string(path)
         .with_context(|| format!("Failed to read {}", path.display()))?;
 
+    // Appended keys get the file's own spacing, not a hardcoded `key = value`.
+    // The rewrite path below already preserves each line's convention; appending
+    // was the hole in that, and swaylock is where it showed: its parser hands
+    // everything after the '=' to getopt_long WITHOUT trimming, so an appended
+    // `ring-caps-lock-color = 135879` arrives as the literal unrecognized option
+    // "--ring-caps-lock-color = 135879" and is discarded. Every key coat had ever
+    // appended to that file was dead on arrival, silently.
+    let padded = original
+        .lines()
+        .map(str::trim_start)
+        .filter(|l| !l.starts_with('#') && !l.starts_with(';') && !l.starts_with('['))
+        .find_map(|l| l.find('=').map(|eq| l[eq + 1..].starts_with(' ')))
+        .unwrap_or(true);
+    let sep = if padded { " = " } else { "=" };
+
     let mut out: Vec<String> = Vec::new();
     let mut section = INI_TOP.to_string();
     let mut done: Vec<(String, String)> = Vec::new();
@@ -853,7 +868,7 @@ fn patch_ini_in_place(path: &Path, edits: &[(String, String, String)]) -> Result
                 let at = insert_at.unwrap_or(out.len());
                 let mut offset = 0;
                 for (k, v) in pending(&section, &done) {
-                    out.insert(at + offset, format!("{} = {}", k, v));
+                    out.insert(at + offset, format!("{}{}{}", k, sep, v));
                     offset += 1;
                     done.push((section.clone(), k));
                 }
@@ -901,7 +916,7 @@ fn patch_ini_in_place(path: &Path, edits: &[(String, String, String)]) -> Result
         let at = insert_at.unwrap_or(out.len());
         let mut offset = 0;
         for (k, v) in pending(&section, &done) {
-            out.insert(at + offset, format!("{} = {}", k, v));
+            out.insert(at + offset, format!("{}{}{}", k, sep, v));
             offset += 1;
             done.push((section.clone(), k));
         }
