@@ -21,12 +21,17 @@ _  ring-color                {{ base0D }}
 _  ring-clear-color          {{ base0A }}
 _  ring-ver-color            {{ base05 }}
 _  ring-wrong-color          {{ base08 }}
-_  inside-color              {{ base00 }}00
-_  inside-clear-color        {{ base00 }}00
-_  inside-ver-color          {{ base00 }}00
-_  inside-wrong-color        {{ base00 }}00
+_  inside-color              {{ base01 }}e6
+_  inside-clear-color        {{ base0A }}33
+_  inside-ver-color          {{ base0D }}33
+_  inside-wrong-color        {{ base08 }}33
 _  key-hl-color              {{ base05 }}
 _  bs-hl-color               {{ base08 }}
+_  line-color                {{ base00 }}
+_  line-clear-color          {{ base00 }}
+_  line-ver-color            {{ base00 }}
+_  line-wrong-color          {{ base00 }}
+_  line-caps-lock-color      {{ base00 }}
 _  separator-color           00000000
 _  text-color                {{ base05 }}
 _  text-clear-color          {{ base05 }}
@@ -34,7 +39,7 @@ _  text-ver-color            {{ base05 }}
 _  text-wrong-color          {{ base08 }}
 _  text-caps-lock-color      {{ base0A }}
 _  ring-caps-lock-color      {{ base0A }}
-_  inside-caps-lock-color    {{ base00 }}00
+_  inside-caps-lock-color    {{ base0A }}33
 _  caps-lock-key-hl-color    {{ base0A }}
 _  caps-lock-bs-hl-color     {{ base08 }}
 {% if font_monospace %}_  font                      {{ font_monospace }}
