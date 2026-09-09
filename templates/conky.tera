@@ -18,7 +18,23 @@
 
 return {
 {% if font_monospace %}    font      = "{{ font_monospace }}",
-{% endif %}    font_size = {{ font_size_desktop }},
+{% endif %}
+    -- All three size slots, not just one. A conky setup is several panels at
+    -- different densities -- a headline readout, a weather block, a process tree
+    -- -- and they cannot share a size. coat overrides are per MODULE, so one
+    -- number here would force them all equal. Mapping the three slots onto the
+    -- three panels is what makes each independently settable from coat.yaml:
+    --
+    --     overrides:
+    --       conky:
+    --         font:
+    --           sizes:  desktop 12, popups 10, terminal 9
+    --
+    -- font_size stays as an alias for size_desktop so an older config keeps working.
+    size_desktop  = {{ font_size_desktop }},
+    size_popups   = {{ font_size_popups }},
+    size_terminal = {{ font_size_terminal }},
+    font_size     = {{ font_size_desktop }},
 
     base00 = "{{ base00 }}",
     base01 = "{{ base01 }}",
