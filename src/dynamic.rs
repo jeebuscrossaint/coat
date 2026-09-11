@@ -467,9 +467,16 @@ pub fn scheme_from_image(path: &Path, polarity: Polarity, raw: bool) -> Result<(
         .file_stem()
         .map(|s| s.to_string_lossy().to_string())
         .unwrap_or_else(|| "wallpaper".into());
+    // One slug per FLAVOUR, not per wallpaper. A wallpaper scheme is the
+    // current wallpaper's scheme and nothing more -- it is replaced the next
+    // time you change the wallpaper, so naming it after the image left a file
+    // behind for every wallpaper ever set, all of them dead the moment the next
+    // one landed, and all of them in `coat list` forever. Four names at most now
+    // -- one per --slots/--light combination, so `coat set wall-light` still
+    // means something -- and each is overwritten in place. Which image it came
+    // from is still recorded, in `name` and `description` inside the file.
     let slug = format!(
-        "wall-{}{}{}",
-        slugify(&stem),
+        "wall{}{}",
         if raw { "" } else { "-slots" },
         if dark { "" } else { "-light" }
     );
@@ -509,26 +516,4 @@ pub fn scheme_from_image(path: &Path, polarity: Polarity, raw: bool) -> Result<(
 /// their own subdirectory, so they are obviously not from the upstream repo.
 pub fn generated_dir() -> Result<PathBuf> {
     Ok(schemes_dir()?.join("generated"))
-}
-
-fn slugify(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    let mut dash = false;
-    for ch in s.to_lowercase().chars() {
-        if ch.is_ascii_alphanumeric() {
-            if dash && !out.is_empty() {
-                out.push('-');
-            }
-            out.push(ch);
-            dash = false;
-        } else {
-            dash = true;
-        }
-    }
-    // Wallpaper filenames run long ("a_snowy_mountain_tops_with_blue_sky").
-    if out.len() > 40 {
-        out.truncate(40);
-        out = out.trim_end_matches('-').to_string();
-    }
-    out
 }
