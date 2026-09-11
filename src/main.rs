@@ -219,51 +219,6 @@ fn disable_module_in_config(app: &str) -> Result<bool> {
     Ok(removed)
 }
 
-/// Rewrite the `scheme:` line in coat.yaml in-place, preserving everything else.
-/// Creates a minimal coat.yaml if the file doesn't exist yet.
-fn update_scheme_in_config(name: &str) -> Result<()> {
-    let path = CoatConfig::path()?;
-
-    if path.exists() {
-        let content = config::sanitize(
-            &fs::read_to_string(&path)
-                .with_context(|| format!("Failed to read {}", path.display()))?,
-        );
-
-        let mut found = false;
-        let mut new_lines: Vec<String> = content
-            .lines()
-            .map(|line| {
-                if !found && line.trim_start().starts_with("scheme:") {
-                    found = true;
-                    format!("scheme: {}", name)
-                } else {
-                    line.to_string()
-                }
-            })
-            .collect();
-        if !found {
-            new_lines.insert(0, format!("scheme: {}", name));
-        }
-
-        let mut out = new_lines.join("\n");
-        if content.ends_with('\n') {
-            out.push('\n');
-        }
-        fs::write(&path, out)
-            .with_context(|| format!("Failed to write {}", path.display()))?;
-    } else {
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).context("Failed to create config directory")?;
-        }
-        fs::write(&path, format!("scheme: {}\nenabled: []\n", name))
-            .with_context(|| format!("Failed to create {}", path.display()))?;
-        println!("  Created {}", path.display());
-    }
-
-    println!("  coat.yaml → scheme: {}", name);
-    Ok(())
-}
 
 /// Did the user pass `--elevate`? Windows-only; ignored elsewhere.
 fn wants_elevation(args: &[String]) -> bool {
@@ -283,8 +238,9 @@ fn set_and_apply(scheme: &Scheme, elevate: bool) -> Result<()> {
     // a bad config left coat.yaml naming a scheme that was never applied.
     let config = CoatConfig::load().context("Failed to load coat.yaml")?;
 
-    // Persist the new scheme name into coat.yaml
-    update_scheme_in_config(&scheme.slug)?;
+    // Remembered in the state file, never written back into coat.yaml. See
+    // config::state_path.
+    config::save_state(&scheme.slug, scheme.is_base24)?;
     println!();
 
     // Platform-specific theming
@@ -406,14 +362,23 @@ fn cmd_set(args: &[String]) -> Result<()> {
     // First non-flag argument, so `coat set --elevate gruvbox` works too.
     let Some(name) = args.iter().find(|a| !a.starts_with('-')) else {
         eprintln!("Error: set requires a scheme name\n");
-        eprintln!("Usage: coat set <scheme> [--elevate]");
+        eprintln!("Usage: coat set <scheme> [--base16|--base24] [--elevate]");
         std::process::exit(1);
     };
 
     ensure_schemes()?;
 
-    // Validate the scheme exists before touching anything
-    let prefer_base24 = CoatConfig::load().map(|c| c.prefer_base24).unwrap_or(false);
+    // --base24/--base16 pick the family for this call. ~46 slugs exist in both,
+    // and without a flag the only way to reach the other one was to edit
+    // prefer_base24 in coat.yaml first and hope nothing read it in between --
+    // which is exactly what the theme picker used to do.
+    let prefer_base24 = if args.iter().any(|a| a == "--base24") {
+        true
+    } else if args.iter().any(|a| a == "--base16") {
+        false
+    } else {
+        CoatConfig::load().map(|c| c.prefer_base24).unwrap_or(false)
+    };
     let scheme = match find_scheme(name, prefer_base24) {
         Ok(s) => s,
         Err(_) => {

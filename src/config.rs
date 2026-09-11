@@ -114,6 +114,10 @@ impl Default for NormalizeConfig {
     }
 }
 
+fn default_scheme() -> String {
+    "default".to_string()
+}
+
 /// Drop NUL bytes before the YAML parser sees them.
 ///
 /// A file that was open when the machine lost power comes back from NTFS
@@ -123,9 +127,7 @@ impl Default for NormalizeConfig {
 /// coat out entirely until the file was edited by hand. A NUL is never
 /// meaningful in a config, so dropping it is always the right repair.
 ///
-/// `update_scheme_in_config` sanitizes on the same path, so the next `coat set`
-/// also writes the padding back out of existence rather than preserving it as
-/// an unrecognized line.
+/// The state file is read through here too, for the same reason.
 pub fn sanitize(content: &str) -> String {
     content.replace('\0', "")
 }
@@ -149,8 +151,55 @@ pub struct ModuleOverride {
     pub opacity: OpacityConfig,
 }
 
+/// Where the current scheme is remembered.
+///
+/// NOT coat.yaml. The scheme in use is state, not configuration: it changes
+/// every time you press the theme key, and coat.yaml is a file people keep in a
+/// dotfiles repo. Writing it back there made the busiest file in that repo a
+/// config nobody had edited -- 102 commits of `scheme:` churn, and a merge
+/// conflict between two machines that had simply picked different colours.
+///
+/// coat.yaml still carries a `scheme:` line and it still means something: it is
+/// the seed, what a fresh checkout comes up as before anything has been picked.
+/// State wins once it exists, and coat never writes the config file again.
+pub fn state_path() -> Result<std::path::PathBuf> {
+    let dir = match std::env::var_os("XDG_STATE_HOME") {
+        Some(d) if !d.is_empty() => std::path::PathBuf::from(d),
+        _ => dirs::home_dir()
+            .context("Cannot determine home directory")?
+            .join(".local/state"),
+    };
+    Ok(dir.join("coat/state.yaml"))
+}
+
+/// `key: value` and nothing cleverer, so a shell script can read it with grep
+/// the same way it used to read coat.yaml.
+pub fn load_state() -> Option<(String, bool)> {
+    let content = fs::read_to_string(state_path().ok()?).ok()?;
+    let mut scheme = None;
+    let mut base24 = false;
+    for line in sanitize(&content).lines() {
+        match line.split_once(':') {
+            Some((k, v)) if k.trim() == "scheme" => scheme = Some(v.trim().to_string()),
+            Some((k, v)) if k.trim() == "base24" => base24 = v.trim() == "true",
+            _ => {}
+        }
+    }
+    scheme.filter(|s| !s.is_empty()).map(|s| (s, base24))
+}
+
+pub fn save_state(scheme: &str, base24: bool) -> Result<()> {
+    let path = state_path()?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).context("Failed to create state directory")?;
+    }
+    fs::write(&path, format!("scheme: {}\nbase24: {}\n", scheme, base24))
+        .with_context(|| format!("Failed to write {}", path.display()))
+}
+
 #[derive(Debug, Deserialize)]
 pub struct CoatConfig {
+    #[serde(default = "default_scheme")]
     pub scheme: String,
     #[serde(default)]
     pub prefer_base24: bool,
@@ -177,8 +226,14 @@ impl CoatConfig {
         let path = Self::path()?;
         let content = fs::read_to_string(&path)
             .with_context(|| format!("Failed to read {}", path.display()))?;
-        serde_yaml::from_str(&sanitize(&content))
-            .with_context(|| format!("Failed to parse {}", path.display()))
+        let mut config: Self = serde_yaml::from_str(&sanitize(&content))
+            .with_context(|| format!("Failed to parse {}", path.display()))?;
+        // What is actually on screen beats what the checkout came with.
+        if let Some((scheme, base24)) = load_state() {
+            config.scheme = scheme;
+            config.prefer_base24 = base24;
+        }
+        Ok(config)
     }
 
     /// The config as one module sees it: the global block with that module's
