@@ -25,7 +25,7 @@ use std::process::Command;
 use image::ImageDecoder;
 
 use crate::icc::Profile;
-use crate::normalize::{oklch_to_hex, rgb_to_oklch, xyz_d65_to_oklch, Oklch};
+use crate::cam16::{self, Conditions, Jmh};
 use crate::scheme::{schemes_dir, Scheme};
 
 /// Longest edge of the image we actually cluster. 160px is ~25k samples, which
@@ -165,24 +165,42 @@ const CORPUS_MIN: usize = 24;
 /// The last measurement taken from the library, in case it cannot be read. These
 /// ARE the old literals: a snapshot of tinted-theming, kept only so that
 /// `coat match` works before `coat clone` has ever run.
-const FALLBACK_RAMP_DARK: [f64; 8] = [0.229, 0.277, 0.404, 0.537, 0.670, 0.810, 0.894, 0.967];
-const FALLBACK_RAMP_LIGHT: [f64; 8] = [0.974, 0.915, 0.840, 0.684, 0.559, 0.411, 0.311, 0.231];
-const FALLBACK_CHROMA_DARK: [f64; 8] = [0.028, 0.026, 0.032, 0.030, 0.024, 0.020, 0.016, 0.010];
-const FALLBACK_CHROMA_LIGHT: [f64; 8] = [0.016, 0.020, 0.028, 0.030, 0.026, 0.022, 0.018, 0.012];
-const FALLBACK_ACCENT_DARK_L: [f64; 8] = [0.699; 8];
-const FALLBACK_ACCENT_LIGHT_L: [f64; 8] = [0.581; 8];
-const FALLBACK_HUE: [f64; 8] = [25.0, 55.0, 95.0, 145.0, 195.0, 255.0, 320.0, 35.0];
-const FALLBACK_HUE_SPREAD: [f64; 8] = [45.0; 8];
-const FALLBACK_LEAN: [f64; 8] = [22.2, 14.2, 14.2, 20.9, 28.2, 28.2, 30.4, 22.5];
-const FALLBACK_ACCENT_BAND: (f64, f64) = (0.085, 0.165);
-const FALLBACK_FOLLOW_DARK: [f64; 8] = [1.0, 0.309, 0.347, 0.331, 0.084, 0.111, 0.209, 0.059];
-const FALLBACK_FOLLOW_LIGHT: [f64; 8] = [1.0, 0.936, 0.677, 0.771, 0.952, 0.170, 0.0, 0.0];
+const FALLBACK_RAMP_DARK: [f64; 8] =
+    [14.161, 19.070, 33.269, 49.227, 65.061, 80.738, 89.551, 96.850];
+const FALLBACK_RAMP_LIGHT: [f64; 8] =
+    [97.473, 91.649, 83.701, 65.472, 50.994, 34.130, 23.403, 15.113];
+const FALLBACK_CHROMA_DARK: [f64; 8] =
+    [8.183, 9.319, 11.358, 10.280, 9.918, 8.992, 8.060, 6.096];
+const FALLBACK_CHROMA_LIGHT: [f64; 8] =
+    [4.146, 5.852, 7.462, 7.957, 7.781, 8.346, 6.548, 6.357];
+const FALLBACK_ACCENT_DARK_L: [f64; 8] =
+    [60.921, 73.987, 76.726, 73.706, 72.682, 64.193, 65.946, 52.440];
+const FALLBACK_ACCENT_LIGHT_L: [f64; 8] =
+    [50.611, 60.353, 63.530, 57.653, 58.025, 50.761, 50.724, 49.363];
+const FALLBACK_ACCENT_BAND_DARK: (f64, f64) = (21.002, 31.432);
+const FALLBACK_ACCENT_BAND_LIGHT: (f64, f64) = (22.814, 33.122);
+const FALLBACK_FOLLOW_DARK: [f64; 8] =
+    [1.0, 0.0283, 0.0461, 0.0378, 0.0018, 0.0020, 0.0062, 0.0002];
+const FALLBACK_FOLLOW_LIGHT: [f64; 8] =
+    [1.0, 0.0296, 0.0255, 0.0571, 0.0821, 0.0001, 0.0, 0.0];
+const FALLBACK_HUE_DARK: [f64; 8] =
+    [20.584, 66.411, 99.884, 139.519, 199.389, 251.815, 327.905, 23.725];
+const FALLBACK_HUE_LIGHT: [f64; 8] =
+    [22.649, 53.962, 85.052, 143.456, 199.849, 261.277, 327.351, 25.894];
+const FALLBACK_SPREAD_DARK: [f64; 8] =
+    [34.361, 43.776, 90.332, 35.531, 46.879, 39.100, 40.049, 40.346];
+const FALLBACK_SPREAD_LIGHT: [f64; 8] =
+    [18.044, 36.057, 45.306, 35.704, 42.596, 33.731, 33.310, 45.639];
+const FALLBACK_LEAN_DARK: [f64; 8] =
+    [22.914, 16.736, 16.736, 19.817, 26.213, 26.213, 26.339, 21.343];
+const FALLBACK_LEAN_LIGHT: [f64; 8] =
+    [15.656, 15.545, 15.545, 28.196, 28.196, 30.714, 27.649, 14.034];
 const FALLBACK_ACCENT_FOLLOW_DARK: f64 = 0.126;
 const FALLBACK_ACCENT_FOLLOW_LIGHT: f64 = 0.539;
-const FALLBACK_BG_RANGE_DARK: (f64, f64) = (0.000, 0.326);
-const FALLBACK_BG_RANGE_LIGHT: (f64, f64) = (0.761, 1.000);
-const FALLBACK_BG_GAP_DARK: f64 = 0.0210;
-const FALLBACK_BG_GAP_LIGHT: f64 = -0.0790;
+const FALLBACK_BG_RANGE_DARK: (f64, f64) = (0.0, 24.313);
+const FALLBACK_BG_RANGE_LIGHT: (f64, f64) = (74.995, 100.0);
+const FALLBACK_BG_GAP_DARK: f64 = 1.970;
+const FALLBACK_BG_GAP_LIGHT: f64 = -2.977;
 
 impl Corpus {
     fn fallback(dark: bool) -> Self {
@@ -190,10 +208,10 @@ impl Corpus {
             ramp: if dark { FALLBACK_RAMP_DARK } else { FALLBACK_RAMP_LIGHT },
             chroma: if dark { FALLBACK_CHROMA_DARK } else { FALLBACK_CHROMA_LIGHT },
             accent_l: if dark { FALLBACK_ACCENT_DARK_L } else { FALLBACK_ACCENT_LIGHT_L },
-            hue: FALLBACK_HUE,
-            hue_spread: FALLBACK_HUE_SPREAD,
-            lean: FALLBACK_LEAN,
-            accent_band: FALLBACK_ACCENT_BAND,
+            hue: if dark { FALLBACK_HUE_DARK } else { FALLBACK_HUE_LIGHT },
+            hue_spread: if dark { FALLBACK_SPREAD_DARK } else { FALLBACK_SPREAD_LIGHT },
+            lean: if dark { FALLBACK_LEAN_DARK } else { FALLBACK_LEAN_LIGHT },
+            accent_band: if dark { FALLBACK_ACCENT_BAND_DARK } else { FALLBACK_ACCENT_BAND_LIGHT },
             follow: if dark { FALLBACK_FOLLOW_DARK } else { FALLBACK_FOLLOW_LIGHT },
             accent_follow: if dark {
                 FALLBACK_ACCENT_FOLLOW_DARK
@@ -227,7 +245,7 @@ impl Corpus {
         // Accent chroma floor for the hue statistics only: the corpus p25, i.e.
         // the bottom of the band this generator will ever emit. Below it a slot
         // is grey and its hue is noise.
-        let accent_hue_floor = FALLBACK_ACCENT_BAND.0;
+        let accent_hue_floor = Self::fallback(dark).accent_band.0;
         // Paired with the scheme's own base00, for the regressions below: how a
         // slot moves WHEN THE BACKGROUND MOVES is a different question from where
         // the slot sits on average, and only the pairs can answer it.
@@ -243,8 +261,8 @@ impl Corpus {
             counted += 1;
             for (i, hex) in neutrals(s).iter().enumerate() {
                 if let Some(col) = parse_oklch(hex) {
-                    neutral_l[i].push(col.l);
-                    neutral_c[i].push(col.c);
+                    neutral_l[i].push(col.j);
+                    neutral_c[i].push(col.m);
                 }
             }
             // Per slot, not pooled: base08 being red is a fact about base08.
@@ -252,12 +270,12 @@ impl Corpus {
             // not 180, and hue is the one axis where the arithmetic mean lies.
             for (i, hex) in accents(s).iter().enumerate() {
                 if let Some(col) = parse_oklch(hex) {
-                    accent_l.push(col.l);
-                    accent_c.push(col.c);
-                    slot_l[i].push(col.l);
+                    accent_l.push(col.j);
+                    accent_c.push(col.m);
+                    slot_l[i].push(col.j);
                     // A near-grey accent has no meaningful hue and would drag the
                     // mean toward whatever its rounding noise points at.
-                    if col.c >= accent_hue_floor {
+                    if col.m >= accent_hue_floor {
                         let r = col.h.to_radians();
                         hue_vec[i].0 += r.cos();
                         hue_vec[i].1 += r.sin();
@@ -270,9 +288,9 @@ impl Corpus {
             // A scheme only joins the regression if it is complete: a slope built
             // from rows of differing length is not a slope.
             let neutral: Option<Vec<f64>> =
-                neutrals(s).iter().map(|h| parse_oklch(h).map(|c| c.l)).collect();
+                neutrals(s).iter().map(|h| parse_oklch(h).map(|c| c.j)).collect();
             let accent: Option<Vec<f64>> =
-                accents(s).iter().map(|h| parse_oklch(h).map(|c| c.l)).collect();
+                accents(s).iter().map(|h| parse_oklch(h).map(|c| c.j)).collect();
             if let (Some(neutral), Some(accent)) = (neutral, accent) {
                 bg_l.push(neutral[0]);
                 for (i, l) in neutral.iter().enumerate() {
@@ -488,18 +506,28 @@ fn percentile(xs: &mut Vec<f64>, p: f64) -> Option<f64> {
 }
 
 /// A scheme's stored hex (no leading `#`, already normalized by `load_file`) in
-/// Oklch. `None` on anything that is not six hex digits.
-fn parse_oklch(hex: &str) -> Option<Oklch> {
-    let h = hex.trim().trim_start_matches('#');
-    if h.len() != 6 || !h.chars().all(|c| c.is_ascii_hexdigit()) {
-        return None;
-    }
-    let v = u32::from_str_radix(h, 16).ok()?;
-    Some(rgb_to_oklch(
-        ((v >> 16) & 0xFF) as f64 / 255.0,
-        ((v >> 8) & 0xFF) as f64 / 255.0,
-        (v & 0xFF) as f64 / 255.0,
-    ))
+/// CAM16-UCS. `None` on anything that is not six hex digits.
+fn parse_oklch(hex: &str) -> Option<Jmh> {
+    cam16::hex_to_ucs(hex, conditions())
+}
+
+/// The lightness below which an image is a dark scheme's, under `--auto`.
+///
+/// Halfway between where the two corpora actually put their backgrounds, rather
+/// than halfway up the scale — light schemes cluster far nearer their end than
+/// dark ones do, so the midpoint of the scale is not the midpoint of practice.
+fn polarity_split() -> f64 {
+    let dark = Corpus::measure(true).ramp[0];
+    let light = Corpus::measure(false).ramp[0];
+    (dark + light) / 2.0
+}
+
+/// The viewing conditions everything in this module is measured under. One set,
+/// built once: two colours compared under different conditions are not comparable.
+fn conditions() -> &'static Conditions {
+    use std::sync::OnceLock;
+    static VC: OnceLock<Conditions> = OnceLock::new();
+    VC.get_or_init(Conditions::srgb)
 }
 
 /// Scale the neutral ladder by how colourful the image actually is.
@@ -770,13 +798,16 @@ fn cluster_image(path: &Path) -> Result<Vec<Cluster>> {
             // after averaging is identical to applying it before, and this way it
             // runs once per sample instead of once per source pixel.
             let m = &profile.to_xyz_d65;
-            let c = xyz_d65_to_oklch(
-                m[0][0] * r + m[0][1] * g + m[0][2] * b,
-                m[1][0] * r + m[1][1] * g + m[1][2] * b,
-                m[2][0] * r + m[2][1] * g + m[2][2] * b,
+            // Profile RGB -> XYZ D65 -> appearance. XYZ carries Y in 0..100
+            // for CAM16, so the matrix product is scaled to match.
+            let c = cam16::xyz_to_ucs(
+                100.0 * (m[0][0] * r + m[0][1] * g + m[0][2] * b),
+                100.0 * (m[1][0] * r + m[1][1] * g + m[1][2] * b),
+                100.0 * (m[2][0] * r + m[2][1] * g + m[2][2] * b),
+                conditions(),
             );
             let h = c.h.to_radians();
-            [c.l, c.c * h.cos(), c.c * h.sin()]
+            [c.j, c.m * h.cos(), c.m * h.sin()]
         })
         .collect();
 
@@ -869,7 +900,7 @@ fn cluster_image(path: &Path) -> Result<Vec<Cluster>> {
 }
 
 fn hex(l: f64, c: f64, h: f64) -> String {
-    oklch_to_hex(Oklch { l, c, h })
+    cam16::ucs_to_hex(Jmh { j: l, m: c, h }, conditions())
 }
 
 /// Build a scheme from an image, write it into the schemes directory, and hand
@@ -881,7 +912,7 @@ pub fn scheme_from_image(path: &Path, polarity: Polarity, raw: bool) -> Result<(
     let dark = match polarity {
         Polarity::Dark => true,
         Polarity::Light => false,
-        Polarity::Auto => mean_l < 0.55,
+        Polarity::Auto => mean_l < polarity_split(),
     };
 
     let corpus = Corpus::measure(dark);
@@ -965,7 +996,10 @@ pub fn scheme_from_image(path: &Path, polarity: Polarity, raw: bool) -> Result<(
     // wallpaper with one strong hue.
     let mut assigned: Vec<Option<&Cluster>> = vec![None; SLOTS.len()];
     if raw {
-        let mut pool: Vec<&Cluster> = clusters.iter().filter(|c| c.chroma() >= 0.02).collect();
+        // Same "is this a colour at all" test as everywhere else in this file:
+        // the corpus's own accent floor. It used to be a separate hardcoded 0.02,
+        // a second opinion on the same question with no reason to differ.
+        let mut pool: Vec<&Cluster> = clusters.iter().filter(|c| c.chroma() >= lo).collect();
         pool.sort_by(|a, b| (b.weight * b.chroma()).total_cmp(&(a.weight * a.chroma())));
         pool.truncate(SLOTS.len());
 

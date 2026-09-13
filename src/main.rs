@@ -2,6 +2,7 @@
 
 mod browse;
 mod config;
+mod cam16;
 mod dynamic;
 mod icc;
 mod manifest;
