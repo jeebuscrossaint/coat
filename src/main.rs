@@ -3,6 +3,7 @@
 mod browse;
 mod config;
 mod dynamic;
+mod icc;
 mod manifest;
 mod modules;
 mod normalize;

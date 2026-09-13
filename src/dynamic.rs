@@ -22,7 +22,10 @@ use anyhow::{bail, Context, Result};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::normalize::{oklch_to_hex, rgb_to_oklch, Oklch};
+use image::ImageDecoder;
+
+use crate::icc::Profile;
+use crate::normalize::{oklch_to_hex, rgb_to_oklch, xyz_d65_to_oklch, Oklch};
 use crate::scheme::{schemes_dir, Scheme};
 
 /// Longest edge of the image we actually cluster. 160px is ~25k samples, which
@@ -96,10 +99,24 @@ struct Corpus {
     /// every photo without a red in it producing the SAME red; bounding the lean
     /// by the slot's own measured spread is what keeps it recognisably red.
     hue_spread: [f64; 8],
-    /// The closest two accents in one scheme are allowed to get, at the corpus
-    /// p05. Two accents nearer than this are the same colour to the eye and the
-    /// scheme has lost a slot rather than gained a matched one.
-    min_sep: f64,
+    /// How far an unmatched slot may lean toward the image's own hues.
+    ///
+    /// Half the angular distance to its nearest neighbouring slot, so a leaned
+    /// accent stays closer to its own hue than to anybody else's and remains the
+    /// colour it is named after. Derived from the slot layout, which is itself
+    /// measured — there is nothing here to pick.
+    ///
+    /// This is NOT `hue_spread`, and conflating them was a real bug. Spread says
+    /// how widely the corpus draws this slot, which is the right test for whether
+    /// an image cluster counts as that colour. Using it as the lean budget let
+    /// cyan swing 45.9° and yellow 78.8° toward whatever the image had, so a
+    /// wallpaper whose only saturated region was one warm sky pulled all eight
+    /// accents into a single olive band.
+    ///
+    /// base0F is measured against everything except base08: it is brown, sitting
+    /// 0.6° from red in the corpus BY CONVENTION and separated by lightness, so
+    /// its true nearest neighbour would otherwise pin its budget to nothing.
+    lean: [f64; 8],
     /// Accent chroma at p25..p75 — the band an image's own saturation moves
     /// within, so a washed-out photo gives muted accents and a vivid one does not.
     accent_band: (f64, f64),
@@ -156,7 +173,7 @@ const FALLBACK_ACCENT_DARK_L: [f64; 8] = [0.699; 8];
 const FALLBACK_ACCENT_LIGHT_L: [f64; 8] = [0.581; 8];
 const FALLBACK_HUE: [f64; 8] = [25.0, 55.0, 95.0, 145.0, 195.0, 255.0, 320.0, 35.0];
 const FALLBACK_HUE_SPREAD: [f64; 8] = [45.0; 8];
-const FALLBACK_MIN_SEP: f64 = 20.0;
+const FALLBACK_LEAN: [f64; 8] = [22.2, 14.2, 14.2, 20.9, 28.2, 28.2, 30.4, 22.5];
 const FALLBACK_ACCENT_BAND: (f64, f64) = (0.085, 0.165);
 const FALLBACK_FOLLOW_DARK: [f64; 8] = [1.0, 0.309, 0.347, 0.331, 0.084, 0.111, 0.209, 0.059];
 const FALLBACK_FOLLOW_LIGHT: [f64; 8] = [1.0, 0.936, 0.677, 0.771, 0.952, 0.170, 0.0, 0.0];
@@ -175,7 +192,7 @@ impl Corpus {
             accent_l: if dark { FALLBACK_ACCENT_DARK_L } else { FALLBACK_ACCENT_LIGHT_L },
             hue: FALLBACK_HUE,
             hue_spread: FALLBACK_HUE_SPREAD,
-            min_sep: FALLBACK_MIN_SEP,
+            lean: FALLBACK_LEAN,
             accent_band: FALLBACK_ACCENT_BAND,
             follow: if dark { FALLBACK_FOLLOW_DARK } else { FALLBACK_FOLLOW_LIGHT },
             accent_follow: if dark {
@@ -207,7 +224,6 @@ impl Corpus {
         let mut slot_hues: Vec<Vec<f64>> = vec![Vec::new(); 8];
         let mut hue_vec: Vec<(f64, f64)> = vec![(0.0, 0.0); 8];
         let mut hue_n: Vec<f64> = vec![0.0; 8];
-        let mut sep_samples: Vec<f64> = Vec::new();
         // Accent chroma floor for the hue statistics only: the corpus p25, i.e.
         // the bottom of the band this generator will ever emit. Below it a slot
         // is grey and its hue is noise.
@@ -234,7 +250,6 @@ impl Corpus {
             // Per slot, not pooled: base08 being red is a fact about base08.
             // Hues accumulate as unit vectors — an average of 350 and 10 is 0,
             // not 180, and hue is the one axis where the arithmetic mean lies.
-            let mut present: Vec<(usize, f64)> = Vec::with_capacity(8);
             for (i, hex) in accents(s).iter().enumerate() {
                 if let Some(col) = parse_oklch(hex) {
                     accent_l.push(col.l);
@@ -248,25 +263,8 @@ impl Corpus {
                         hue_vec[i].1 += r.sin();
                         hue_n[i] += 1.0;
                         slot_hues[i].push(col.h);
-                        present.push((i, col.h));
                     }
                 }
-            }
-            // How close this scheme lets any two of its own accents get. base0F
-            // is excluded: it is brown, a near-neighbour of red BY CONVENTION and
-            // separated by lightness rather than hue, so counting it would drag
-            // the measured minimum down to brown-vs-red on every scheme.
-            let mut closest = f64::MAX;
-            for (ai, (i, ha)) in present.iter().enumerate() {
-                for (j, hb) in present.iter().skip(ai + 1) {
-                    if *i == 7 || *j == 7 {
-                        continue;
-                    }
-                    closest = closest.min(hue_delta(*ha, *hb));
-                }
-            }
-            if closest.is_finite() {
-                sep_samples.push(closest);
             }
 
             // A scheme only joins the regression if it is complete: a slope built
@@ -296,6 +294,22 @@ impl Corpus {
         let mut follow = [0.0; 8];
         for i in 0..8 {
             ramp[i] = percentile(&mut neutral_l[i], 0.50).unwrap_or(fb.ramp[i]);
+            // p75 across the whole library, and this one resisted being derived.
+            //
+            // Two attempts, both measured, both worse. Otsu splits the library
+            // into greyscale and tinted and takes the tinted median — but Otsu
+            // lands where "exactly zero" ends, not where "greyscale-ish" ends,
+            // so its upper class is nearly everything and its median halves the
+            // tint (base02 chroma 0.0212 -> 0.0121). Taking that class's upper
+            // fence instead, on the theory that a ceiling wants a top edge, was
+            // worse again (0.0105): `neutral_chroma` normalises by the ladder's
+            // PEAK, so only the ladder's shape survives, and the fence moves the
+            // peak onto a different slot and flattens the base02/base03 hump
+            // that the corpus and the named schemes both show.
+            //
+            // So the 75 stays, with its reason stated: half this library is
+            // deliberately greyscale, and a median would report that half's
+            // answer to a question this generator is not asking.
             chroma[i] = percentile(&mut neutral_c[i], 0.75).unwrap_or(fb.chroma[i]);
             follow[i] = slope(&bg_l, &slot_by_bg[i]).unwrap_or(fb.follow[i]);
         }
@@ -308,14 +322,24 @@ impl Corpus {
             if hue_n[i] >= CORPUS_MIN as f64 {
                 let h = hue_vec[i].1.atan2(hue_vec[i].0).to_degrees().rem_euclid(360.0);
                 hue[i] = h;
-                let mut devs: Vec<f64> =
-                    slot_hues[i].iter().map(|x| hue_delta(*x, h)).collect();
-                if let Some(p90) = percentile(&mut devs, 0.90) {
-                    hue_spread[i] = p90;
+                if let Some(sd) = circular_sd(&slot_hues[i]) {
+                    hue_spread[i] = sd;
                 }
             }
             if let Some(l) = percentile(&mut slot_l[i], 0.50) {
                 slot_lightness[i] = l;
+            }
+        }
+
+        // Lean budgets fall out of the hues once they are known.
+        let mut lean = fb.lean;
+        for (i, l) in lean.iter_mut().enumerate() {
+            let nearest = (0..8)
+                .filter(|j| *j != i && *j != 7 && !(i == 7 && *j == 0))
+                .map(|j| hue_delta(hue[i], hue[j]))
+                .fold(f64::MAX, f64::min);
+            if nearest.is_finite() {
+                *l = nearest / 2.0;
             }
         }
 
@@ -331,7 +355,23 @@ impl Corpus {
             accent_l: slot_lightness,
             hue,
             hue_spread,
-            min_sep: percentile(&mut sep_samples, 0.05).unwrap_or(fb.min_sep),
+            lean,
+            // A low quantile, and deliberately not a Tukey fence. These three
+            // are CONSTRAINTS — the least separation a scheme may have and still
+            // work — not summaries of a population, and a fence answers the
+            // opposite question. The gap distribution has a real negative tail
+            // (schemes that genuinely invert base00/base01), so its lower fence
+            // sits inside that tail and permits exactly the inversions the bound
+            // exists to forbid: measured, 17 of 30 wallpapers inverted. A low
+            // quantile says "what nearly every real scheme manages", which is
+            // the question actually being asked.
+            // Quartiles, and deliberately not Otsu. Accent chroma is NOT two
+            // populations — it is one broad unimodal spread, so Otsu splits it
+            // down the middle of a single mode and reports the midpoint as a
+            // boundary. Measured: that floor lands at 0.134, which drags every
+            // washed-out wallpaper up to vivid accents and destroys the muting
+            // this band exists to provide. The IQR describes the bulk of one
+            // population, which is what this is.
             accent_band: (
                 percentile(&mut accent_c, 0.25)?,
                 percentile(&mut accent_c, 0.75)?,
@@ -395,6 +435,40 @@ fn slope(xs: &[f64], ys: &[f64]) -> Option<f64> {
     // the rest of the ramp stays put.
     let r2 = (sxy * sxy) / (sxx * syy);
     Some((sxy / sxx).clamp(0.0, 1.0) * r2)
+}
+
+/// Euclidean distance in Oklab between two (L, chroma, hue) colours.
+fn oklab_dist(a: (f64, f64, f64), b: (f64, f64, f64)) -> f64 {
+    let p = |(l, c, h): (f64, f64, f64)| {
+        let r = h.to_radians();
+        [l, c * r.cos(), c * r.sin()]
+    };
+    let (p, q) = (p(a), p(b));
+    ((p[0] - q[0]).powi(2) + (p[1] - q[1]).powi(2) + (p[2] - q[2]).powi(2)).sqrt()
+}
+
+/// Circular standard deviation of a set of hues, in degrees.
+///
+/// The textbook dispersion for angles, and it replaces a p90 of absolute
+/// deviations. Both describe "how far this slot wanders", but the p90 needed
+/// somebody to choose 90, while the circular SD falls out of the resultant
+/// length with nothing to pick.
+fn circular_sd(hues: &[f64]) -> Option<f64> {
+    if hues.len() < 2 {
+        return None;
+    }
+    let n = hues.len() as f64;
+    let (mut c, mut s) = (0.0, 0.0);
+    for h in hues {
+        let r = h.to_radians();
+        c += r.cos();
+        s += r.sin();
+    }
+    let r_bar = (c * c + s * s).sqrt() / n;
+    if r_bar <= 0.0 || r_bar >= 1.0 {
+        return None;
+    }
+    Some((-2.0 * r_bar.ln()).sqrt().to_degrees())
 }
 
 /// Linear-interpolated percentile. Sorts in place; `None` on an empty sample.
@@ -477,11 +551,8 @@ fn neutral_chroma(ladder: &[f64; 8], image_chroma: f64) -> [f64; 8] {
 /// darkest, not an argument for mean. A mean blends the subject into the
 /// backdrop and lands between them, on a colour that may not be in the image at
 /// all. The dominant cluster is a colour the wallpaper actually contains.
-fn background_anchor(clusters: &[Cluster]) -> Option<f64> {
-    clusters
-        .iter()
-        .max_by(|a, b| a.weight.total_cmp(&b.weight))
-        .map(|c| c.l)
+fn background_anchor(clusters: &[Cluster]) -> Option<&Cluster> {
+    clusters.iter().max_by(|a, b| a.weight.total_cmp(&b.weight))
 }
 
 /// How saturated the image's ACCENT-WORTHY colours are — the chroma-weighted
@@ -500,11 +571,13 @@ fn background_anchor(clusters: &[Cluster]) -> Option<f64> {
 /// has no candidates, falls to the band floor, and gets the corpus p25 — muted,
 /// legible, and not a number anybody chose.
 fn image_accent_chroma(clusters: &[Cluster], floor: f64) -> Option<f64> {
+    // Area-weighted, for the same reason as `tint_hue`: weighting a chroma
+    // average by chroma reports the most saturated candidate rather than the
+    // typical one, and the whole point of this number is to be typical.
     let (mut sum, mut weight) = (0.0, 0.0);
     for c in clusters.iter().filter(|c| c.chroma() >= floor) {
-        let w = c.weight * c.chroma();
-        sum += c.chroma() * w;
-        weight += w;
+        sum += c.chroma() * c.weight;
+        weight += c.weight;
     }
     (weight > 0.0).then(|| sum / weight)
 }
@@ -604,23 +677,103 @@ pub fn current_wallpaper() -> Result<PathBuf> {
     )
 }
 
+/// Box-downsample to `edge` on the longest side, averaging in LINEAR LIGHT.
+///
+/// The averaging space is the whole point, and doing it in gamma-encoded sRGB —
+/// which is what `image::thumbnail` and essentially every naive resize does — is
+/// a real error, not a rounding one. sRGB bytes are perceptually spaced, not
+/// linear in photons: averaging 0 and 255 as bytes gives 128, which is 0.216 in
+/// linear light, where the true average of black and white is 0.500. Mid-tones
+/// come out around half as bright as the image actually is.
+///
+/// It matters here more than in most resizes, because the images that trigger it
+/// are exactly the ones this generator gets pointed at: anything dithered, hatched
+/// or finely detailed — an engraving, pixel art, a halftone — is a field of pure
+/// black and pure white pixels whose correct average is a mid grey. In gamma
+/// space that field reads as near-black, which then drives the anchor, the mean
+/// lightness and every cluster centroid.
+///
+/// So: linearise on the way in, average there, and hand Oklab the linear values
+/// directly rather than re-encoding just to decode again.
+fn downsample_linear(img: &image::RgbImage, edge: u32, profile: &Profile) -> Vec<[f64; 3]> {
+    let lut = &profile.trc;
+
+    let (w, h) = img.dimensions();
+    let scale = (edge as f64 / w.max(h) as f64).min(1.0);
+    let (tw, th) = (
+        ((w as f64 * scale).round() as u32).max(1),
+        ((h as f64 * scale).round() as u32).max(1),
+    );
+
+    let mut acc = vec![[0.0f64; 3]; (tw * th) as usize];
+    let mut count = vec![0u32; (tw * th) as usize];
+    for (x, y, px) in img.enumerate_pixels() {
+        // Source pixel -> target cell. Every source pixel lands in exactly one
+        // cell, so this is a true box filter with no pixel counted twice.
+        let tx = ((x as u64 * tw as u64) / w as u64).min(tw as u64 - 1) as u32;
+        let ty = ((y as u64 * th as u64) / h as u64).min(th as u64 - 1) as u32;
+        let i = (ty * tw + tx) as usize;
+        acc[i][0] += lut[0][px[0] as usize];
+        acc[i][1] += lut[1][px[1] as usize];
+        acc[i][2] += lut[2][px[2] as usize];
+        count[i] += 1;
+    }
+
+    acc.iter()
+        .zip(count.iter())
+        .filter(|(_, n)| **n > 0)
+        .map(|(a, n)| {
+            let n = *n as f64;
+            [a[0] / n, a[1] / n, a[2] / n]
+        })
+        .collect()
+}
+
+/// Decode an image and whatever colour profile it carries.
+fn decode_with_profile(path: &Path) -> Result<(image::RgbImage, Profile)> {
+    let reader = image::ImageReader::open(path)
+        .with_context(|| format!("cannot open {}", path.display()))?
+        .with_guessed_format()
+        .with_context(|| format!("cannot identify {}", path.display()))?;
+    let mut decoder = reader
+        .into_decoder()
+        .with_context(|| format!("cannot decode {} as an image", path.display()))?;
+    // Best-effort: a profile that is absent, unreadable, or not matrix/TRC just
+    // means the image is treated as sRGB, which is what it was before.
+    let profile = decoder
+        .icc_profile()
+        .ok()
+        .flatten()
+        .and_then(|raw| Profile::parse(&raw))
+        .unwrap_or_else(Profile::srgb);
+    let img = image::DynamicImage::from_decoder(decoder)
+        .with_context(|| format!("cannot decode {} as an image", path.display()))?;
+    Ok((img.to_rgb8(), profile))
+}
+
 /// Decode, downscale, and cluster the image in Oklab.
 ///
 /// Seeding is farthest-point rather than random, so the same wallpaper always
 /// produces the same scheme. A generator you cannot reproduce is a generator you
 /// cannot debug.
 fn cluster_image(path: &Path) -> Result<Vec<Cluster>> {
-    let img = image::open(path)
-        .with_context(|| format!("cannot decode {} as an image", path.display()))?;
-    let small = img.thumbnail(SAMPLE_EDGE, SAMPLE_EDGE).to_rgb8();
+    // Read the image's own colour profile before reading its pixels. Averaging
+    // and clustering are only meaningful once the bytes have been turned into
+    // actual colour, and which colour a byte is depends on the profile.
+    let (img, profile) = decode_with_profile(path)?;
+    let small = downsample_linear(&img, SAMPLE_EDGE, &profile);
 
     let points: Vec<[f64; 3]> = small
-        .pixels()
-        .map(|p| {
-            let c = rgb_to_oklch(
-                p[0] as f64 / 255.0,
-                p[1] as f64 / 255.0,
-                p[2] as f64 / 255.0,
+        .iter()
+        .map(|&[r, g, b]| {
+            // Linear profile RGB -> XYZ D65. The matrix is linear, so applying it
+            // after averaging is identical to applying it before, and this way it
+            // runs once per sample instead of once per source pixel.
+            let m = &profile.to_xyz_d65;
+            let c = xyz_d65_to_oklch(
+                m[0][0] * r + m[0][1] * g + m[0][2] * b,
+                m[1][0] * r + m[1][1] * g + m[1][2] * b,
+                m[2][0] * r + m[2][1] * g + m[2][2] * b,
             );
             let h = c.h.to_radians();
             [c.l, c.c * h.cos(), c.c * h.sin()]
@@ -631,12 +784,22 @@ fn cluster_image(path: &Path) -> Result<Vec<Cluster>> {
         bail!("{} decoded to zero pixels", path.display());
     }
 
+    // True Oklab distance. Oklab exists so that Euclidean distance in it
+    // approximates perceived difference; the previous version multiplied the a
+    // and b differences by 2.5 to stop k-means splitting the image along
+    // lightness alone, which bought more colourful palettes by throwing away the
+    // one property the space was chosen for. It was also the last unexplained
+    // number in the clustering path.
+    //
+    // It is no longer needed. The background now comes from the dominant
+    // cluster rather than from whichever cluster happened to be most saturated,
+    // and accents are filtered by a measured chroma floor and fall back to
+    // corpus hues, so a palette of mostly-neutral clusters degrades correctly
+    // instead of degrading into eight identical greys.
     let dist2 = |p: &[f64; 3], q: &[f64; 3]| {
-        // Chroma weighted up against lightness: hue/saturation is what we are
-        // actually clustering for, and raw Oklab distance is dominated by L.
         let dl = p[0] - q[0];
-        let da = (p[1] - q[1]) * 2.5;
-        let db = (p[2] - q[2]) * 2.5;
+        let da = p[1] - q[1];
+        let db = p[2] - q[2];
         dl * dl + da * da + db * db
     };
 
@@ -705,31 +868,6 @@ fn cluster_image(path: &Path) -> Result<Vec<Cluster>> {
         .collect())
 }
 
-/// The hue the neutrals get tinted with: the chroma-weighted circular mean of
-/// the image, which reads as "what colour is this picture".
-fn tint_hue(clusters: &[Cluster]) -> f64 {
-    let (mut a, mut b) = (0.0, 0.0);
-    for c in clusters {
-        let w = c.weight * c.chroma();
-        a += c.a * w;
-        b += c.b * w;
-    }
-    if a == 0.0 && b == 0.0 {
-        // A wallpaper that is greyscale to the last bit. Any hue is as right as
-        // any other.
-        //
-        // This guard is close to unreachable and was never the protection it
-        // looked like: a "black and white" image is almost never grey to f64
-        // equality — quantisation noise, JPEG chroma, a stray palette entry — and
-        // the ones that missed it by 0.3% of a frame came through here with a
-        // confident, meaningless hue. What makes that harmless is `neutral_chroma`
-        // downstream, which gives such an image almost no chroma to render the
-        // hue with. The hue is not worth getting right; it is worth not showing.
-        return 250.0;
-    }
-    b.atan2(a).to_degrees().rem_euclid(360.0)
-}
-
 fn hex(l: f64, c: f64, h: f64) -> String {
     oklch_to_hex(Oklch { l, c, h })
 }
@@ -746,20 +884,34 @@ pub fn scheme_from_image(path: &Path, polarity: Polarity, raw: bool) -> Result<(
         Polarity::Auto => mean_l < 0.55,
     };
 
-    let tint = tint_hue(&clusters);
     let corpus = Corpus::measure(dark);
-
-    // How colourful the image actually is, weighted by area: a grey photo should
-    // not produce a neon scheme.
-    let image_chroma: f64 = clusters.iter().map(|c| c.chroma() * c.weight).sum();
     let (lo, hi) = corpus.accent_band;
     let accent_c = image_accent_chroma(&clusters, lo).unwrap_or(lo).clamp(lo, hi);
 
-    // The wallpaper's own dominant colour becomes the background, clamped to the
-    // lightness range schemes of this polarity actually occupy — outside it this
-    // stops being a dark scheme at all. For dark that floor is a true 0.000, so a
-    // black wallpaper is allowed a black background.
-    let anchor = background_anchor(&clusters)
+    // The wallpaper's dominant colour becomes the background — ALL of it, hue and
+    // chroma as well as lightness.
+    //
+    // These used to come from different places, and it showed. Lightness came
+    // from the dominant cluster while hue came from `tint_hue`, a vector mean
+    // over the whole image — and a vector mean is chroma-weighted whether you
+    // want it or not, because a and b carry chroma as their magnitude. On a dusk
+    // photograph whose largest region was 38% of the frame at chroma 0.012 and
+    // whose brightest was 10% at chroma 0.10, the small bright region outvoted
+    // the large dark one roughly eight to one, and base00 came out as the dark
+    // region's lightness wearing the bright region's hue: a warm olive over an
+    // image whose dominant area is a cool near-neutral.
+    //
+    // Hue is not lightness-independent to look at, either. Hue 92 at L 0.93 is
+    // the cream glow actually in that photograph; hue 92 at L 0.25 is olive. The
+    // old pairing produced a colour that appears nowhere in the wallpaper.
+    //
+    // One region, one colour. The dominant cluster answers all three questions
+    // and they cannot disagree.
+    let dominant = background_anchor(&clusters);
+    let tint = dominant.map(|c| c.hue()).unwrap_or(250.0);
+    let bg_chroma = dominant.map(|c| c.chroma()).unwrap_or(0.0);
+    let anchor = dominant
+        .map(|c| c.l)
         .unwrap_or(corpus.ramp[0])
         .clamp(corpus.bg_range.0, corpus.bg_range.1);
     let shift = anchor - corpus.ramp[0];
@@ -795,7 +947,7 @@ pub fn scheme_from_image(path: &Path, polarity: Polarity, raw: bool) -> Result<(
         r
     };
 
-    let chroma_ramp = neutral_chroma(&corpus.chroma, image_chroma);
+    let chroma_ramp = neutral_chroma(&corpus.chroma, bg_chroma);
     let mut palette: Vec<(String, String)> = Vec::with_capacity(16);
     for (i, l) in ramp.iter().enumerate() {
         palette.push((
@@ -835,7 +987,8 @@ pub fn scheme_from_image(path: &Path, polarity: Polarity, raw: bool) -> Result<(
         }
     }
 
-    let mut taken: Vec<f64> = Vec::with_capacity(SLOTS.len());
+    let mut taken: Vec<((f64, f64, f64), (f64, f64, f64))> = Vec::with_capacity(SLOTS.len());
+
     for (idx, slot) in SLOTS.iter().copied().enumerate() {
         let target = corpus.hue[idx];
         // Per-slot rather than one flat tolerance: the corpus says yellow occupies
@@ -870,10 +1023,10 @@ pub fn scheme_from_image(path: &Path, polarity: Polarity, raw: bool) -> Result<(
                     .map(|c| c.hue());
                 match nearest {
                     Some(h) => {
-                        // Lean toward the image, but never further than this
-                        // slot's own hue wanders across the corpus — past that it
-                        // stops being the colour the slot is named after.
-                        let pull = hue_signed(target, h).clamp(-tolerance, tolerance);
+                        // Lean toward the image, bounded by the slot's own
+                        // budget — never past the midpoint to its neighbour.
+                        let budget = corpus.lean[idx];
+                        let pull = hue_signed(target, h).clamp(-budget, budget);
                         (target + pull).rem_euclid(360.0)
                     }
                     None => target,
@@ -881,13 +1034,23 @@ pub fn scheme_from_image(path: &Path, polarity: Polarity, raw: bool) -> Result<(
             }
         };
 
-        if !raw && slot != "base0F" {
-            if taken.iter().any(|h| hue_delta(*h, hue) < corpus.min_sep) {
-                hue = target;
-            }
-            taken.push(hue);
-        }
-
+        // Collision guard, now in BOTH modes. It used to be skipped under the
+        // default, on the theory that a wallpaper with one strong hue should be
+        // allowed to give eight shades of it, pywal-style.
+        //
+        // That theory does not survive meeting one. A dusk photograph has eight
+        // clusters above the pool's chroma floor and every one of them sits
+        // between hue 87 and 103, so all eight accents came out the same olive —
+        // base08 through base0F within 16° of each other. A palette where the
+        // error colour and the string colour are the same colour has not carried
+        // the wallpaper's character, it has lost seven slots, and no terminal is
+        // readable in it.
+        //
+        // A slot whose hue is already taken falls back to its own, which is what
+        // the guard was always for. The image still sets every accent it has a
+        // distinct colour for; it just cannot claim the same colour eight times.
+        // base0F stays exempt — brown is a near-neighbour of red by convention
+        // and separated by lightness instead.
         // By default the matched colour's own saturation carries through, only
         // lifted into the legible band; under --slots every accent shares the
         // image-wide chroma so the row reads as one family.
@@ -900,6 +1063,44 @@ pub fn scheme_from_image(path: &Path, polarity: Polarity, raw: bool) -> Result<(
         // darker than the rest because the corpus holds it darker, not because a
         // constant subtracted 0.12 from it.
         let l = corpus.accent_l[idx] + shift * corpus.accent_follow;
+
+        // The guard needs the finished colour, not just its hue — which is why
+        // chroma and lightness are settled first.
+        if slot != "base0F" {
+            // The bar for each pair is what that PAIR would be if both slots took
+            // their corpus hue — not one global distance.
+            //
+            // A global floor cannot work here, and the corpus's own p25 (0.0609)
+            // proves it: base09 and base0A sit 28.3° apart in the corpus, which
+            // at accent chroma is a distance of 0.0445, so orange and yellow
+            // violate that floor while being exactly where they belong. A floor
+            // no correct palette can satisfy fires on every scheme and forces
+            // fallbacks that make things worse.
+            //
+            // Asking instead "are these two closer than they would be if the
+            // image had not touched them" is self-consistent: it is satisfied by
+            // construction the moment a slot retreats to its own hue, so the
+            // retreat always terminates, and it still catches the real failure —
+            // eight accents dragged onto one hue are far closer than the layout
+            // would ever put them.
+            let canonical = (l, chroma, target);
+            let clashes = |cand: (f64, f64, f64)| {
+                taken.iter().any(|(their, their_canon): &_| {
+                    oklab_dist(*their, cand) < oklab_dist(*their_canon, canonical)
+                })
+            };
+            if clashes((l, chroma, hue)) {
+                // First retreat: this slot's hue, leaned toward the image, so a
+                // recovered accent still belongs to this wallpaper.
+                let budget = corpus.lean[idx];
+                let pull = hue_signed(target, hue).clamp(-budget, budget);
+                hue = (target + pull).rem_euclid(360.0);
+                if clashes((l, chroma, hue)) {
+                    hue = target;
+                }
+            }
+            taken.push(((l, chroma, hue), canonical));
+        }
         palette.push((slot.to_string(), hex(l, chroma, hue)));
     }
 

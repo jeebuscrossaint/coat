@@ -79,11 +79,31 @@ fn rgb_to_hex(r: f64, g: f64, b: f64) -> String {
 }
 
 pub(crate) fn rgb_to_oklch(r: f64, g: f64, b: f64) -> Oklch {
-    let (r, g, b) = (srgb_to_linear(r), srgb_to_linear(g), srgb_to_linear(b));
+    linear_rgb_to_oklch(srgb_to_linear(r), srgb_to_linear(g), srgb_to_linear(b))
+}
 
+/// Oklch from XYZ under D65 — the definition Oklab is actually specified from.
+///
+/// The sRGB path above uses Ottosson's published sRGB→LMS matrix directly, which
+/// is this composition pre-multiplied. Images that carry an ICC profile are not
+/// sRGB and have their own primaries, so they come through here instead.
+pub(crate) fn xyz_d65_to_oklch(x: f64, y: f64, z: f64) -> Oklch {
+    let l = 0.8189330101 * x + 0.3618667424 * y - 0.1288597137 * z;
+    let m = 0.0329845436 * x + 0.9293118715 * y + 0.0361456387 * z;
+    let s = 0.0482003018 * x + 0.2643662691 * y + 0.6338517070 * z;
+    lms_to_oklch(l, m, s)
+}
+
+/// Oklch from LINEAR-light sRGB, for callers that already work in linear — such
+/// as image resampling, which must average in linear light to be correct.
+pub(crate) fn linear_rgb_to_oklch(r: f64, g: f64, b: f64) -> Oklch {
     let l = 0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b;
     let m = 0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b;
     let s = 0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b;
+    lms_to_oklch(l, m, s)
+}
+
+fn lms_to_oklch(l: f64, m: f64, s: f64) -> Oklch {
 
     let (l_, m_, s_) = (l.cbrt(), m.cbrt(), s.cbrt());
 
