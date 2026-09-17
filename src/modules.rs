@@ -1229,14 +1229,23 @@ fn apply_fnott(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -
 
 fn apply_swaylock(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
-    // Colours and font only. swaylock's config has no sections, so every edit is
-    // addressed to INI_TOP. Nothing to reload: swaylock reads the file fresh at
-    // every invocation, so the next lock is already themed.
+    // A FRAGMENT beside the config, never the config itself.
     //
-    // This file used to be coat's outright, which meant indicator geometry and
-    // flags like show-failed-attempts were coat's opinion and came back on every
-    // theme change however the user set them.
-    apply_ini_edits(tera, ctx, "swaylock", &home.join(".config/swaylock/config"))
+    // swaylock reads exactly one file and has no include mechanism, so coat used
+    // to patch the colour keys into ~/.config/swaylock/config in place. That
+    // works, but the file is normally a dotfiles symlink, so every `coat set`
+    // landed as a diff in the user's repo -- the one module left doing it.
+    //
+    // The way out is not an include, it is the command line: every swaylock
+    // config key is also a long flag, and swaylock parses argv AFTER the config
+    // file specifically so flags win (main.c: load_config, then parse_options).
+    // So coat writes `key=value` lines here and the caller turns them into flags:
+    //
+    //     swaylock $(grep -v '^#' ~/.config/swaylock/coat-theme.conf | sed 's/^/--/')
+    //
+    // Nothing to reload: swaylock reads both fresh at every invocation, so the
+    // next lock is already themed.
+    render_to(tera, "swaylock", ctx, &home.join(".config/swaylock/coat-theme.conf"))
 }
 
 fn apply_quickshell(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
