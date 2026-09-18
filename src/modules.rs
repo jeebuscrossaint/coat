@@ -1250,7 +1250,7 @@ fn apply_webapps(_tera: &Tera, _ctx: &tera::Context, _s: &Scheme, _c: &CoatConfi
     let share = home.join(".local/share/coat-webapps");
 
     if !share.is_dir() {
-        println!("  · webapps: {} is not there, skipping", share.display());
+        detail!("  · webapps: {} is not there, skipping", share.display());
         return Ok(());
     }
 
@@ -1267,7 +1267,7 @@ fn apply_webapps(_tera: &Tera, _ctx: &tera::Context, _s: &Scheme, _c: &CoatConfi
         fs::create_dir_all(&dir)?;
         let path = dir.join("com.coat.webapp_theme.json");
         fs::write(&path, &manifest)?;
-        println!("  ✓ {}", path.display());
+        detail!("  ✓ {}", path.display());
     }
 
     // Chromium keys the same host by extension ORIGIN rather than id, and the id
@@ -1287,12 +1287,12 @@ fn apply_webapps(_tera: &Tera, _ctx: &tera::Context, _s: &Scheme, _c: &CoatConfi
             fs::create_dir_all(&dir)?;
             let path = dir.join("com.coat.webapp_theme.json");
             fs::write(&path, &chromium)?;
-            println!("  ✓ {}", path.display());
+            detail!("  ✓ {}", path.display());
         }
     }
 
     if !host.exists() {
-        println!("  ! {} is missing — the manifests point at nothing", host.display());
+        detail!("  ! {} is missing — the manifests point at nothing", host.display());
     }
 
     // The xpi is a build artifact, so a fresh machine has the extension source
@@ -1301,9 +1301,9 @@ fn apply_webapps(_tera: &Tera, _ctx: &tera::Context, _s: &Scheme, _c: &CoatConfi
     let build = share.join("build-xpi.py");
     if build.is_file() {
         match std::process::Command::new(&build).output() {
-            Ok(o) if o.status.success() => println!("  ✓ {}", share.join("coat-webapps.xpi").display()),
-            Ok(o) => println!("  ! build-xpi.py failed: {}", String::from_utf8_lossy(&o.stderr).trim()),
-            Err(e) => println!("  ! could not run build-xpi.py: {e}"),
+            Ok(o) if o.status.success() => detail!("  ✓ {}", share.join("coat-webapps.xpi").display()),
+            Ok(o) => detail!("  ! build-xpi.py failed: {}", String::from_utf8_lossy(&o.stderr).trim()),
+            Err(e) => detail!("  ! could not run build-xpi.py: {e}"),
         }
     }
 
