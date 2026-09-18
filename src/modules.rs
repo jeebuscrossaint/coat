@@ -349,7 +349,7 @@ pub const ALL_MODULES: &[&str] = &[
     "foot", "gtk", "fuzzel", "hyprland", "imv", "kitty", "lsd", "mango",
     "msteams", "prismlauncher", "quickshell", "satty", "swaylock", "waybar", "mpv",
     "neovim",
-    "sway", "swaybar", "tofi", "vesktop", "vscode", "xresources", "yazi",
+    "sway", "swaybar", "tofi", "vesktop", "vscode", "webapps", "xresources", "yazi",
     "zathura",
 ];
 
@@ -414,6 +414,7 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "fnott"      => apply_fnott(tera, &ctx, scheme, config),
         "fuzzel"     => apply_fuzzel(tera, &ctx, scheme, config),
         "swaylock"   => apply_swaylock(tera, &ctx, scheme, config),
+        "webapps"    => apply_webapps(tera, &ctx, scheme, config),
         "quickshell" => apply_quickshell(tera, &ctx, scheme, config),
         "waybar"     => apply_waybar(tera, &ctx, scheme, config),
         "mpv"        => apply_mpv(tera, &ctx, scheme, config),
@@ -1224,6 +1225,88 @@ fn apply_fnott(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -
            i=0; while ! busctl --user status org.freedesktop.Notifications >/dev/null 2>&1 \
                  && [ $i -lt 100 ]; do sleep 0.02; i=$((i+1)); done; \
          else sleep 0.2; fi");
+    Ok(())
+}
+
+/// Wires up the coat-webapps browser extension: the native-messaging manifests,
+/// and the xpi Firefox installs.
+///
+/// These used to be checked into the dotfiles repo, which cannot work on a second
+/// machine: a native-messaging manifest holds an ABSOLUTE path to the host
+/// program, so a tracked copy is correct on exactly the machine whose home
+/// directory was baked into it. Firefox does not warn -- it silently fails to
+/// spawn the host, the extension installs and enables, and nothing themes.
+///
+/// Generating them here also removes the stow trap the README had to warn about.
+/// Nothing needs to be symlinked into ~/.mozilla any more, so stow cannot fold it
+/// and Firefox cannot end up building its profile inside the git tree.
+///
+/// BOTH locations are written on purpose. Firefox 155 uses XDG paths and reads
+/// ~/.config/mozilla/native-messaging-hosts; older builds read ~/.mozilla. An
+/// unused manifest is inert, and guessing wrong is a silent failure.
+fn apply_webapps(_tera: &Tera, _ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    let host = home.join(".local/bin/coat-webapp-host");
+    let share = home.join(".local/share/coat-webapps");
+
+    if !share.is_dir() {
+        println!("  · webapps: {} is not there, skipping", share.display());
+        return Ok(());
+    }
+
+    let manifest = format!(
+        "{{\n  \"name\": \"com.coat.webapp_theme\",\n  \
+         \"description\": \"coat scheme reader for the web-app theme extension\",\n  \
+         \"path\": \"{}\",\n  \"type\": \"stdio\",\n  \
+         \"allowed_extensions\": [\"coat-webapps@amarnath\"]\n}}\n",
+        host.display()
+    );
+
+    for root in [home.join(".mozilla"), home.join(".config/mozilla")] {
+        let dir = root.join("native-messaging-hosts");
+        fs::create_dir_all(&dir)?;
+        let path = dir.join("com.coat.webapp_theme.json");
+        fs::write(&path, &manifest)?;
+        println!("  ✓ {}", path.display());
+    }
+
+    // Chromium keys the same host by extension ORIGIN rather than id, and the id
+    // is pinned by the `key` in the extension manifest so it does not move.
+    let chromium = format!(
+        "{{\n  \"name\": \"com.coat.webapp_theme\",\n  \
+         \"description\": \"coat scheme reader for the web-app theme extension\",\n  \
+         \"path\": \"{}\",\n  \"type\": \"stdio\",\n  \
+         \"allowed_origins\": [\"chrome-extension://miifgcafnndcmaijinhnahgejmaplegb/\"]\n}}\n",
+        host.display()
+    );
+    for dir in [
+        home.join(".config/chromium/NativeMessagingHosts"),
+        home.join(".config/google-chrome/NativeMessagingHosts"),
+    ] {
+        if dir.parent().map(|p| p.is_dir()).unwrap_or(false) {
+            fs::create_dir_all(&dir)?;
+            let path = dir.join("com.coat.webapp_theme.json");
+            fs::write(&path, &chromium)?;
+            println!("  ✓ {}", path.display());
+        }
+    }
+
+    if !host.exists() {
+        println!("  ! {} is missing — the manifests point at nothing", host.display());
+    }
+
+    // The xpi is a build artifact, so a fresh machine has the extension source
+    // without the package Firefox can install. Build it here rather than leaving
+    // it as a step to remember.
+    let build = share.join("build-xpi.py");
+    if build.is_file() {
+        match std::process::Command::new(&build).output() {
+            Ok(o) if o.status.success() => println!("  ✓ {}", share.join("coat-webapps.xpi").display()),
+            Ok(o) => println!("  ! build-xpi.py failed: {}", String::from_utf8_lossy(&o.stderr).trim()),
+            Err(e) => println!("  ! could not run build-xpi.py: {e}"),
+        }
+    }
+
     Ok(())
 }
 
