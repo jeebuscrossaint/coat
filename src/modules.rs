@@ -54,6 +54,7 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("hyprland_lua", "hyprland_lua.tera"),
     tpl!("imv",       "imv.tera"),
     tpl!("kitty",     "kitty.tera"),
+    tpl!("micro",     "micro.tera"),
     tpl!("lsd",       "lsd.tera"),
     tpl!("mango",     "mango.tera"),
     tpl!("mpv",       "mpv.tera"),
@@ -347,7 +348,7 @@ fn run(cmd: &str) {
 pub const ALL_MODULES: &[&str] = &[
     "bat", "btop", "cava", "conky", "dunst", "fastfetch", "firefox", "fish", "fnott",
     "foot", "gtk", "fuzzel", "hyprland", "imv", "kitty", "lsd", "mango",
-    "msteams", "prismlauncher", "quickshell", "satty", "swaylock", "waybar", "mpv",
+    "micro", "msteams", "prismlauncher", "quickshell", "satty", "swaylock", "waybar", "mpv",
     "neovim",
     "sway", "swaybar", "tofi", "vesktop", "vscode", "webapps", "xresources", "yazi",
     "zathura",
@@ -410,6 +411,7 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "hyprland"   => apply_hyprland(tera, &ctx, scheme, config),
         "kitty"      => apply_kitty(tera, &ctx, scheme, config),
         "conky"      => apply_conky(tera, &ctx, scheme, config),
+        "micro"      => apply_micro(tera, &ctx, scheme, config),
         "mango"      => apply_mango(tera, &ctx, scheme, config),
         "fnott"      => apply_fnott(tera, &ctx, scheme, config),
         "fuzzel"     => apply_fuzzel(tera, &ctx, scheme, config),
@@ -1169,6 +1171,24 @@ fn apply_conky(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -
     Ok(())
 }
 
+fn apply_micro(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    // A standard micro colourscheme on the search path, so settings.json only
+    // ever names it: "colorscheme": "coat". The file holds nothing but
+    // colour-links, which is why coat owns all of it rather than a fragment.
+    render_to(
+        tera,
+        "micro",
+        ctx,
+        &home.join(".config/micro/colorschemes/coat.micro"),
+    )?;
+
+    // No reload hook on purpose. micro reads its colourscheme once at startup and
+    // has no config-reload signal; the in-editor `> set colorscheme coat` re-reads
+    // it for a running instance, and there is nothing to send from out here.
+    Ok(())
+}
+
 fn apply_mango(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
     let dir = home.join(".config/mango");
@@ -1845,6 +1865,16 @@ pub fn module_docs(name: &str) {
         "mpv" => {
             println!("Add to ~/.config/mpv/mpv.conf:\n");
             println!("  include ~/.config/mpv/coat-theme.conf");
+        }
+        "micro" => {
+            println!("coat writes ~/.config/micro/colorschemes/coat.micro.\n");
+            println!("Select it in ~/.config/micro/settings.json:\n");
+            println!("  \"colorscheme\": \"coat\"\n");
+            println!("Colours are '#RRGGBB' and need truecolor: micro's `truecolor`");
+            println!("option is 'auto', which follows $COLORTERM -- set it to 'on' if a");
+            println!("terminal does not advertise it, or the scheme degrades to 256.\n");
+            println!("A running micro does not pick up a reapply: `> set colorscheme coat`");
+            println!("re-reads the file, and there is no signal coat can send it.");
         }
         "conky" => {
             println!("coat writes ~/.config/conky/coat-colors.lua as a Lua table.\n");
