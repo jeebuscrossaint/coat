@@ -674,6 +674,9 @@ fn hue_signed(from: f64, to: f64) -> f64 {
 ///
 /// The first line carrying an image wins — with two monitors showing different
 /// wallpapers there is no single right answer, and asking is worse than picking.
+///
+/// swaybg is the fallback. It has no query command, so its image is read back
+/// out of its own argv in /proc — see `swaybg_wallpaper`.
 pub fn current_wallpaper() -> Result<PathBuf> {
     let mut tried = Vec::new();
     for daemon in ["awww", "swww"] {
@@ -696,13 +699,73 @@ pub fn current_wallpaper() -> Result<PathBuf> {
         }
     }
 
+    let (found, image) = swaybg_wallpaper();
+    if let Some(path) = image {
+        return Ok(path);
+    }
+    if found {
+        tried.push("swaybg");
+    }
+
     if tried.is_empty() {
-        bail!("no wallpaper daemon found (looked for awww, swww) — pass an image path instead");
+        bail!("no wallpaper daemon found (looked for awww, swww, swaybg) — pass an image path instead");
     }
     bail!(
         "{} is installed but reported no image — set a wallpaper first, or pass a path",
         tried.join("/")
     )
+}
+
+/// The image a running swaybg was started with: (any swaybg running, its image).
+///
+/// swaybg takes the wallpaper on the command line and never tells anyone again —
+/// there is no IPC and no query. But its argv is still in /proc/<pid>/cmdline, so
+/// that is the query: the first process whose comm is `swaybg` and whose
+/// `-i`/`--image` names a file that exists. A relative path is resolved against
+/// the process's own cwd, not ours. `-i` is repeatable (one per `-o` output);
+/// the first one wins, for the same reason the first awww line does.
+///
+/// No /proc (not Linux) just means no swaybg found.
+fn swaybg_wallpaper() -> (bool, Option<PathBuf>) {
+    let Ok(entries) = std::fs::read_dir("/proc") else {
+        return (false, None);
+    };
+    let mut found = false;
+    for entry in entries.flatten() {
+        let dir = entry.path();
+        let is_swaybg = std::fs::read_to_string(dir.join("comm"))
+            .map(|c| c.trim() == "swaybg")
+            .unwrap_or(false);
+        if !is_swaybg {
+            continue;
+        }
+        found = true;
+        let Ok(raw) = std::fs::read(dir.join("cmdline")) else {
+            continue;
+        };
+        let argv: Vec<String> = raw
+            .split(|&b| b == 0)
+            .map(|a| String::from_utf8_lossy(a).into_owned())
+            .collect();
+        let mut args = argv.iter().skip(1);
+        while let Some(arg) = args.next() {
+            let value = match arg.as_str() {
+                "-i" | "--image" => args.next().cloned(),
+                a => a.strip_prefix("--image=").map(str::to_owned),
+            };
+            let Some(value) = value else { continue };
+            let mut path = PathBuf::from(value);
+            if path.is_relative() {
+                if let Ok(cwd) = std::fs::read_link(dir.join("cwd")) {
+                    path = cwd.join(path);
+                }
+            }
+            if path.is_file() {
+                return (true, Some(path));
+            }
+        }
+    }
+    (found, None)
 }
 
 /// Box-downsample to `edge` on the longest side, averaging in LINEAR LIGHT.

@@ -64,7 +64,8 @@ coat apply
 # Apply to a single app
 coat apply foot
 
-# Build a scheme from the wallpaper that is on screen right now (awww or swww),
+# Build a scheme from the wallpaper that is on screen right now (awww, swww or
+# swaybg),
 # write it into the schemes directory, and apply it
 coat match
 coat match ~/walls/whatever.png   # or a specific image
