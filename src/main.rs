@@ -16,7 +16,7 @@ use anyhow::{Context, Result};
 use config::CoatConfig;
 use console::style;
 use indicatif::{ProgressBar, ProgressStyle};
-use modules::{apply_module, make_tera, module_docs, module_aliases, ALL_MODULES};
+use modules::{apply_module, make_tera, module_docs, module_aliases, ALL_MODULES, MODULE_ALIASES};
 use scheme::{
     find_scheme, list_schemes, pick_random_scheme, print_color_preview, schemes_clone,
     schemes_exists, schemes_update, Scheme,
@@ -106,7 +106,7 @@ fn print_usage(prog: &str) {
     println!("  {} match --slots     Keep base16 slot meanings: red is red, green is green", prog);
     println!("  {} match --dry       Generate and preview it, apply nothing", prog);
     println!("  {} apply             Apply current scheme to all enabled apps", prog);
-    println!("  {} apply foot        Apply current scheme only to foot", prog);
+    println!("  {} apply kitty       Apply current scheme only to kitty", prog);
     println!("  {} list --dark       List dark schemes", prog);
 }
 
@@ -664,6 +664,12 @@ fn cmd_complete(args: &[String]) -> Result<()> {
         Some("modules") => {
             for m in ALL_MODULES {
                 println!("{}", m);
+            }
+        }
+        // `alias<TAB>module`: fish reads the tab as "candidate, description".
+        Some("aliases") => {
+            for (alias, module) in MODULE_ALIASES {
+                println!("{}\t{}", alias, module);
             }
         }
         _ => {}

@@ -62,7 +62,7 @@ coat random --dry       # preview a random pick without applying
 coat apply
 
 # Apply to a single app
-coat apply foot
+coat apply kitty
 
 # Build a scheme from the wallpaper that is on screen right now (awww, swww or
 # swaybg),
@@ -76,9 +76,9 @@ coat match --dry                  # generate and preview, apply nothing
 
 # Undo one app: delete the files coat generated for it, strip the include line
 # it added to your own config, and drop it from the enabled list
-coat remove foot
-coat remove foot --dry            # show what that would do
-coat remove foot --keep-enabled   # clean up but leave it enabled
+coat remove kitty
+coat remove kitty --dry            # show what that would do
+coat remove kitty --keep-enabled   # clean up but leave it enabled
 ```
 
 ### How `coat match` picks colours
@@ -160,10 +160,9 @@ prefer_base24: false
 
 enabled:
   - fish
-  - neovim
-  - sway
-  - swaybar
-  - tofi
+  - kitty
+  - mango
+  - fuzzel
   - dunst
   - gtk
   - vesktop
@@ -204,27 +203,23 @@ your current terminal. Already running elevated? No flag needed.
 
 coat writes **colours and fonts. Nothing else.** Where an app has an include
 mechanism, coat writes a fragment beside your config and adds one include line;
-where it does not, coat patches only its own keys into your file and leaves every
-other line alone. Your geometry, timeouts, keybindings and behaviour stay yours
+where it does not, coat writes a file of its own (a btop theme, a bat theme) and
+never touches yours. VS Code is the one exception: its colour keys are merged into
+`settings.json`, next to your own settings. Your geometry, timeouts, keybindings and behaviour stay yours
 across a theme change.
 
 | Category | Modules |
 |---|---|
-| Terminals | kitty, foot |
+| Terminal | kitty |
 | Shell | fish |
-| Editors | neovim, vscode |
-| WM / Compositors | mango, hyprland, sway |
-| Bars | waybar, swaybar |
+| Editors | micro, vscode |
+| Compositor | mango |
 | Screen locker | swaylock |
-| Launchers | fuzzel, tofi |
-| Notifications | fnott, dunst |
+| Launcher | fuzzel |
+| Notifications | dunst |
 | System | gtk, xresources |
-| Utilities | bat, btop, zathura, mpv |
-| Browsers | firefox (chrome + content) |
-| Other | vesktop |
-
-The one exception is `swaybar`: sway's parser rejects `include` inside a
-`bar { }` block, so coat has to emit the whole block. See [USAGE.md](USAGE.md).
+| Utilities | bat, btop, lsd, fastfetch, zathura, imv, mpv, satty, conky |
+| Other | vesktop, prismlauncher |
 
 See [USAGE.md](USAGE.md) for per-application activation steps, or run `coat docs <app>`.
 

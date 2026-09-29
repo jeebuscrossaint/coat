@@ -1,6 +1,5 @@
 use anyhow::{bail, Context, Result};
 use serde_json::Value as JsonValue;
-use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -39,38 +38,23 @@ macro_rules! tpl {
 static TEMPLATES: &[(&str, &str)] = &[
     tpl!("bat",       "bat.tera"),
     tpl!("btop",      "btop.tera"),
-    tpl!("cava",      "cava.tera"),
     tpl!("dunst",     "dunst.tera"),
-    tpl!("firefox",   "firefox.tera"),
-    tpl!("firefox_content", "firefox_content.tera"),
     tpl!("conky",     "conky.tera"),
     tpl!("fastfetch", "fastfetch.tera"),
     tpl!("fish",      "fish.tera"),
-    tpl!("fnott",     "fnott.tera"),
     tpl!("fuzzel",    "fuzzel.tera"),
-    tpl!("foot",      "foot.tera"),
     tpl!("gtk",       "gtk.tera"),
-    tpl!("hyprland",  "hyprland.tera"),
-    tpl!("hyprland_lua", "hyprland_lua.tera"),
     tpl!("imv",       "imv.tera"),
     tpl!("kitty",     "kitty.tera"),
     tpl!("micro",     "micro.tera"),
     tpl!("lsd",       "lsd.tera"),
     tpl!("mango",     "mango.tera"),
     tpl!("mpv",       "mpv.tera"),
-    tpl!("msteams",   "msteams.tera"),
-    tpl!("neovim",    "neovim.tera"),
     tpl!("prismlauncher", "prismlauncher.tera"),
     tpl!("satty",     "satty.tera"),
-    tpl!("sway",      "sway.tera"),
     tpl!("swaylock",  "swaylock.tera"),
-    tpl!("quickshell","quickshell.tera"),
-    tpl!("swaybar",   "swaybar.tera"),
-    tpl!("tofi",      "tofi.tera"),
     tpl!("vesktop",   "vesktop.tera"),
-    tpl!("waybar",    "waybar.tera"),
     tpl!("xresources","xresources.tera"),
-    tpl!("yazi",      "yazi.tera"),
     tpl!("zathura",   "zathura.tera"),
 ];
 
@@ -270,8 +254,12 @@ fn render_to(tera: &Tera, name: &str, ctx: &tera::Context, dest: &Path) -> Resul
     let content = tera
         .render(name, ctx)
         .with_context(|| format!("Failed to render template '{}'", name))?;
-    fs::write(dest, &content)
-        .with_context(|| format!("Failed to write {}", dest.display()))?;
+    // Leave an identical file alone: rewriting it bumps the mtime, which file
+    // watchers (conky's self-reload, for one) treat as a change.
+    if fs::read(dest).ok().as_deref() != Some(content.as_bytes()) {
+        fs::write(dest, &content)
+            .with_context(|| format!("Failed to write {}", dest.display()))?;
+    }
     crate::manifest::record_write(dest);
     detail!("  ✓ {}", dest.display());
     Ok(())
@@ -283,7 +271,7 @@ fn render_to(tera: &Tera, name: &str, ctx: &tera::Context, dest: &Path) -> Resul
 /// coat's job stops at colours/fonts/sizes/opacity: it writes a fragment to a
 /// `coat-*` filename and never owns the app's primary config. This single
 /// include line is the seam between the two. It is written once, at the top of
-/// the file — top, because every app whose include we use here (tofi, zathura,
+/// the file — top, because every app whose include we use here (kitty, zathura,
 /// GTK's CSS `@import`) applies it at the point it appears, so anything the user
 /// writes below wins. Already present → nothing happens, so `coat apply` stays
 /// safe to re-run.
@@ -346,25 +334,22 @@ fn run(cmd: &str) {
 // ── Module dispatch ────────────────────────────────────────────────────────
 
 pub const ALL_MODULES: &[&str] = &[
-    "bat", "btop", "cava", "conky", "dunst", "fastfetch", "firefox", "fish", "fnott",
-    "foot", "gtk", "fuzzel", "hyprland", "imv", "kitty", "lsd", "mango",
-    "micro", "msteams", "prismlauncher", "quickshell", "satty", "swaylock", "waybar", "mpv",
-    "neovim",
-    "sway", "swaybar", "tofi", "vesktop", "vscode", "webapps", "xresources", "yazi",
-    "zathura",
+    "bat", "btop", "conky", "dunst", "fastfetch", "fish", "fuzzel", "gtk", "imv", "kitty",
+    "lsd", "mango", "micro", "mpv", "prismlauncher", "satty", "swaylock", "vesktop",
+    "vscode", "xresources", "zathura",
+];
+
+/// (alias, module) — other names a module answers to. A table rather than a
+/// match so shell completion can list them.
+pub const MODULE_ALIASES: &[(&str, &str)] = &[
+    ("discord", "vesktop"),
+    ("vencord", "vesktop"),
+    ("prism", "prismlauncher"),
+    ("prism-launcher", "prismlauncher"),
 ];
 
 pub fn module_aliases(name: &str) -> Option<&'static str> {
-    match name {
-        "vencord" | "discord" => Some("vesktop"),
-        "nvim" | "vim" => Some("neovim"),
-        "bar" | "swaybar-colors" => Some("swaybar"),
-        "hypr" => Some("hyprland"),
-        "qs" | "shell" => Some("quickshell"),
-        "teams" | "outlook" | "teams-for-linux" | "outlook-for-linux" => Some("msteams"),
-        "prism" | "prism-launcher" => Some("prismlauncher"),
-        _ => None,
-    }
+    MODULE_ALIASES.iter().find(|(alias, _)| *alias == name).map(|(_, module)| *module)
 }
 
 pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Tera) -> Result<()> {
@@ -395,35 +380,21 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
     let result = match name {
         "bat"        => apply_bat(tera, &ctx, scheme, config),
         "btop"       => apply_btop(tera, &ctx, scheme, config),
-        "cava"       => apply_cava(tera, &ctx, scheme, config),
         "fastfetch"  => apply_fastfetch(tera, &ctx, scheme, config),
         "imv"        => apply_imv(tera, &ctx, scheme, config),
         "lsd"        => apply_lsd(tera, &ctx, scheme, config),
-        "msteams"    => apply_msteams(tera, &ctx, scheme, config),
         "prismlauncher" => apply_prismlauncher(tera, &ctx, scheme, config),
         "satty"      => apply_satty(tera, &ctx, scheme, config),
-        "yazi"       => apply_yazi(tera, &ctx, scheme, config),
         "dunst"      => apply_dunst(tera, &ctx, scheme, config),
-        "firefox"    => apply_firefox(tera, &ctx, scheme, config),
         "fish"       => apply_fish(tera, &ctx, scheme, config),
-        "foot"       => apply_foot(tera, &ctx, scheme, config),
         "gtk"        => apply_gtk(tera, &ctx, scheme, config),
-        "hyprland"   => apply_hyprland(tera, &ctx, scheme, config),
         "kitty"      => apply_kitty(tera, &ctx, scheme, config),
         "conky"      => apply_conky(tera, &ctx, scheme, config),
         "micro"      => apply_micro(tera, &ctx, scheme, config),
         "mango"      => apply_mango(tera, &ctx, scheme, config),
-        "fnott"      => apply_fnott(tera, &ctx, scheme, config),
         "fuzzel"     => apply_fuzzel(tera, &ctx, scheme, config),
         "swaylock"   => apply_swaylock(tera, &ctx, scheme, config),
-        "webapps"    => apply_webapps(tera, &ctx, scheme, config),
-        "quickshell" => apply_quickshell(tera, &ctx, scheme, config),
-        "waybar"     => apply_waybar(tera, &ctx, scheme, config),
         "mpv"        => apply_mpv(tera, &ctx, scheme, config),
-        "neovim"     => apply_neovim(tera, &ctx, scheme, config),
-        "sway"       => apply_sway(tera, &ctx, scheme, config),
-        "swaybar"    => apply_swaybar(tera, &ctx, scheme, config),
-        "tofi"       => apply_tofi(tera, &ctx, scheme, config),
         "vesktop"    => apply_vesktop(tera, &ctx, scheme, config),
         "vscode"     => apply_vscode(scheme, config),
         "xresources" => apply_xresources(tera, &ctx, scheme, config),
@@ -482,33 +453,6 @@ pub fn remove_module(name: &str, dry: bool) -> Result<Vec<String>> {
                 .with_context(|| format!("Failed to rewrite {}", config.display()))?;
         }
         done.push(format!("un-included  {}", config.display()));
-    }
-
-    for (file, keys) in &entry.ini_keys {
-        let Ok(text) = fs::read_to_string(file) else {
-            continue;
-        };
-        let kept: Vec<&str> = text
-            .lines()
-            .filter(|l| {
-                let Some((k, _)) = l.split_once('=') else {
-                    return true;
-                };
-                !keys.iter().any(|key| key == k.trim())
-            })
-            .collect();
-        let out = format!("{}\n", kept.join("\n"));
-        if out == text {
-            continue;
-        }
-        if !dry {
-            fs::write(file, &out).with_context(|| format!("Failed to rewrite {}", file.display()))?;
-        }
-        done.push(format!(
-            "dropped {} key(s) from  {}",
-            keys.len(),
-            file.display()
-        ));
     }
 
     if !dry {
@@ -611,12 +555,6 @@ fn apply_fish(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) ->
     render_to(tera, "fish", ctx, &dest)
 }
 
-fn apply_foot(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    let dest = home.join(".config/foot/coat-theme.ini");
-    render_to(tera, "foot", ctx, &dest)
-}
-
 fn apply_gtk(tera: &Tera, ctx: &tera::Context, scheme: &Scheme, config: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
     // Same fragment for gtk-3.0 and gtk-4.0, each pulled in by that version's
@@ -675,270 +613,15 @@ fn apply_kitty(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -
     // talking to /tmp/kitty always failed -- this path never once ran, and every
     // apply silently took the SIGUSR1 fallback. Stale sockets from dead instances
     // are left behind too, so a failure on one must not stop the others.
-    let live = format!(
+    //
+    // The fallback lives in the same backgrounded script: each socket round-trip
+    // costs ~50ms, and waiting on them held up every `coat set`.
+    run(&format!(
         "ok=1; for s in /tmp/kitty /tmp/kitty-*; do [ -S \"$s\" ] || continue; \
          kitty @ --to \"unix:$s\" set-colors --all --configured {} 2>/dev/null && ok=0; \
-         done; exit $ok",
+         done; [ $ok = 0 ] || pkill -SIGUSR1 -x kitty 2>/dev/null; true",
         dest.to_string_lossy()
-    );
-    let ok = Command::new("sh")
-        .args(["-c", &live])
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false);
-    if !ok {
-        run("pkill -SIGUSR1 -x kitty 2>/dev/null; true");
-    }
-    Ok(())
-}
-
-fn apply_hyprland(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    let dest = home.join(".config/hypr/coat-theme.conf");
-    render_to(tera, "hyprland", ctx, &dest)?;
-    // Live-reload a running Hyprland session (best-effort, silenced). Nothing to
-    // talk to when Hyprland is not the running compositor, which is the normal
-    // case here -- the file is still written so the session is themed when it
-    // does come up.
-    // Also emit the Lua form, for a hyprland.lua config. A .conf config ignores
-    // it and a .lua config ignores coat-theme.conf, so writing both means the
-    // theme survives switching between them.
-    render_to(tera, "hyprland_lua", ctx, &home.join(".config/hypr/coat-colors.lua"))?;
-
-    run("hyprctl reload 2>/dev/null");
-    Ok(())
-
-}
-
-/// Parse a rendered edit-list template into (section, key, value) triples.
-///
-/// The format is one `<section> <key> <value>` per line, with blank lines and `#`
-/// comments ignored. Used by the modules whose target config has no include directive
-/// but is still hand-maintained, so coat must patch keys rather than write a file.
-///
-/// split_whitespace, NOT splitn(3, char::is_whitespace): the templates align their
-/// columns with runs of spaces, and splitn treats every single space as a separator --
-/// which yielded an empty key and a value of "active_color    \#2E2E2Eff", and appended
-/// lines like `= background_color` to the user's config.
-fn parse_ini_edits(rendered: &str) -> Vec<(String, String, String)> {
-    let mut edits = Vec::new();
-    for line in rendered.lines() {
-        let line = line.trim();
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-        let mut parts = line.split_whitespace();
-        match (parts.next(), parts.next()) {
-            (Some(section), Some(key)) => {
-                let value = parts.collect::<Vec<_>>().join(" ");
-                if value.is_empty() {
-                    detail!("  warning: edit has no value: {}", line);
-                } else {
-                    edits.push((section.to_string(), key.to_string(), value));
-                }
-            }
-            _ => detail!("  warning: unparseable edit: {}", line),
-        }
-    }
-    edits
-}
-
-/// Set `key = value` inside `[section]` of an INI file, preserving everything else.
-///
-/// Written for configs with no include mechanism that are hand-maintained (fuzzel,
-/// generated whole-file rewrite is not an option -- comments, keybinds and plugin lists
-/// all have to survive. Rules:
-///
-///   * an existing key in the right section is rewritten in place, keeping its indent
-///   * a key missing from an existing section is appended to the end of that section
-///   * a section that does not exist is SKIPPED, not created: a section for
-///     a plugin that is not in core/plugins does nothing, so inventing one would write
-///     dead config and hide the fact that the plugin is off
-///
-/// Line continuations (`plugins = a \` + more) are safe: only lines whose first token
-/// before `=` matches a wanted key are touched, and continuation lines have no `=`.
-/// The section name standing for a file's top-level, sectionless region -- the
-/// part before the first `[header]`. swaylock's config has no sections at all and
-/// is entirely this; fnott's [main] is preceded by none. An edit list addresses it
-/// as `_`, which is not a legal INI section name, so it cannot collide with a real
-/// one.
-const INI_TOP: &str = "_";
-
-/// Apply an edit-list template to an INI-shaped config.
-///
-/// This is the shape every module that owns no include mechanism should use.
-/// coat writes ONLY the keys in the edit list -- colours and fonts -- and leaves
-/// every other line in the file alone, so geometry, timeouts and behaviour stay
-/// the user's. Previously these templates were whole config files, which meant a
-/// theme change silently reverted anything the user had tuned.
-///
-/// If the file does not exist there is nothing to patch, so one is synthesised
-/// from the edit list. That file is still colours and fonts only: the app's own
-/// defaults supply the rest, which is a better starting point than coat inventing
-/// a layout on the user's behalf.
-fn apply_ini_edits(
-    tera: &Tera,
-    ctx: &tera::Context,
-    name: &str,
-    dest: &Path,
-) -> Result<()> {
-    let rendered = tera
-        .render(name, ctx)
-        .with_context(|| format!("Failed to render template '{}'", name))?;
-    let edits = parse_ini_edits(&rendered);
-    crate::manifest::record_ini_keys(
-        dest,
-        &edits.iter().map(|(_, k, _)| k.clone()).collect::<Vec<_>>(),
-    );
-
-    if dest.exists() {
-        patch_ini_in_place(dest, &edits)?;
-    } else {
-        if let Some(parent) = dest.parent() {
-            fs::create_dir_all(parent)
-                .with_context(|| format!("Failed to create {}", parent.display()))?;
-        }
-        let mut text = String::new();
-        let mut current = String::new();
-        for (section, key, value) in &edits {
-            if section != &current {
-                if section != INI_TOP {
-                    if !text.is_empty() {
-                        text.push('\n');
-                    }
-                    text.push_str(&format!("[{}]\n", section));
-                }
-                current = section.clone();
-            }
-            text.push_str(&format!("{}={}\n", key, value));
-        }
-        fs::write(dest, text)
-            .with_context(|| format!("Failed to write {}", dest.display()))?;
-    }
-    detail!("  ✓ {}", dest.display());
-    Ok(())
-}
-
-fn patch_ini_in_place(path: &Path, edits: &[(String, String, String)]) -> Result<()> {
-    let original = fs::read_to_string(path)
-        .with_context(|| format!("Failed to read {}", path.display()))?;
-
-    // Appended keys get the file's own spacing, not a hardcoded `key = value`.
-    // The rewrite path below already preserves each line's convention; appending
-    // was the hole in that, and swaylock is where it showed: its parser hands
-    // everything after the '=' to getopt_long WITHOUT trimming, so an appended
-    // `ring-caps-lock-color = 135879` arrives as the literal unrecognized option
-    // "--ring-caps-lock-color = 135879" and is discarded. Every key coat had ever
-    // appended to that file was dead on arrival, silently.
-    let padded = original
-        .lines()
-        .map(str::trim_start)
-        .filter(|l| !l.starts_with('#') && !l.starts_with(';') && !l.starts_with('['))
-        .find_map(|l| l.find('=').map(|eq| l[eq + 1..].starts_with(' ')))
-        .unwrap_or(true);
-    let sep = if padded { " = " } else { "=" };
-
-    let mut out: Vec<String> = Vec::new();
-    let mut section = INI_TOP.to_string();
-    let mut done: Vec<(String, String)> = Vec::new();
-    // Index just past the last real `key = value` seen in the current section. Appended
-    // keys go THERE rather than at the section boundary: a section's last lines are
-    // usually the comment block introducing the NEXT section, so appending at the
-    // boundary put `background = ...` directly above `[idle]`, reading as if it belonged
-    // to idle. Correct as INI, confusing as a file someone has to maintain.
-    let mut insert_at: Option<usize> = None;
-
-    // Keys wanted for `sec` that have not been written yet.
-    let pending = |sec: &str, done: &Vec<(String, String)>| -> Vec<(String, String)> {
-        edits
-            .iter()
-            .filter(|(s, k, _)| {
-                s == sec && !done.iter().any(|(ds, dk)| ds == s && dk == k)
-            })
-            .map(|(_, k, v)| (k.clone(), v.clone()))
-            .collect()
-    };
-
-    for line in original.lines() {
-        let trimmed = line.trim();
-
-        // Entering a new section: first finish the one we are leaving.
-        if trimmed.starts_with('[') && trimmed.ends_with(']') {
-            {
-                let at = insert_at.unwrap_or(out.len());
-                let mut offset = 0;
-                for (k, v) in pending(&section, &done) {
-                    out.insert(at + offset, format!("{}{}{}", k, sep, v));
-                    offset += 1;
-                    done.push((section.clone(), k));
-                }
-            }
-            insert_at = None;
-            // Strip `output:eDP-1` down to `output`? No -- match the literal section
-            // name, so a theme edit cannot leak across outputs by accident.
-            section = trimmed[1..trimmed.len() - 1].to_string();
-            out.push(line.to_string());
-            continue;
-        }
-
-        // A `key = value` line in the current section that we want to change.
-        if let Some(eq) = line.find('=') {
-            let key = line[..eq].trim();
-            if let Some((_, _, value)) =
-                edits.iter().find(|(s, k, _)| *s == section && k == key)
-            {
-                // Preserve the file's own spacing convention instead of imposing
-                // `key = value`. fnott.ini writes `key = value`; fuzzel.ini writes
-                // `key=value`, and a tool that "fixes" that on every theme change
-                // produces a diff in the user's config for no reason. Everything up to
-                // and including the '=' is kept verbatim, and a space is re-added after
-                // it only if the original had one.
-                let sep = if line[eq + 1..].starts_with(' ') { " " } else { "" };
-                out.push(format!("{}={}{}", &line[..eq], sep, value));
-                done.push((section.clone(), key.to_string()));
-                insert_at = Some(out.len());
-                continue;
-            }
-        }
-
-        // Any other `key = value` line still marks where this section's content ends.
-        if !trimmed.starts_with('#') && !trimmed.is_empty() && line.contains('=') {
-            out.push(line.to_string());
-            insert_at = Some(out.len());
-            continue;
-        }
-
-        out.push(line.to_string());
-    }
-
-    // End of file: finish the last section.
-    {
-        let at = insert_at.unwrap_or(out.len());
-        let mut offset = 0;
-        for (k, v) in pending(&section, &done) {
-            out.insert(at + offset, format!("{}{}{}", k, sep, v));
-            offset += 1;
-            done.push((section.clone(), k));
-        }
-    }
-
-    for (s, k, _) in edits {
-        if !done.iter().any(|(ds, dk)| ds == s && dk == k) {
-            detail!("  - [{}] {} (no such section, skipped)", s, k);
-        }
-    }
-
-    let mut text = out.join("\n");
-    if original.ends_with('\n') {
-        text.push('\n');
-    }
-    if text != original {
-        fs::write(path, text)
-            .with_context(|| format!("Failed to write {}", path.display()))?;
-    }
+    ));
     Ok(())
 }
 
@@ -969,194 +652,6 @@ fn apply_mpv(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> 
         &format!("include={}", dir.join("coat-theme.conf").display()),
         ("#", ""),
     )
-}
-
-fn apply_neovim(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    // Write a standard colorscheme onto Neovim's default runtimepath
-    // ($XDG_DATA_HOME/nvim/site is always on 'rtp'), so any config can do
-    // `:colorscheme coat` regardless of where its own files live.
-    let data = std::env::var_os("XDG_DATA_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| home.join(".local/share"));
-    let dest = data.join("nvim/site/colors/coat.lua");
-    render_to(tera, "neovim", ctx, &dest)?;
-    detail!("    Set in your Neovim config: vim.cmd.colorscheme(\"coat\")");
-
-    // Recolour every running Neovim. `:colorscheme coat` re-sources the file we
-    // just wrote, so an open editor follows the scheme without restarting.
-    //
-    // --remote-expr, NOT --remote-send: keystrokes would be typed into the
-    // buffer of an instance sitting in insert mode. An expression evaluates
-    // whatever the mode.
-    //
-    // Guarded on g:colors_name so an instance where a different scheme was
-    // chosen by hand keeps it -- coat should follow that choice, not overrule it.
-    run(concat!(
-        r#"d="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"; "#,
-        r#"for s in "$d"/nvim.*; do [ -S "$s" ] || continue; "#,
-        r#"nvim --server "$s" --remote-expr "#,
-        r#""exists('g:colors_name') && g:colors_name ==# 'coat' ? execute('colorscheme coat') : ''" "#,
-        r#">/dev/null 2>&1; done; true"#,
-    ));
-    Ok(())
-}
-
-/// All default profile directories coat should theme.
-///
-/// A machine can have several Firefox installs (stable, Developer Edition,
-/// Nightly), each pinned to its own profile via an `[Install*] Default=` entry
-/// in profiles.ini. We theme *every* such profile so whichever Firefox you open
-/// picks up the current scheme. Falls back to the `Default=1` profile, then the
-/// first profile, when no `[Install*]` sections exist.
-fn firefox_profile_dirs() -> Vec<PathBuf> {
-    let Some(home) = dirs::home_dir() else {
-        return Vec::new();
-    };
-    // Linux: XDG path first, then legacy ~/.mozilla.
-    let mut candidates = vec![
-        home.join(".config/mozilla/firefox/profiles.ini"),
-        home.join(".mozilla/firefox/profiles.ini"),
-    ];
-    // Windows: Firefox stores profiles under %APPDATA%\Mozilla\Firefox.
-    if let Ok(appdata) = std::env::var("APPDATA") {
-        candidates.push(PathBuf::from(appdata).join(r"Mozilla\Firefox\profiles.ini"));
-    }
-    let Some(ini_path) = candidates.into_iter().find(|p| p.exists()) else {
-        return Vec::new();
-    };
-    let Ok(content) = fs::read_to_string(&ini_path) else {
-        return Vec::new();
-    };
-
-    // Parse all sections into (name, key→value) pairs
-    let mut sections: Vec<(String, HashMap<String, String>)> = Vec::new();
-    let mut cur_name = String::new();
-    let mut cur_map: HashMap<String, String> = HashMap::new();
-
-    for line in content.lines() {
-        let line = line.trim();
-        if line.starts_with('[') && line.ends_with(']') {
-            if !cur_name.is_empty() {
-                sections.push((cur_name.clone(), cur_map.clone()));
-                cur_map.clear();
-            }
-            cur_name = line[1..line.len() - 1].to_string();
-        } else if let Some((k, v)) = line.split_once('=') {
-            cur_map.insert(k.trim().to_string(), v.trim().to_string());
-        }
-    }
-    if !cur_name.is_empty() {
-        sections.push((cur_name, cur_map));
-    }
-
-    // Resolve a profile path relative to profiles.ini (or absolute as-is).
-    let resolve = |path: &str, relative: bool| -> Option<PathBuf> {
-        if relative {
-            ini_path.parent().map(|d| d.join(path))
-        } else {
-            Some(PathBuf::from(path))
-        }
-    };
-
-    // Prefer every [Install*] Default= — one per installed Firefox edition.
-    // Install paths are always relative to profiles.ini.
-    let mut dirs: Vec<PathBuf> = Vec::new();
-    for (sec, map) in &sections {
-        if sec.starts_with("Install") {
-            if let Some(p) = map.get("Default") {
-                if let Some(dir) = resolve(p, true) {
-                    if !dirs.contains(&dir) {
-                        dirs.push(dir);
-                    }
-                }
-            }
-        }
-    }
-    if !dirs.is_empty() {
-        return dirs;
-    }
-
-    // Fall back to [Profile*] with Default=1
-    for (sec, map) in &sections {
-        if sec.starts_with("Profile") && map.get("Default").map(|s| s == "1").unwrap_or(false) {
-            if let Some(p) = map.get("Path") {
-                let rel = map.get("IsRelative").map(|s| s == "1").unwrap_or(true);
-                if let Some(dir) = resolve(p, rel) {
-                    return vec![dir];
-                }
-            }
-        }
-    }
-    // Fall back to first profile
-    for (sec, map) in &sections {
-        if sec.starts_with("Profile") {
-            if let Some(p) = map.get("Path") {
-                let rel = map.get("IsRelative").map(|s| s == "1").unwrap_or(true);
-                if let Some(dir) = resolve(p, rel) {
-                    return vec![dir];
-                }
-            }
-        }
-    }
-
-    Vec::new()
-}
-
-fn apply_firefox(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let profiles = firefox_profile_dirs();
-    if profiles.is_empty() {
-        bail!("Firefox profile not found — is Firefox installed?");
-    }
-
-    // Theme every default profile (stable, Developer Edition, Nightly, …) so
-    // whichever Firefox you launch shows the current scheme.
-    for profile in &profiles {
-        // Write userChrome.css (browser UI) and userContent.css (about:/new-tab)
-        let chrome_dir = profile.join("chrome");
-        ensure_dir(&chrome_dir)?;
-        render_to(tera, "firefox", ctx, &chrome_dir.join("userChrome.css"))?;
-        render_to(tera, "firefox_content", ctx, &chrome_dir.join("userContent.css"))?;
-
-        // Ensure toolkit.legacyUserProfileCustomizations.stylesheets is enabled
-        let user_js = profile.join("user.js");
-        let existing = if user_js.exists() {
-            fs::read_to_string(&user_js).unwrap_or_default()
-        } else {
-            String::new()
-        };
-        let pref = "toolkit.legacyUserProfileCustomizations.stylesheets";
-        if !existing.contains(pref) {
-            let appended = format!(
-                "{}user_pref(\"{}\", true);\n",
-                if existing.ends_with('\n') || existing.is_empty() { existing } else { existing + "\n" },
-                pref
-            );
-            fs::write(&user_js, appended)
-                .with_context(|| format!("Failed to write {}", user_js.display()))?;
-            detail!("  ✓ {}", user_js.display());
-        }
-    }
-
-    detail!("    Restart Firefox for changes to take effect.");
-    Ok(())
-}
-
-fn apply_sway(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    let dest = home.join(".config/sway/coat-theme");
-    render_to(tera, "sway", ctx, &dest)
-}
-
-fn apply_swaybar(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    let dest = home.join(".config/sway/coat-bar");
-    render_to(tera, "swaybar", ctx, &dest)?;
-    // swaybar re-reads its config only when sway reloads, and a reload is the
-    // only way to pick up the `sway` module's client.* colors too — so this is
-    // where a running sway session gets repainted (best-effort, silenced).
-    run("swaymsg reload 2>/dev/null");
-    Ok(())
 }
 
 fn apply_conky(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
@@ -1209,127 +704,6 @@ fn apply_mango(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -
     Ok(())
 }
 
-fn apply_fnott(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    // Colours and fonts only, patched in place. fnott has no include mechanism,
-    // so coat used to own this whole file -- which meant every theme change reset
-    // the margins, timeouts, anchor and stacking order to coat's opinion of them.
-    apply_ini_edits(tera, ctx, "fnott", &home.join(".config/fnott/fnott.ini"))?;
-
-    // fnott has NO reload: fnottctl only does dismiss/actions/list/pause/quit,
-    // and SIGHUP kills it outright (tested). So it has to be restarted, and the
-    // restart has to happen here -- nothing else supervises it, since mango
-    // starts it from exec-once, which by design does not re-run on a reload.
-    //
-    // Doing it in one `sh -c` so the respawn cannot be orphaned if the kill
-    // succeeds and coat exits immediately afterwards; setsid detaches it from
-    // coat's process group so it outlives this command.
-    // Blocks until fnott owns the notification bus name again, and that wait is
-    // the point. coat used to fire-and-forget the respawn and return immediately,
-    // so `coat set` finished with fnott DEAD and org.freedesktop.Notifications
-    // unowned -- measured at 63ms for the whole apply, with no daemon at the end
-    // of it. Anything that themed and then notified (theme-pick, theme-random)
-    // sent its notification into a void and it was simply dropped. It looked like
-    // fnott being slow; it was fnott not being there.
-    //
-    // The bus name, not just the process: fnott is running for a few ms before it
-    // owns the name, and a notification in that window is lost the same way.
-    // busctl is elogind/systemd-provided, so there is a plain sleep as a fallback.
-    // ~36ms in practice, which is under a frame at 30Hz -- not perceptible.
-    run("pgrep -x fnott >/dev/null 2>&1 || exit 0; \
-         pkill -x fnott; \
-         i=0; while pgrep -x fnott >/dev/null 2>&1 && [ $i -lt 20 ]; do \
-           sleep 0.05; i=$((i+1)); done; \
-         setsid fnott >/dev/null 2>&1 & \
-         if command -v busctl >/dev/null 2>&1; then \
-           i=0; while ! busctl --user status org.freedesktop.Notifications >/dev/null 2>&1 \
-                 && [ $i -lt 100 ]; do sleep 0.02; i=$((i+1)); done; \
-         else sleep 0.2; fi");
-    Ok(())
-}
-
-/// Wires up the coat-webapps browser extension: the native-messaging manifests,
-/// and the xpi Firefox installs.
-///
-/// These used to be checked into the dotfiles repo, which cannot work on a second
-/// machine: a native-messaging manifest holds an ABSOLUTE path to the host
-/// program, so a tracked copy is correct on exactly the machine whose home
-/// directory was baked into it. Firefox does not warn -- it silently fails to
-/// spawn the host, the extension installs and enables, and nothing themes.
-///
-/// Generating them here also removes the stow trap the README had to warn about.
-/// Nothing needs to be symlinked into ~/.mozilla any more, so stow cannot fold it
-/// and Firefox cannot end up building its profile inside the git tree.
-///
-/// BOTH locations are written on purpose. Firefox 155 uses XDG paths and reads
-/// ~/.config/mozilla/native-messaging-hosts; older builds read ~/.mozilla. An
-/// unused manifest is inert, and guessing wrong is a silent failure.
-fn apply_webapps(_tera: &Tera, _ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    let host = home.join(".local/bin/coat-webapp-host");
-    let share = home.join(".local/share/coat-webapps");
-
-    if !share.is_dir() {
-        detail!("  · webapps: {} is not there, skipping", share.display());
-        return Ok(());
-    }
-
-    let manifest = format!(
-        "{{\n  \"name\": \"com.coat.webapp_theme\",\n  \
-         \"description\": \"coat scheme reader for the web-app theme extension\",\n  \
-         \"path\": \"{}\",\n  \"type\": \"stdio\",\n  \
-         \"allowed_extensions\": [\"coat-webapps@amarnath\"]\n}}\n",
-        host.display()
-    );
-
-    for root in [home.join(".mozilla"), home.join(".config/mozilla")] {
-        let dir = root.join("native-messaging-hosts");
-        fs::create_dir_all(&dir)?;
-        let path = dir.join("com.coat.webapp_theme.json");
-        fs::write(&path, &manifest)?;
-        detail!("  ✓ {}", path.display());
-    }
-
-    // Chromium keys the same host by extension ORIGIN rather than id, and the id
-    // is pinned by the `key` in the extension manifest so it does not move.
-    let chromium = format!(
-        "{{\n  \"name\": \"com.coat.webapp_theme\",\n  \
-         \"description\": \"coat scheme reader for the web-app theme extension\",\n  \
-         \"path\": \"{}\",\n  \"type\": \"stdio\",\n  \
-         \"allowed_origins\": [\"chrome-extension://miifgcafnndcmaijinhnahgejmaplegb/\"]\n}}\n",
-        host.display()
-    );
-    for dir in [
-        home.join(".config/chromium/NativeMessagingHosts"),
-        home.join(".config/google-chrome/NativeMessagingHosts"),
-    ] {
-        if dir.parent().map(|p| p.is_dir()).unwrap_or(false) {
-            fs::create_dir_all(&dir)?;
-            let path = dir.join("com.coat.webapp_theme.json");
-            fs::write(&path, &chromium)?;
-            detail!("  ✓ {}", path.display());
-        }
-    }
-
-    if !host.exists() {
-        detail!("  ! {} is missing — the manifests point at nothing", host.display());
-    }
-
-    // The xpi is a build artifact, so a fresh machine has the extension source
-    // without the package Firefox can install. Build it here rather than leaving
-    // it as a step to remember.
-    let build = share.join("build-xpi.py");
-    if build.is_file() {
-        match std::process::Command::new(&build).output() {
-            Ok(o) if o.status.success() => detail!("  ✓ {}", share.join("coat-webapps.xpi").display()),
-            Ok(o) => detail!("  ! build-xpi.py failed: {}", String::from_utf8_lossy(&o.stderr).trim()),
-            Err(e) => detail!("  ! could not run build-xpi.py: {e}"),
-        }
-    }
-
-    Ok(())
-}
-
 fn apply_swaylock(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
     // A FRAGMENT beside the config, never the config itself.
@@ -1351,77 +725,13 @@ fn apply_swaylock(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig
     render_to(tera, "swaylock", ctx, &home.join(".config/swaylock/coat-theme.conf"))
 }
 
-fn apply_quickshell(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    render_to(
-        tera,
-        "quickshell",
-        ctx,
-        &home.join(".config/quickshell/coat.json"),
-    )
-    // No reload, and that is the point of shipping JSON instead of a QML
-    // singleton: the shell's Colours singleton watches this path with a
-    // FileView, so the repaint happens on the write. Every other module here
-    // has to signal, restart or ask the user to reload something.
-}
-
-fn apply_waybar(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    let dir = home.join(".config/waybar");
-    render_to(tera, "waybar", ctx, &dir.join("coat-colors.css"))?;
-
-    // GTK CSS requires every @import at the TOP of the file, before any rule --
-    // an @import after a selector is silently dropped, which would look exactly
-    // like coat not working. ensure_include prepends, so this is safe.
-    ensure_include(&dir.join("style.css"), "@import \"coat-colors.css\";", ("/*", "*/"))?;
-
-    // RESTART waybar; do NOT send SIGUSR2.
-    //
-    // SIGUSR2 is waybar's documented reload signal and it CRASHES waybar 0.15.0:
-    //
-    //     GLib-GIO:ERROR ../glib/gio/gapplicationimpl-dbus.c:851:
-    //     g_application_impl_command_line: assertion failed: (object_id != 0)
-    //     Bail out!
-    //
-    // That is an abort, not an error return, so the bar simply disappears. Reproduced
-    // 2026-08-18 by sending five SIGUSR2s in a row: waybar died on the reload and left a
-    // pile of unreaped children behind. It is the reason "waybar just dies sometimes" --
-    // it dies on a theme change, because this is the line that ran.
-    //
-    // SIGUSR1 (toggle visibility) is unaffected and still safe; four in a row changed
-    // nothing. Only the reload path is broken.
-    //
-    // Restart only if it was already running, so `coat set` outside a session does not
-    // start a bar with nowhere to draw. setsid detaches it, otherwise it dies with coat.
-    // Restart with the SAME argv it was running with, read out of /proc before
-    // the kill. Restarting bare was a real bug: under Hyprland the bar is started
-    // as `waybar -c ~/.config/waybar/config-hyprland.jsonc` (the include overlay
-    // that swaps mango's tag scripts for hyprland/workspaces), and a bare restart
-    // silently dropped the flag -- so every scheme change replaced the Hyprland
-    // bar with a default-config one whose left half streams mango IPC and renders
-    // nothing. $args is deliberately unquoted so it word-splits back into
-    // arguments; no path here has spaces in it.
-    run("pgrep -x waybar >/dev/null 2>&1 && { \
-         args=$(tr '\\0' ' ' < /proc/$(pgrep -x waybar | head -1)/cmdline); \
-         pkill -x waybar; sleep 0.3; \
-         setsid $args >/dev/null 2>&1 & } ; true");
-    Ok(())
-}
-
-fn apply_tofi(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    let dir = home.join(".config/tofi");
-    render_to(tera, "tofi", ctx, &dir.join("coat-theme"))?;
-    // Relative include: tofi resolves it against the including file's directory.
-    ensure_include(&dir.join("config"), "include=coat-theme", ("#", ""))
-}
-
-/// Render the vesktop CSS theme to any path — used by the Windows `apply_discord` function.
+/// Render the vesktop CSS theme to each of `paths` — used by the Windows
+/// `apply_discord` function. Builds the template set once for all of them.
 #[cfg_attr(not(windows), allow(dead_code))]
-pub fn apply_vesktop_shared(scheme: &Scheme, config: &CoatConfig, path: &Path) -> Result<()> {
+pub fn apply_vesktop_shared(scheme: &Scheme, config: &CoatConfig, paths: &[PathBuf]) -> Result<()> {
     let tera = make_tera()?;
     let ctx = build_context(scheme, config);
-    render_to(&tera, "vesktop", &ctx, path)
+    paths.iter().try_for_each(|path| render_to(&tera, "vesktop", &ctx, path))
 }
 
 fn apply_vesktop(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
@@ -1743,20 +1053,6 @@ fn apply_vscode(scheme: &Scheme, config: &CoatConfig) -> Result<()> {
 
 // ── Docs strings ───────────────────────────────────────────────────────────
 
-fn apply_yazi(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    render_to(tera, "yazi", ctx, &home.join(".config/yazi/theme.toml"))
-}
-
-fn apply_cava(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    render_to(tera, "cava", ctx, &home.join(".config/cava/config"))?;
-    // cava re-reads its config on SIGUSR1, so a running visualiser picks up the
-    // new gradient without being restarted.
-    run("pkill -USR1 -x cava 2>/dev/null; true");
-    Ok(())
-}
-
 fn apply_fastfetch(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
     render_to(tera, "fastfetch", ctx, &home.join(".config/fastfetch/config.jsonc"))
@@ -1810,54 +1106,6 @@ fn apply_lsd(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> 
     Ok(())
 }
 
-/// Point an Electron wrapper's config.json at a CSS file, preserving whatever
-/// else the user has set. Both teams-for-linux and outlook-for-linux read
-/// `customCSSLocation`.
-fn set_electron_custom_css(config: &Path, css: &Path) -> Result<()> {
-    let mut root: JsonValue = if config.exists() {
-        let text = fs::read_to_string(config)
-            .with_context(|| format!("Failed to read {}", config.display()))?;
-        // A hand-broken config.json is not ours to discard, but neither should it
-        // stop the rest of the apply -- start fresh only when there is nothing
-        // parseable there.
-        serde_json::from_str(&text).unwrap_or_else(|_| JsonValue::Object(Default::default()))
-    } else {
-        JsonValue::Object(Default::default())
-    };
-    if !root.is_object() {
-        root = JsonValue::Object(Default::default());
-    }
-    root["customCSSLocation"] = JsonValue::String(css.to_string_lossy().into_owned());
-    ensure_dir(config.parent().unwrap_or(Path::new("/")))?;
-    fs::write(config, serde_json::to_string_pretty(&root)? + "\n")
-        .with_context(|| format!("Failed to write {}", config.display()))?;
-    crate::manifest::record_write(config);
-    detail!("  ✓ {} (customCSSLocation)", config.display());
-    Ok(())
-}
-
-fn apply_msteams(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    // One stylesheet, both apps: they are Electron wrappers around the same two
-    // Fluent v9 web apps, so the token map is identical.
-    let css = home.join(".config/coat/msteams.css");
-    render_to(tera, "msteams", ctx, &css)?;
-
-    let mut wired = false;
-    for app in ["teams-for-linux", "outlook-for-linux"] {
-        let dir = home.join(".config").join(app);
-        if !dir.is_dir() {
-            continue;
-        }
-        set_electron_custom_css(&dir.join("config.json"), &css)?;
-        wired = true;
-    }
-    if !wired {
-        detail!("  note: neither teams-for-linux nor outlook-for-linux is set up; CSS written anyway");
-    }
-    Ok(())
-}
-
 pub fn module_docs(name: &str) {
     let name = module_aliases(name).unwrap_or(name);
     println!("=== {} Setup Instructions ===\n", name);
@@ -1886,64 +1134,16 @@ pub fn module_docs(name: &str) {
             println!("Colours are bare hex, no leading '#'; conky rejects the '#' form.");
             println!("coat sends SIGUSR1 after writing, which is conky's reload signal.");
         }
-        "firefox" => {
-            println!("userChrome.css and userContent.css are written automatically.\n");
-            println!("If colors don't appear, enable custom CSS in about:config:\n");
-            println!("  toolkit.legacyUserProfileCustomizations.stylesheets = true\n");
-            println!("Then restart Firefox (fully quit — check no firefox.exe lingers).");
-        }
         "fish" => {
             println!("To activate the fish theme:\n");
             println!("  fish_config theme save coat\n");
             println!("Or add to ~/.config/fish/config.fish:\n");
             println!("  fish_config theme choose coat");
         }
-        "hyprland" => {
-            println!("Add to ~/.config/hypr/hyprland.conf:\n");
-            println!("  source = ~/.config/hypr/coat-theme.conf\n");
-            println!("Emits COLOUR VARIABLES only ($base00..$base0F plus pre-composed");
-            println!("translucent tokens); your own sections reference them, so the source");
-            println!("line has to sit ABOVE the first use. coat runs `hyprctl reload`.");
-        }
-        "neovim" => {
-            println!("A colorscheme is written to:");
-            println!("  $XDG_DATA_HOME/nvim/site/colors/coat.lua (default ~/.local/share/nvim/site/...)\n");
-            println!("It sits on Neovim's runtimepath automatically, so just add to your config:\n");
-            println!("  vim.cmd.colorscheme(\"coat\")   -- or in Vimscript:  colorscheme coat\n");
-            println!("In an already-open Neovim, reload it with:  :colorscheme coat");
-        }
         "bat" => {
             println!("Add to ~/.config/bat/config:\n");
             println!("  --theme=\"coat\"\n");
             println!("Or use temporarily: bat --theme=coat <file>");
-        }
-        "sway" => {
-            println!("Add to ~/.config/sway/config:\n");
-            println!("  include ~/.config/sway/coat-theme\n");
-            println!("This sets window/border colors only. For sway's built-in bar,");
-            println!("enable the 'swaybar' module instead of writing a bar {{ }} block.\n");
-            println!("Then reload: swaymsg reload");
-        }
-        "swaybar" => {
-            println!("Themes sway's built-in bar (swaybar).\n");
-            println!("Add to ~/.config/sway/config:\n");
-            println!("  include ~/.config/sway/coat-bar\n");
-            println!("IMPORTANT: remove every other 'bar {{ }}' block from your config —");
-            println!("each one creates an additional bar, and this file provides a full");
-            println!("block. The whole block is generated (not just the colors) because");
-            println!("sway rejects 'include' inside 'bar {{ }}'.\n");
-            println!("The status line is swaybar's status_command, set to 'swayrbar'.");
-            println!("Configure its modules in ~/.config/swayrbar/config.toml.\n");
-            println!("coat runs 'swaymsg reload' automatically.");
-        }
-        "tofi" => {
-            println!("Writes ~/.config/tofi/coat-theme (font + colours) and adds");
-            println!("  include=coat-theme");
-            println!("to ~/.config/tofi/config on first apply. Geometry and behaviour");
-            println!("keys stay yours; anything set after the include overrides it.\n");
-            println!("tofi re-reads both on every launch, so there is nothing to reload.\n");
-            println!("Test with:  tofi-drun");
-            println!("Bind in sway:  set $menu tofi-drun");
         }
         "vscode" => {
             println!("The theme is automatically activated.\n");
@@ -1972,13 +1172,6 @@ pub fn module_docs(name: &str) {
             println!("If it doesn't reload, run manually:");
             println!("  dunstctl reload");
         }
-        "yazi" => {
-            println!("theme.toml is written whole; yazi picks it up on next launch.");
-        }
-        "cava" => {
-            println!("~/.config/cava/config is written whole (input method: pulse).");
-            println!("A running cava is reloaded via SIGUSR1.");
-        }
         "fastfetch" => {
             println!("config.jsonc is written whole. Just run `fastfetch`.");
         }
@@ -1999,13 +1192,6 @@ pub fn module_docs(name: &str) {
         "prismlauncher" => {
             println!("To activate:\n");
             println!("  Settings > Appearance > Themes > coat");
-        }
-        "msteams" => {
-            println!("Themes the Teams and Outlook DESKTOP apps (Electron wrappers).\n");
-            println!("coat writes ~/.config/coat/msteams.css and points each app's");
-            println!("config.json at it via customCSSLocation. Restart the app to");
-            println!("pick up a new scheme -- the CSS is read at startup.\n");
-            println!("Browser tabs are handled separately by coat-webapps.");
         }
         "btop" => {
             println!("To activate:\n");

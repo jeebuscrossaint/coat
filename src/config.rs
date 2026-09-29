@@ -226,7 +226,7 @@ impl CoatConfig {
         let path = Self::path()?;
         let content = fs::read_to_string(&path)
             .with_context(|| format!("Failed to read {}", path.display()))?;
-        let mut config: Self = serde_yaml::from_str(&sanitize(&content))
+        let mut config: Self = serde_norway::from_str(&sanitize(&content))
             .with_context(|| format!("Failed to parse {}", path.display()))?;
         // What is actually on screen beats what the checkout came with.
         if let Some((scheme, base24)) = load_state() {

@@ -32,12 +32,10 @@ prefer_base24: false           # prefer Base24 variant when available
 
 enabled:
   - fish
-  - foot
-  - neovim
+  - kitty
+  - mango
   - vscode
-  - sway
-  - swaybar
-  - tofi
+  - fuzzel
   - dunst
   - gtk
   - swaylock
@@ -52,15 +50,15 @@ font:
   serif:     "Ubuntu Serif"
   emoji:     "Noto Color Emoji"
   sizes:
-    terminal: 12   # foot, xresources
-    desktop:  10   # swaybar, btop, zathura
-    popups:   10   # tofi, dunst, fnott
+    terminal: 12   # kitty, imv, xresources
+    desktop:  10   # gtk, zathura
+    popups:   10   # fuzzel, dunst
 
 opacity:
-  terminal:     0.95   # foot
+  terminal:     0.95   # kitty
   applications: 1.0
   desktop:      1.0
-  popups:       0.95   # dunst, tofi backgrounds
+  popups:       0.95   # dunst, fuzzel backgrounds
 ```
 
 ---
@@ -73,12 +71,12 @@ Colours and fonts, and nothing else. Two mechanisms:
   (`coat-theme`, `themes/coat.theme`, `dunstrc.d/50-coat.conf`) and adds a single
   include line to your config on first apply. Everything else in your config is
   untouched because coat never opens it again.
-- **In-place key patching** — where the app has no include mechanism (fuzzel,
-  fnott, swaylock). coat rewrites only its own keys and leaves every other line
-  byte-for-byte alone, so geometry, timeouts and behaviour survive a theme change.
+- **A file of its own** — where the app has no include mechanism. coat writes a
+  file only it owns (a btop theme, a bat theme, swaylock's colour flags) and your
+  config is never opened at all.
 
-If the target file does not exist, the patching modules create one containing only
-colours and fonts; the app's own defaults supply the rest.
+VS Code is the exception: coat merges `workbench.colorCustomizations` (and the
+editor font) into your `settings.json`, leaving your other settings alone.
 
 ## Activation steps by application
 
@@ -94,65 +92,9 @@ fish_config theme save coat
 fish_config theme choose coat
 ```
 
-### foot
-
-Writes `~/.config/foot/coat-theme.ini`.
-
-```ini
-# Add to ~/.config/foot/foot.ini
-[main]
-include=~/.config/foot/coat-theme.ini
-```
-
-Open a new window to apply.
-
 ### vscode
 
 Merges colors directly into `~/.config/Code/User/settings.json` (Linux) or `%APPDATA%\Code\User\settings.json` (Windows) via `workbench.colorCustomizations` and `editor.tokenColorCustomizations`. No extension install needed — changes take effect immediately.
-
-### sway
-
-Writes `~/.config/sway/coat-theme` (window colors) and runs `swaymsg reload`.
-
-```
-# Add to ~/.config/sway/config
-include ~/.config/sway/coat-theme
-```
-
-### swaybar
-
-Themes sway's built-in bar. Writes `~/.config/sway/coat-bar`.
-
-```
-# Add to ~/.config/sway/config
-include ~/.config/sway/coat-bar
-```
-
-Remove every other `bar { }` block from your config first — each one creates an
-additional bar rather than merging with this one.
-
-> **Note:** this is the ONE module where coat writes more than colours and
-> fonts, and it is forced. Sway rejects `include` inside `bar { }`, so a
-> colours-only fragment cannot be spliced into a hand-written block, and a
-> second top-level `bar { }` creates a second bar rather than merging. Anything
-> in the generated block that is not a colour is a default coat had to pick —
-> change it in `templates/swaybar.tera`. The status line is `status_command
-> swayrbar`; configure its modules in `~/.config/swayrbar/config.toml`.
-
-coat runs `swaymsg reload` automatically, which also repaints the `sway`
-module's window colors.
-
-### tofi
-
-Writes `~/.config/tofi/coat-theme` (font, font size, colors) and adds the include
-to your `config` on first apply. Geometry and behaviour keys stay yours.
-
-```
-include=coat-theme
-```
-
-tofi resolves the include the moment it reads the line, so anything you set after
-it overrides the theme.
 
 ### dunst
 
@@ -266,21 +208,6 @@ coat set nord --elevate
 
 Without the flag, that one step is reported as skipped and the rest still
 applies. Running coat from an already-elevated shell needs no flag.
-
----
-
-## Firefox
-
-`coat apply firefox` writes `userChrome.css` (browser UI) and `userContent.css`
-(`about:` / new-tab pages) into your default profile's `chrome/` folder and
-enables `toolkit.legacyUserProfileCustomizations.stylesheets` in `user.js`.
-
-Because Firefox reads these stylesheets **only at startup**, you must fully quit
-and relaunch Firefox after applying (make sure no `firefox.exe` lingers). If
-colors still don't appear, confirm in `about:config` that
-`toolkit.legacyUserProfileCustomizations.stylesheets` is `true`, and set any
-active color **theme add-on** in `about:addons` back to *System theme (auto)* or
-*Default* so it doesn't override the CSS.
 
 ---
 

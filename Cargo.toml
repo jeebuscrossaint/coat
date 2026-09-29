@@ -19,12 +19,12 @@ path = "src/main.rs"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
-serde_yaml = "0.9"
+# serde_yaml is deprecated; serde_norway is its maintained drop-in fork.
+serde_norway = "0.9"
 serde_json = "1"
 tera = "2"
-dirs = "6"
+dirs = "7"
 anyhow = "1"
-walkdir = "2"
 indicatif = "0.18"
 console = "0.16"
 # `coat match` decodes the wallpaper. Explicit format list rather than the

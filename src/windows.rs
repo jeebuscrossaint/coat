@@ -2,7 +2,6 @@
 /// Compiled only on Windows — Linux builds ignore this entire file.
 use anyhow::{Context, Result};
 use console::style;
-use indicatif::{ProgressBar, ProgressStyle};
 use serde_json::Value as JsonValue;
 use std::fs;
 use std::path::PathBuf;
@@ -22,14 +21,7 @@ pub enum Outcome {
 
 /// Run one apply step behind a spinner that freezes into a result line.
 fn step<F: FnOnce() -> Result<Outcome>>(label: &str, f: F) {
-    let pb = ProgressBar::new_spinner();
-    pb.set_style(
-        ProgressStyle::with_template("{spinner:.cyan} {msg}")
-            .unwrap()
-            .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏ "),
-    );
-    pb.set_message(label.to_string());
-    pb.enable_steady_tick(Duration::from_millis(80));
+    let pb = crate::spinner(label);
     let result = f();
     pb.finish_and_clear();
     match result {
@@ -741,7 +733,7 @@ fn apply_wt_defaults(
 
     // coat.yaml stores opacity as 0.0–1.0, Windows Terminal wants 0–100.
     // `useAcrylic: false` gives plain transparency, matching what the Linux
-    // terminal module does with the same setting (foot doesn't blur).
+    // terminal module does with the same setting.
     if let Some(opacity) = config.opacity.terminal {
         let pct = (opacity.clamp(0.0, 1.0) * 100.0).round() as u64;
         defaults.insert("opacity".into(), JsonValue::Number(pct.into()));
@@ -827,9 +819,9 @@ pub fn apply_discord(scheme: &Scheme, config: &CoatConfig) -> Result<Outcome> {
     for dir in &paths {
         fs::create_dir_all(dir)
             .with_context(|| format!("Failed to create {}", dir.display()))?;
-        let dest = dir.join("coat.theme.css");
-        crate::modules::apply_vesktop_shared(scheme, config, &dest)?;
     }
+    let dests: Vec<PathBuf> = paths.iter().map(|dir| dir.join("coat.theme.css")).collect();
+    crate::modules::apply_vesktop_shared(scheme, config, &dests)?;
     detail!("  Enable the 'coat' theme in your Discord mod's theme settings.");
     Ok(Outcome::Done)
 }
@@ -1090,10 +1082,8 @@ pub fn apply_all(scheme: &Scheme, config: &CoatConfig, elevate: bool) -> Result<
     // The OS-level steps are the whole point of `coat set` on Windows and
     // always run. The application steps are modules like any other, so an
     // explicit `enabled` list in coat.yaml governs them — previously it was
-    // ignored here, which meant someone who had moved Firefox onto an
-    // extension got their userChrome.css written back on every apply with no
-    // way to opt out. An empty list still means "everything coat can find",
-    // so a bare coat.yaml behaves as before.
+    // ignored here, so an app could not be opted out of. An empty list still
+    // means "everything coat can find", so a bare coat.yaml behaves as before.
     let wants = |module: &str| {
         config.enabled.is_empty() || config.enabled.iter().any(|e| e == module)
     };
@@ -1104,13 +1094,6 @@ pub fn apply_all(scheme: &Scheme, config: &CoatConfig, elevate: bool) -> Result<
     step("Logon/HKLM keys", || apply_elevated(scheme, scheme.is_dark(), elevate));
     step("Windows Terminal", || apply_terminal(scheme, config));
     step("VSCode", || if wants("vscode") { apply_vscode(scheme, config) } else { off() });
-    step("Firefox", || {
-        if !wants("firefox") {
-            return off();
-        }
-        let tera = crate::modules::make_tera()?;
-        crate::modules::apply_module("firefox", scheme, config, &tera).map(|_| Outcome::Done)
-    });
     step("Discord (Vencord/BetterDiscord)", || {
         if wants("vesktop") { apply_discord(scheme, config) } else { off() }
     });
@@ -1131,7 +1114,7 @@ mod tests {
     use super::*;
 
     fn config(yaml: &str) -> CoatConfig {
-        serde_yaml::from_str(yaml).expect("test config should parse")
+        serde_norway::from_str(yaml).expect("test config should parse")
     }
 
     fn merge(settings_json: &str, yaml: &str) -> serde_json::Map<String, JsonValue> {

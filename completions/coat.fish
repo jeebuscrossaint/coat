@@ -31,6 +31,7 @@ complete -c coat -n '__fish_seen_subcommand_from set' -a '(coat __complete schem
 
 # App/module argument for `apply` and `docs`
 complete -c coat -n '__fish_seen_subcommand_from apply docs remove' -a '(coat __complete modules)' -d module
+complete -c coat -n '__fish_seen_subcommand_from apply docs remove' -a '(coat __complete aliases | string replace \t \t"alias for ")'
 
 # Shell argument for `completions`
 complete -c coat -n '__fish_seen_subcommand_from completions' -a fish       -d 'Fish shell'

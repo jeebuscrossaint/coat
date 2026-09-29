@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
-use walkdir::WalkDir;
 
 #[derive(Debug, Deserialize)]
 struct RawScheme {
@@ -135,7 +134,7 @@ impl Scheme {
     pub fn load_file(path: &Path) -> Result<Self> {
         let content = fs::read_to_string(path)
             .with_context(|| format!("Failed to read {}", path.display()))?;
-        let raw: RawScheme = serde_yaml::from_str(&content)
+        let raw: RawScheme = serde_norway::from_str(&content)
             .with_context(|| format!("Failed to parse {}", path.display()))?;
         let mut scheme = Self::from_raw(raw);
         crate::normalize::apply(&mut scheme);
@@ -242,42 +241,31 @@ fn cache_path() -> Option<PathBuf> {
 fn library_signature(dirs: &[PathBuf]) -> (usize, u64) {
     let mut count = 0usize;
     let mut max_mtime = 0u64;
-    for dir in dirs {
-        if !dir.is_dir() {
-            continue;
-        }
-        for entry in WalkDir::new(dir).max_depth(1).into_iter().filter_map(|e| e.ok()) {
-            if entry.path().extension().and_then(|s| s.to_str()) != Some("yaml") {
-                continue;
-            }
-            count += 1;
-            if let Ok(modified) = entry.metadata().map(|m| m.modified()) {
-                if let Ok(t) = modified {
-                    let secs = t.duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
-                    max_mtime = max_mtime.max(secs);
-                }
-            }
+    for path in yaml_files(dirs) {
+        count += 1;
+        if let Ok(t) = fs::metadata(&path).and_then(|m| m.modified()) {
+            let secs = t.duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+            max_mtime = max_mtime.max(secs);
         }
     }
     (count, max_mtime)
+}
+
+/// Every `*.yaml` directly inside each of `dirs`, in directory order. A missing
+/// or unreadable directory contributes nothing.
+fn yaml_files(dirs: &[PathBuf]) -> Vec<PathBuf> {
+    dirs.iter()
+        .filter_map(|dir| fs::read_dir(dir).ok())
+        .flat_map(|entries| entries.filter_map(|e| e.ok()).map(|e| e.path()))
+        .filter(|path| path.extension().and_then(|s| s.to_str()) == Some("yaml"))
+        .collect()
 }
 
 /// Parse every `.yaml` scheme under `dirs` (base16 before base24), spreading the
 /// work across available cores. Unparseable files are skipped, matching the
 /// prior per-file `if let Ok(..)` behavior.
 fn parse_all(dirs: &[PathBuf]) -> Vec<Scheme> {
-    let mut paths: Vec<PathBuf> = Vec::new();
-    for dir in dirs {
-        if !dir.is_dir() {
-            continue;
-        }
-        for entry in WalkDir::new(dir).max_depth(1).into_iter().filter_map(|e| e.ok()) {
-            let path = entry.path();
-            if path.extension().and_then(|s| s.to_str()) == Some("yaml") {
-                paths.push(path.to_path_buf());
-            }
-        }
-    }
+    let paths = yaml_files(dirs);
 
     let threads = std::thread::available_parallelism()
         .map(|n| n.get())
@@ -441,38 +429,24 @@ pub fn find_scheme(name: &str, prefer_base24: bool) -> Result<Scheme> {
     let dirs_to_try = scheme_dirs(prefer_base24)?;
 
     // First pass: match by filename stem
-    for dir in &dirs_to_try {
-        if !dir.is_dir() {
-            continue;
-        }
-        for entry in WalkDir::new(dir).max_depth(1).into_iter().filter_map(|e| e.ok()) {
-            let path = entry.path();
-            if path.extension().and_then(|s| s.to_str()) != Some("yaml") {
-                continue;
-            }
-            let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
-            if stem.eq_ignore_ascii_case(name) {
-                return Scheme::load_file(path);
-            }
+    let files = yaml_files(&dirs_to_try);
+    for path in &files {
+        let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+        if stem.eq_ignore_ascii_case(name) {
+            return Scheme::load_file(path);
         }
     }
 
-    // Second pass: match by scheme name or slug field
-    for dir in &dirs_to_try {
-        if !dir.is_dir() {
-            continue;
-        }
-        for entry in WalkDir::new(dir).max_depth(1).into_iter().filter_map(|e| e.ok()) {
-            let path = entry.path();
-            if path.extension().and_then(|s| s.to_str()) != Some("yaml") {
-                continue;
-            }
-            if let Ok(scheme) = Scheme::load_file(path) {
-                if scheme.name.eq_ignore_ascii_case(name) || scheme.slug.eq_ignore_ascii_case(name) {
-                    return Ok(scheme);
-                }
-            }
-        }
+    // Second pass: match by scheme name or slug field. Served from the index
+    // cache -- parsing every file here cost ~60ms on each miss. The cache is in
+    // base16-then-base24 order, so honour `prefer_base24` by flavour instead.
+    let mut matches: Vec<Scheme> = load_all_schemes()?
+        .into_iter()
+        .filter(|s| s.name.eq_ignore_ascii_case(name) || s.slug.eq_ignore_ascii_case(name))
+        .collect();
+    if !matches.is_empty() {
+        let idx = matches.iter().position(|s| s.is_base24 == prefer_base24).unwrap_or(0);
+        return Ok(matches.swap_remove(idx));
     }
 
     bail!("Scheme '{}' not found in {}", name, sdir.display())
@@ -502,18 +476,7 @@ pub fn pick_random_scheme(variant_filter: Option<&str>, _prefer_base24: bool) ->
     // scheme_dirs, not a list of its own: the variant-filtered path above goes
     // through load_all_schemes and would otherwise see a different library than
     // this one does.
-    let mut candidates: Vec<PathBuf> = Vec::new();
-    for dir in &scheme_dirs(false)? {
-        if !dir.is_dir() {
-            continue;
-        }
-        for entry in WalkDir::new(dir).max_depth(1).into_iter().filter_map(|e| e.ok()) {
-            let path = entry.path();
-            if path.extension().and_then(|s| s.to_str()) == Some("yaml") {
-                candidates.push(path.to_path_buf());
-            }
-        }
-    }
+    let candidates = yaml_files(&scheme_dirs(false)?);
 
     if candidates.is_empty() {
         bail!("No schemes found in {} — run 'coat clone'", sdir.display());

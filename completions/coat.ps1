@@ -46,9 +46,13 @@ Register-ArgumentCompleter -Native -CommandName coat -ScriptBlock {
                     [pscustomobject]@{ Text = $_; Desc = 'scheme' }
                 })
             }
-            { $_ -in 'apply', 'docs' } {
+            { $_ -in 'apply', 'docs', 'remove' } {
                 $pairs = @(& coat __complete modules 2>$null | ForEach-Object {
                     [pscustomobject]@{ Text = $_; Desc = 'module' }
+                })
+                $pairs += @(& coat __complete aliases 2>$null | ForEach-Object {
+                    $alias, $module = $_ -split "`t", 2
+                    [pscustomobject]@{ Text = $alias; Desc = "alias for $module" }
                 })
             }
             'completions' {
