@@ -23,6 +23,12 @@ set completion-fg               "#{{ base05 }}" # base05
 set completion-highlight-bg     "#{{ base0D }}" # base0D - blue
 set completion-highlight-fg     "#{{ base00 }}" # base00
 
+# The index (<Tab>), styled like the completion list above.
+set index-bg                    "#{{ base00 }}" # base00
+set index-fg                    "#{{ base05 }}" # base05
+set index-active-bg             "#{{ base0D }}" # base0D - blue
+set index-active-fg             "#{{ base00 }}" # base00
+
 set inputbar-bg                 "#{{ base01 }}" # base01
 set inputbar-fg                 "#{{ base05 }}" # base05
 
