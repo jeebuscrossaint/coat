@@ -50,7 +50,6 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("lsd",       "lsd.tera"),
     tpl!("mango",     "mango.tera"),
     tpl!("mpv",       "mpv.tera"),
-    tpl!("prismlauncher", "prismlauncher.tera"),
     tpl!("satty",     "satty.tera"),
     tpl!("swaylock",  "swaylock.tera"),
     tpl!("vesktop",   "vesktop.tera"),
@@ -335,8 +334,8 @@ fn run(cmd: &str) {
 
 pub const ALL_MODULES: &[&str] = &[
     "bat", "btop", "conky", "dunst", "fastfetch", "fish", "fuzzel", "gtk", "imv", "kitty",
-    "lsd", "mango", "micro", "mpv", "prismlauncher", "satty", "swaylock", "vesktop",
-    "vscode", "xresources", "zathura",
+    "lsd", "mango", "micro", "mpv", "satty", "swaylock", "vesktop", "vscode", "xresources",
+    "zathura",
 ];
 
 /// (alias, module) — other names a module answers to. A table rather than a
@@ -344,8 +343,6 @@ pub const ALL_MODULES: &[&str] = &[
 pub const MODULE_ALIASES: &[(&str, &str)] = &[
     ("discord", "vesktop"),
     ("vencord", "vesktop"),
-    ("prism", "prismlauncher"),
-    ("prism-launcher", "prismlauncher"),
 ];
 
 pub fn module_aliases(name: &str) -> Option<&'static str> {
@@ -383,7 +380,6 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "fastfetch"  => apply_fastfetch(tera, &ctx, scheme, config),
         "imv"        => apply_imv(tera, &ctx, scheme, config),
         "lsd"        => apply_lsd(tera, &ctx, scheme, config),
-        "prismlauncher" => apply_prismlauncher(tera, &ctx, scheme, config),
         "satty"      => apply_satty(tera, &ctx, scheme, config),
         "dunst"      => apply_dunst(tera, &ctx, scheme, config),
         "fish"       => apply_fish(tera, &ctx, scheme, config),
@@ -1068,16 +1064,6 @@ fn apply_satty(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -
     render_to(tera, "satty", ctx, &home.join(".config/satty/config.toml"))
 }
 
-fn apply_prismlauncher(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
-    let home = home_dir()?;
-    render_to(
-        tera,
-        "prismlauncher",
-        ctx,
-        &home.join(".local/share/PrismLauncher/themes/coat/theme.json"),
-    )
-}
-
 fn apply_lsd(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
     let dir = home.join(".config/lsd");
@@ -1188,10 +1174,6 @@ pub fn module_docs(name: &str) {
         "satty" => {
             println!("~/.config/satty/config.toml is written whole.");
             println!("The annotation palette becomes the scheme's accent wheel.");
-        }
-        "prismlauncher" => {
-            println!("To activate:\n");
-            println!("  Settings > Appearance > Themes > coat");
         }
         "btop" => {
             println!("To activate:\n");
