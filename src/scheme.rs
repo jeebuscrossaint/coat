@@ -141,6 +141,11 @@ impl Scheme {
         Ok(scheme)
     }
 
+    /// Written by `coat match` rather than taken from the library.
+    pub fn is_generated(&self) -> bool {
+        self.author == crate::dynamic::GENERATED_AUTHOR
+    }
+
     pub fn is_dark(&self) -> bool {
         self.variant.is_empty() || !self.variant.to_lowercase().contains("light")
     }
@@ -159,11 +164,14 @@ impl Scheme {
 pub fn scheme_dirs(prefer_base24: bool) -> Result<Vec<PathBuf>> {
     let sdir = schemes_dir()?;
     Ok(if prefer_base24 {
-        vec![sdir.join("base24"), sdir.join("base16"), sdir.join("generated")]
+        vec![sdir.join("base24"), sdir.join("base16"), sdir.join(GENERATED_DIR)]
     } else {
-        vec![sdir.join("base16"), sdir.join("base24"), sdir.join("generated")]
+        vec![sdir.join("base16"), sdir.join("base24"), sdir.join(GENERATED_DIR)]
     })
 }
+
+/// Subdirectory of the schemes directory that `coat match` writes into.
+pub const GENERATED_DIR: &str = "generated";
 
 pub fn schemes_dir() -> Result<PathBuf> {
     let home = dirs::home_dir().context("Cannot determine home directory")?;
@@ -191,12 +199,63 @@ pub fn schemes_clone() -> Result<()> {
     Ok(())
 }
 
+/// Run git in `dir` and return trimmed stdout, or None on any failure.
+fn git_output(dir: &Path, args: &[&str]) -> Option<String> {
+    let out = std::process::Command::new("git").arg("-C").arg(dir).args(args).output().ok()?;
+    out.status.success().then(|| String::from_utf8_lossy(&out.stdout).trim().to_string())
+}
+
+fn git_run(dir: &Path, args: &[&str]) -> Result<()> {
+    let status = std::process::Command::new("git")
+        .arg("-C")
+        .arg(dir)
+        .args(args)
+        .status()
+        .context("Failed to run git")?;
+    if !status.success() {
+        bail!("git {} failed", args.join(" "));
+    }
+    Ok(())
+}
+
+/// The clone is shallow and single-branch, so it only ever tracks the branch
+/// that was the default when it was made (`spec-0.11` at the time of writing).
+/// When upstream moves its default to a new spec branch, a plain `git pull`
+/// would keep fetching the abandoned one forever. Ask the remote what its
+/// default is now and switch to it first. A failed lookup (offline, odd remote)
+/// is not an error — the pull below reports any real problem.
+fn follow_default_branch(dir: &Path) -> Result<()> {
+    let Some(symref) = git_output(dir, &["ls-remote", "--symref", "origin", "HEAD"]) else {
+        return Ok(());
+    };
+    // First line: "ref: refs/heads/<branch>\tHEAD"
+    let Some(remote) = symref
+        .lines()
+        .next()
+        .and_then(|l| l.strip_prefix("ref: refs/heads/"))
+        .and_then(|l| l.split('\t').next())
+        .map(str::to_string)
+    else {
+        return Ok(());
+    };
+    let current = git_output(dir, &["rev-parse", "--abbrev-ref", "HEAD"]).unwrap_or_default();
+    if current == remote {
+        return Ok(());
+    }
+    println!("Upstream default branch moved: {} -> {}", current, remote);
+    git_run(dir, &["remote", "set-branches", "origin", &remote])?;
+    git_run(dir, &["fetch", "--depth", "1", "origin", &remote])?;
+    git_run(dir, &["checkout", "-B", &remote, &format!("origin/{}", remote)])?;
+    Ok(())
+}
+
 pub fn schemes_update() -> Result<()> {
     if !schemes_exists() {
         return schemes_clone();
     }
     println!("Updating schemes repository...");
     let dir = schemes_dir()?;
+    follow_default_branch(&dir)?;
     let status = std::process::Command::new("git")
         .args(["-C"])
         .arg(&dir)
@@ -251,14 +310,28 @@ fn library_signature(dirs: &[PathBuf]) -> (usize, u64) {
     (count, max_mtime)
 }
 
-/// Every `*.yaml` directly inside each of `dirs`, in directory order. A missing
-/// or unreadable directory contributes nothing.
+/// Every scheme file under each of `dirs`, at any depth, sorted within each
+/// dir. Upstream has shipped both `.yaml` and `.yml`, and nothing promises the
+/// family folders stay flat, so neither is assumed. A missing or unreadable
+/// directory contributes nothing.
 fn yaml_files(dirs: &[PathBuf]) -> Vec<PathBuf> {
-    dirs.iter()
-        .filter_map(|dir| fs::read_dir(dir).ok())
-        .flat_map(|entries| entries.filter_map(|e| e.ok()).map(|e| e.path()))
-        .filter(|path| path.extension().and_then(|s| s.to_str()) == Some("yaml"))
-        .collect()
+    fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
+        let Ok(entries) = fs::read_dir(dir) else { return };
+        let mut paths: Vec<PathBuf> = entries.filter_map(|e| e.ok()).map(|e| e.path()).collect();
+        paths.sort();
+        for path in paths {
+            if path.is_dir() {
+                walk(&path, out);
+            } else if matches!(path.extension().and_then(|s| s.to_str()), Some("yaml" | "yml")) {
+                out.push(path);
+            }
+        }
+    }
+    let mut out = Vec::new();
+    for dir in dirs {
+        walk(dir, &mut out);
+    }
+    out
 }
 
 /// Parse every `.yaml` scheme under `dirs` (base16 before base24), spreading the
@@ -462,7 +535,7 @@ pub fn pick_random_scheme(variant_filter: Option<&str>, _prefer_base24: bool) ->
     if let Some(vf) = variant_filter {
         let mut candidates: Vec<Scheme> = load_all_schemes()?
             .into_iter()
-            .filter(|s| s.variant.to_lowercase().contains(vf))
+            .filter(|s| !s.is_generated() && s.variant.to_lowercase().contains(vf))
             .collect();
         if candidates.is_empty() {
             bail!("No {} schemes found in {}", vf, sdir.display());
@@ -476,7 +549,11 @@ pub fn pick_random_scheme(variant_filter: Option<&str>, _prefer_base24: bool) ->
     // scheme_dirs, not a list of its own: the variant-filtered path above goes
     // through load_all_schemes and would otherwise see a different library than
     // this one does.
-    let candidates = yaml_files(&scheme_dirs(false)?);
+    // Generated schemes are left out: they are the user's own wallpaper
+    // matches, not something to land on by chance.
+    let generated = sdir.join(GENERATED_DIR);
+    let dirs: Vec<PathBuf> = scheme_dirs(false)?.into_iter().filter(|d| *d != generated).collect();
+    let candidates = yaml_files(&dirs);
 
     if candidates.is_empty() {
         bail!("No schemes found in {} — run 'coat clone'", sdir.display());

@@ -156,7 +156,7 @@ struct Corpus {
 /// A scheme `coat match` wrote. Measuring these would feed generated schemes back
 /// into the ladder that generates them, so a week of wallpapers would drag the
 /// corpus toward itself.
-const GENERATED_AUTHOR: &str = "coat match";
+pub const GENERATED_AUTHOR: &str = "coat match";
 
 /// Below this many schemes the percentiles are noise, and the shipped fallback is
 /// the better answer. A fresh install before `coat clone` has none at all.
@@ -255,7 +255,7 @@ impl Corpus {
         let mut counted = 0usize;
 
         for s in &schemes {
-            if s.is_dark() != dark || s.author == GENERATED_AUTHOR {
+            if s.is_dark() != dark || s.is_generated() {
                 continue;
             }
             counted += 1;
@@ -1253,5 +1253,5 @@ pub fn scheme_from_image(path: &Path, polarity: Polarity, raw: bool) -> Result<(
 /// `coat list` and `coat browse` pick them up with no special-casing — but in
 /// their own subdirectory, so they are obviously not from the upstream repo.
 pub fn generated_dir() -> Result<PathBuf> {
-    Ok(schemes_dir()?.join("generated"))
+    Ok(schemes_dir()?.join(crate::scheme::GENERATED_DIR))
 }
