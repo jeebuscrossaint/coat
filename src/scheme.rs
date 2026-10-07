@@ -527,38 +527,70 @@ pub fn find_scheme(name: &str, prefer_base24: bool) -> Result<Scheme> {
     bail!("Scheme '{}' not found in {}", name, sdir.display())
 }
 
+/// Where `pick_random_scheme` remembers what it has already shown.
+fn random_seen_path() -> Option<PathBuf> {
+    dirs::state_dir()
+        .or_else(dirs::data_local_dir)
+        .map(|d| d.join("coat").join("random-seen.json"))
+}
+
 /// Pick a random scheme from the library, optionally restricted to a variant
 /// ("dark" or "light"). Returns the loaded scheme.
-pub fn pick_random_scheme(variant_filter: Option<&str>, _prefer_base24: bool) -> Result<Scheme> {
+///
+/// Uniform draws repeat quickly (birthday problem), so this deals from a
+/// persisted shuffle bag instead: nothing is shown twice until every candidate
+/// has been. Only one flavour is drawn from: base24 with `prefer_base24`,
+/// base16 otherwise, so a theme's two copies can't both come up.
+pub fn pick_random_scheme(variant_filter: Option<&str>, prefer_base24: bool) -> Result<Scheme> {
     let sdir = schemes_dir()?;
 
-    // With a variant filter we need each scheme's variant, so pick from the
-    // cached index (already parsed) rather than re-reading every file.
-    if let Some(vf) = variant_filter {
-        let mut candidates: Vec<Scheme> = load_all_schemes()?
-            .into_iter()
-            .filter(|s| s.variant.to_lowercase().contains(vf))
-            .collect();
-        if candidates.is_empty() {
-            bail!("No {} schemes found in {}", vf, sdir.display());
-        }
-        let idx = random_index(candidates.len());
-        return Ok(candidates.swap_remove(idx));
-    }
-
-    // No filter: collect paths (cheap, no parsing) and load exactly one. The
-    // selection is uniform, so directory order doesn't matter here.
-    // scheme_dirs, not a list of its own: the variant-filtered path above goes
-    // through load_all_schemes and would otherwise see a different library than
-    // this one does.
-    let candidates = yaml_files(&scheme_dirs(false)?);
-
+    let mut candidates: Vec<Scheme> = load_all_schemes()?
+        .into_iter()
+        .filter(|s| s.is_base24 == prefer_base24)
+        .filter(|s| variant_filter.map_or(true, |vf| s.variant.to_lowercase().contains(vf)))
+        .collect();
     if candidates.is_empty() {
-        bail!("No schemes found in {} — run 'coat clone'", sdir.display());
+        let flavour = if prefer_base24 { "base24" } else { "base16" };
+        match variant_filter {
+            Some(vf) => bail!("No {} {} schemes found in {}", vf, flavour, sdir.display()),
+            None => bail!("No {} schemes found in {} — run 'coat clone'", flavour, sdir.display()),
+        }
     }
 
+    // Keyed by flavour too, so switching prefer_base24 starts its own bag.
+    let key = |s: &Scheme| format!("{}:{}", if s.is_base24 { "base24" } else { "base16" }, s.name.to_lowercase());
+    let seen_path = random_seen_path();
+    let mut seen: std::collections::HashSet<String> = seen_path
+        .as_ref()
+        .and_then(|p| fs::read(p).ok())
+        .and_then(|b| serde_json::from_slice(&b).ok())
+        .unwrap_or_default();
+
+    let library: std::collections::HashSet<String> = candidates.iter().map(key).collect();
+
+    // Bag empty for this pool: refill it by forgetting just this pool.
+    if library.iter().all(|k| seen.contains(k)) {
+        seen.retain(|k| !library.contains(k));
+    }
+
+    let mut unseen: Vec<String> = library.into_iter().filter(|k| !seen.contains(k)).collect();
+    unseen.sort();
+    let chosen = unseen.swap_remove(random_index(unseen.len()));
+
+    candidates.retain(|s| key(s) == chosen);
     let idx = random_index(candidates.len());
-    Scheme::load_file(&candidates[idx])
+    let scheme = candidates.swap_remove(idx);
+
+    seen.insert(chosen);
+    if let Some(p) = seen_path {
+        if let Some(dir) = p.parent() {
+            let _ = fs::create_dir_all(dir);
+        }
+        if let Ok(json) = serde_json::to_vec(&seen) {
+            let _ = fs::write(p, json);
+        }
+    }
+    Ok(scheme)
 }
 
 pub fn list_schemes(

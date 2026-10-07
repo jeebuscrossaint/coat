@@ -223,17 +223,23 @@ impl CoatConfig {
     }
 
     pub fn load() -> Result<Self> {
-        let path = Self::path()?;
-        let content = fs::read_to_string(&path)
-            .with_context(|| format!("Failed to read {}", path.display()))?;
-        let mut config: Self = serde_norway::from_str(&sanitize(&content))
-            .with_context(|| format!("Failed to parse {}", path.display()))?;
+        let mut config = Self::load_file()?;
         // What is actually on screen beats what the checkout came with.
         if let Some((scheme, base24)) = load_state() {
             config.scheme = scheme;
             config.prefer_base24 = base24;
         }
         Ok(config)
+    }
+
+    /// coat.yaml exactly as written, without the applied-scheme state over it.
+    /// `prefer_base24` here is the user's choice, not the current scheme's flavour.
+    pub fn load_file() -> Result<Self> {
+        let path = Self::path()?;
+        let content = fs::read_to_string(&path)
+            .with_context(|| format!("Failed to read {}", path.display()))?;
+        serde_norway::from_str(&sanitize(&content))
+            .with_context(|| format!("Failed to parse {}", path.display()))
     }
 
     /// The config as one module sees it: the global block with that module's

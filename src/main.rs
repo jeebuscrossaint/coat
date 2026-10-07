@@ -451,7 +451,8 @@ fn cmd_random(args: &[String]) -> Result<()> {
 
     ensure_schemes()?;
 
-    let prefer_base24 = CoatConfig::load().map(|c| c.prefer_base24).unwrap_or(false);
+    // The setting itself, not the flavour of whatever is applied right now.
+    let prefer_base24 = CoatConfig::load_file().map(|c| c.prefer_base24).unwrap_or(false);
 
     loop {
         let scheme = pick_random_scheme(variant_filter, prefer_base24)
