@@ -345,18 +345,18 @@ fn cmd_match(args: &[String]) -> Result<()> {
     }
 
     println!("Sampling: {}\n", image.display());
-    let (scheme, path) = dynamic::scheme_from_image(&image, polarity, raw)?;
+    let (scheme, yaml) = dynamic::scheme_from_image(&image, polarity, raw)?;
 
     println!("{}", scheme::header_string(&scheme));
     scheme::print_color_preview(&scheme);
     println!();
 
     if dry {
-        println!("Written to {} — not applied.", path.display());
-        println!("Apply it later with: coat set {}", scheme.slug);
+        println!("Preview only — nothing written or applied.");
         return Ok(());
     }
 
+    dynamic::save_match(&yaml)?;
     set_and_apply(&scheme, wants_elevation(args))
 }
 

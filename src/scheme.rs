@@ -134,16 +134,15 @@ impl Scheme {
     pub fn load_file(path: &Path) -> Result<Self> {
         let content = fs::read_to_string(path)
             .with_context(|| format!("Failed to read {}", path.display()))?;
-        let raw: RawScheme = serde_norway::from_str(&content)
-            .with_context(|| format!("Failed to parse {}", path.display()))?;
+        Self::from_yaml(&content).with_context(|| format!("Failed to parse {}", path.display()))
+    }
+
+    /// `load_file` for a scheme that is not on disk (yet) — `coat match --dry`.
+    pub fn from_yaml(content: &str) -> Result<Self> {
+        let raw: RawScheme = serde_norway::from_str(content)?;
         let mut scheme = Self::from_raw(raw);
         crate::normalize::apply(&mut scheme);
         Ok(scheme)
-    }
-
-    /// Written by `coat match` rather than taken from the library.
-    pub fn is_generated(&self) -> bool {
-        self.author == crate::dynamic::GENERATED_AUTHOR
     }
 
     pub fn is_dark(&self) -> bool {
@@ -157,21 +156,17 @@ impl Scheme {
     }
 }
 
-/// Every directory a scheme can be loaded from, in the order they are searched.
-/// `generated` holds what `coat match` builds; it is listed here so a generated
-/// scheme is an ordinary scheme afterwards — `coat set`, `list`, `browse` and
-/// `random` all reach it with no special-casing.
+/// Every library directory a scheme can be loaded from, in the order they are
+/// searched. The `coat match` scheme is deliberately not one of them: it is the
+/// current wallpaper's and nothing more, so `find_scheme` reaches it on its own.
 pub fn scheme_dirs(prefer_base24: bool) -> Result<Vec<PathBuf>> {
     let sdir = schemes_dir()?;
     Ok(if prefer_base24 {
-        vec![sdir.join("base24"), sdir.join("base16"), sdir.join(GENERATED_DIR)]
+        vec![sdir.join("base24"), sdir.join("base16")]
     } else {
-        vec![sdir.join("base16"), sdir.join("base24"), sdir.join(GENERATED_DIR)]
+        vec![sdir.join("base16"), sdir.join("base24")]
     })
 }
-
-/// Subdirectory of the schemes directory that `coat match` writes into.
-pub const GENERATED_DIR: &str = "generated";
 
 pub fn schemes_dir() -> Result<PathBuf> {
     let home = dirs::home_dir().context("Cannot determine home directory")?;
@@ -501,6 +496,13 @@ pub fn find_scheme(name: &str, prefer_base24: bool) -> Result<Scheme> {
 
     let dirs_to_try = scheme_dirs(prefer_base24)?;
 
+    // The current `coat match` scheme, which lives outside the library.
+    if let Some(scheme) = crate::dynamic::current_match() {
+        if scheme.slug.eq_ignore_ascii_case(name) {
+            return Ok(scheme);
+        }
+    }
+
     // First pass: match by filename stem
     let files = yaml_files(&dirs_to_try);
     for path in &files {
@@ -535,7 +537,7 @@ pub fn pick_random_scheme(variant_filter: Option<&str>, _prefer_base24: bool) ->
     if let Some(vf) = variant_filter {
         let mut candidates: Vec<Scheme> = load_all_schemes()?
             .into_iter()
-            .filter(|s| !s.is_generated() && s.variant.to_lowercase().contains(vf))
+            .filter(|s| s.variant.to_lowercase().contains(vf))
             .collect();
         if candidates.is_empty() {
             bail!("No {} schemes found in {}", vf, sdir.display());
@@ -549,11 +551,7 @@ pub fn pick_random_scheme(variant_filter: Option<&str>, _prefer_base24: bool) ->
     // scheme_dirs, not a list of its own: the variant-filtered path above goes
     // through load_all_schemes and would otherwise see a different library than
     // this one does.
-    // Generated schemes are left out: they are the user's own wallpaper
-    // matches, not something to land on by chance.
-    let generated = sdir.join(GENERATED_DIR);
-    let dirs: Vec<PathBuf> = scheme_dirs(false)?.into_iter().filter(|d| *d != generated).collect();
-    let candidates = yaml_files(&dirs);
+    let candidates = yaml_files(&scheme_dirs(false)?);
 
     if candidates.is_empty() {
         bail!("No schemes found in {} — run 'coat clone'", sdir.display());

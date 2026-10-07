@@ -13,10 +13,12 @@
 //! lightness would hand you base05 at 20% L over a base00 at 15% and call it a
 //! scheme.
 //!
-//! The output is written out as an ordinary scheme file and then read back
-//! through `Scheme::load_file`, so a generated scheme goes through exactly the
-//! same funnel — base24 fallbacks, normalization — as one from the schemes repo.
-//! `coat set <slug>` works on it afterwards like any other.
+//! The output is an ordinary scheme file read back through `Scheme::from_yaml`,
+//! so a generated scheme goes through exactly the same funnel — base24
+//! fallbacks, normalization — as one from the schemes repo. It is a one-off,
+//! not part of the library: only the one on screen is kept, in the state
+//! directory, so `coat apply` can render it again. It never shows up in `list`,
+//! `browse`, `random` or the corpus measured above.
 
 use anyhow::{bail, Context, Result};
 use std::path::{Path, PathBuf};
@@ -153,11 +155,6 @@ struct Corpus {
     bg_range: (f64, f64),
 }
 
-/// A scheme `coat match` wrote. Measuring these would feed generated schemes back
-/// into the ladder that generates them, so a week of wallpapers would drag the
-/// corpus toward itself.
-pub const GENERATED_AUTHOR: &str = "coat match";
-
 /// Below this many schemes the percentiles are noise, and the shipped fallback is
 /// the better answer. A fresh install before `coat clone` has none at all.
 const CORPUS_MIN: usize = 24;
@@ -255,7 +252,7 @@ impl Corpus {
         let mut counted = 0usize;
 
         for s in &schemes {
-            if s.is_dark() != dark || s.is_generated() {
+            if s.is_dark() != dark {
                 continue;
             }
             counted += 1;
@@ -966,9 +963,9 @@ fn hex(l: f64, c: f64, h: f64) -> String {
     cam16::ucs_to_hex(Jmh { j: l, m: c, h }, conditions())
 }
 
-/// Build a scheme from an image, write it into the schemes directory, and hand
-/// back what `Scheme::load_file` makes of it.
-pub fn scheme_from_image(path: &Path, polarity: Polarity, raw: bool) -> Result<(Scheme, PathBuf)> {
+/// Build a scheme from an image. Returns the scheme and the YAML behind it;
+/// nothing is written — `save_match` does that once it is actually applied.
+pub fn scheme_from_image(path: &Path, polarity: Polarity, raw: bool) -> Result<(Scheme, String)> {
     let clusters = cluster_image(path)?;
 
     let mean_l: f64 = clusters.iter().map(|c| c.l * c.weight).sum();
@@ -1205,19 +1202,10 @@ pub fn scheme_from_image(path: &Path, polarity: Polarity, raw: bool) -> Result<(
         .file_stem()
         .map(|s| s.to_string_lossy().to_string())
         .unwrap_or_else(|| "wallpaper".into());
-    // One slug per FLAVOUR, not per wallpaper. A wallpaper scheme is the
-    // current wallpaper's scheme and nothing more -- it is replaced the next
-    // time you change the wallpaper, so naming it after the image left a file
-    // behind for every wallpaper ever set, all of them dead the moment the next
-    // one landed, and all of them in `coat list` forever. Four names at most now
-    // -- one per --slots/--light combination, so `coat set wall-light` still
-    // means something -- and each is overwritten in place. Which image it came
-    // from is still recorded, in `name` and `description` inside the file.
-    let slug = format!(
-        "wall{}{}",
-        if raw { "" } else { "-slots" },
-        if dark { "" } else { "-light" }
-    );
+    // One slug, whatever the flavour: there is only ever one matched scheme,
+    // the one on screen. Which image it came from is in `name` and
+    // `description`.
+    let slug = "wall";
     let name = format!("Wall {}", stem.replace(['_', '-'], " "));
 
     let mut yaml = String::new();
@@ -1239,19 +1227,32 @@ pub fn scheme_from_image(path: &Path, polarity: Polarity, raw: bool) -> Result<(
         yaml.push_str(&format!("  {}: \"#{}\"\n", slot, value));
     }
 
-    let dir = generated_dir()?;
-    std::fs::create_dir_all(&dir)
-        .with_context(|| format!("cannot create {}", dir.display()))?;
-    let dest = dir.join(format!("{}.yaml", slug));
-    std::fs::write(&dest, &yaml).with_context(|| format!("cannot write {}", dest.display()))?;
-
-    let scheme = Scheme::load_file(&dest)?;
-    Ok((scheme, dest))
+    let scheme = Scheme::from_yaml(&yaml)?;
+    Ok((scheme, yaml))
 }
 
-/// Generated schemes live under the schemes directory so `find_scheme`,
-/// `coat list` and `coat browse` pick them up with no special-casing — but in
-/// their own subdirectory, so they are obviously not from the upstream repo.
-pub fn generated_dir() -> Result<PathBuf> {
-    Ok(schemes_dir()?.join(crate::scheme::GENERATED_DIR))
+/// Where the applied `coat match` scheme is kept: beside the state file that
+/// names it, not in the scheme library. Overwritten by every match.
+fn match_path() -> Result<PathBuf> {
+    let state = crate::config::state_path()?;
+    Ok(state.with_file_name("match.yaml"))
+}
+
+/// Keep `yaml` as the current matched scheme, and clear out the
+/// `schemes/generated/` directory older builds filled with every flavour.
+pub fn save_match(yaml: &str) -> Result<PathBuf> {
+    let dest = match_path()?;
+    if let Some(dir) = dest.parent() {
+        std::fs::create_dir_all(dir).with_context(|| format!("cannot create {}", dir.display()))?;
+    }
+    std::fs::write(&dest, yaml).with_context(|| format!("cannot write {}", dest.display()))?;
+    if let Ok(legacy) = schemes_dir().map(|d| d.join("generated")) {
+        let _ = std::fs::remove_dir_all(legacy);
+    }
+    Ok(dest)
+}
+
+/// The matched scheme currently kept, if there is one.
+pub fn current_match() -> Option<Scheme> {
+    Scheme::load_file(&match_path().ok()?).ok()
 }

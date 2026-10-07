@@ -121,8 +121,9 @@ Under `--slots` instead:
 - no two accents may sit within 20° of each other, so `base0D` and `base0E` cannot
   collapse into the same blue
 
-Generated schemes are written to `~/.config/coat/schemes/generated/`, so
-`coat set`, `coat list` and `coat browse` see them like any other scheme.
+A matched scheme is a one-off, not part of the library: only the one on screen
+is kept (`~/.local/state/coat/match.yaml`, overwritten by the next match) so
+`coat apply` can re-render it. It never appears in `list`, `browse` or `random`.
 
 ## Shell completions
 
