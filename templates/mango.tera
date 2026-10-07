@@ -24,9 +24,9 @@ urgentcolor=0x{{ base08 }}ff
 # base0D -- the accent, for the scratchpad frame.
 scratchpadcolor=0x{{ base0D }}ff
 
-# base0B / base0E / base0C for the remaining state frames: green for
-# maximize-to-screen, magenta for global, cyan for overlay.
-maximizescreencolor=0x{{ base0B }}ff
+# Maximize/fullscreen keeps the plain focus frame. base0E / base0C for the
+# remaining state frames: magenta for global, cyan for overlay.
+maximizescreencolor=0x{{ base05 }}ff
 globalcolor=0x{{ base0E }}ff
 overlaycolor=0x{{ base0C }}ff
 
