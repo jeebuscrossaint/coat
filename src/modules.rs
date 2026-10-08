@@ -50,6 +50,7 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("lsd",       "lsd.tera"),
     tpl!("mango",     "mango.tera"),
     tpl!("mpv",       "mpv.tera"),
+    tpl!("qutebrowser","qutebrowser.tera"),
     tpl!("satty",     "satty.tera"),
     tpl!("swaylock",  "swaylock.tera"),
     tpl!("vesktop",   "vesktop.tera"),
@@ -334,7 +335,7 @@ fn run(cmd: &str) {
 
 pub const ALL_MODULES: &[&str] = &[
     "bat", "btop", "conky", "dunst", "fastfetch", "fish", "fuzzel", "gtk", "imv", "kitty",
-    "lsd", "mango", "micro", "mpv", "satty", "swaylock", "vesktop", "vscode", "xresources",
+    "lsd", "mango", "micro", "mpv", "qutebrowser", "satty", "swaylock", "vesktop", "vscode", "xresources",
     "zathura",
 ];
 
@@ -391,6 +392,7 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "fuzzel"     => apply_fuzzel(tera, &ctx, scheme, config),
         "swaylock"   => apply_swaylock(tera, &ctx, scheme, config),
         "mpv"        => apply_mpv(tera, &ctx, scheme, config),
+        "qutebrowser"=> apply_qutebrowser(tera, &ctx, scheme, config),
         "vesktop"    => apply_vesktop(tera, &ctx, scheme, config),
         "vscode"     => apply_vscode(scheme, config),
         "xresources" => apply_xresources(tera, &ctx, scheme, config),
@@ -728,6 +730,32 @@ pub fn apply_vesktop_shared(scheme: &Scheme, config: &CoatConfig, paths: &[PathB
     let tera = make_tera()?;
     let ctx = build_context(scheme, config);
     paths.iter().try_for_each(|path| render_to(&tera, "vesktop", &ctx, path))
+}
+
+fn apply_qutebrowser(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    let dir = home.join(".config/qutebrowser");
+    render_to(tera, "qutebrowser", ctx, &dir.join("coat-theme.py"))?;
+
+    // Once a config.py exists, qutebrowser stops reading autoconfig.yml unless the
+    // file says to -- so a config.py holding nothing but coat's include would
+    // silently drop every setting made with :set. Seed it with the load call
+    // before the include goes on top, which also leaves autoconfig.yml winning.
+    let config_py = dir.join("config.py");
+    if !config_py.exists() {
+        ensure_dir(&dir)?;
+        fs::write(&config_py, "config.load_autoconfig()\n")
+            .with_context(|| format!("Failed to write {}", config_py.display()))?;
+    }
+    // config.source resolves a relative path against the config directory.
+    ensure_include(&config_py, "config.source('coat-theme.py')", ("#", ""))?;
+
+    // qutebrowser does not watch its config, but a second `qutebrowser <cmd>`
+    // hands the command to the running instance over IPC. Guarded by pgrep,
+    // because with nothing running that same call opens a browser.
+    run("pgrep -u \"$(id -u)\" -x qutebrowser >/dev/null \
+         && qutebrowser ':config-source' >/dev/null 2>&1; true");
+    Ok(())
 }
 
 fn apply_vesktop(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
@@ -1170,6 +1198,15 @@ pub fn module_docs(name: &str) {
         }
         "imv" => {
             println!("~/.config/imv/config is written whole.");
+        }
+        "qutebrowser" => {
+            println!("Writes ~/.config/qutebrowser/coat-theme.py (colours + font) and");
+            println!("adds\n");
+            println!("  config.source('coat-theme.py')\n");
+            println!("to the top of config.py on first apply. A running qutebrowser is");
+            println!("reloaded with :config-source; anything set later in config.py or");
+            println!("autoconfig.yml still wins.\n");
+            println!("preferred_color_scheme (what sites see) may need a restart.");
         }
         "satty" => {
             println!("~/.config/satty/config.toml is written whole.");

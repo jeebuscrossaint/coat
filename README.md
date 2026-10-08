@@ -220,6 +220,7 @@ across a theme change.
 | Notifications | dunst |
 | System | gtk, xresources |
 | Utilities | bat, btop, lsd, fastfetch, zathura, imv, mpv, satty, conky |
+| Browser | qutebrowser |
 | Other | vesktop |
 
 See [USAGE.md](USAGE.md) for per-application activation steps, or run `coat docs <app>`.

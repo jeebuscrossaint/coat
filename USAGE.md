@@ -148,6 +148,13 @@ In btop: `Esc` → Options → Color theme → **coat**
 Writes `~/.config/zathura/coat-theme` (colors + font) and adds `include
 coat-theme` to your `zathurarc` on first apply. Restart zathura to apply.
 
+### qutebrowser
+
+Writes `~/.config/qutebrowser/coat-theme.py` (colors + font) and adds
+`config.source('coat-theme.py')` to the top of `config.py` on first apply
+(creating it with `config.load_autoconfig()` if missing). A running qutebrowser
+reloads via `:config-source` automatically.
+
 ### vesktop
 
 Writes a CSS theme to whichever of these directories exists:
