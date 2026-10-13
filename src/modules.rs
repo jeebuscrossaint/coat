@@ -587,7 +587,6 @@ fn apply_gtk(tera: &Tera, ctx: &tera::Context, scheme: &Scheme, config: &CoatCon
             config.font_size_desktop()
         ));
     }
-    run("pkill -HUP -f 'gtk' 2>/dev/null; true");
     Ok(())
 }
 

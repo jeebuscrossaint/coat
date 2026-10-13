@@ -11,32 +11,32 @@
 # Every comment here therefore sits on its own line.
 
 # base00 -- the root/background colour, visible where no window is.
-rootcolor=0x{{ base00 }}ff
+root_color=0x{{ base00 }}ff
 
 # base03 for unfocused, base05 for focused: the same pairing dwl used, and the
 # only two slots that are legible on base00 across every base16 scheme.
-bordercolor=0x{{ base03 }}ff
-focuscolor=0x{{ base05 }}ff
+border_color=0x{{ base03 }}ff
+focus_color=0x{{ base05 }}ff
 
 # base08 -- urgent.
-urgentcolor=0x{{ base08 }}ff
+urgent_color=0x{{ base08 }}ff
 
 # base0D -- the accent, for the scratchpad frame.
-scratchpadcolor=0x{{ base0D }}ff
+scratchpad_color=0x{{ base0D }}ff
 
 # Maximize/fullscreen keeps the plain focus frame. base0E / base0C for the
 # remaining state frames: magenta for global, cyan for overlay.
-maximizescreencolor=0x{{ base05 }}ff
-globalcolor=0x{{ base0E }}ff
-overlaycolor=0x{{ base0C }}ff
+maximized_screen_color=0x{{ base05 }}ff
+global_color=0x{{ base0E }}ff
+overlay_color=0x{{ base0C }}ff
 
 # Drag targets: accent at low alpha for the drop zone, base08 for the split line.
-dropcolor=0x{{ base0D }}55
-splitcolor=0x{{ base08 }}ff
+drop_color=0x{{ base0D }}55
+split_color=0x{{ base08 }}ff
 
 # Shadows are pure black at partial alpha regardless of scheme -- tinting them
 # with a palette colour reads as a glow rather than depth.
-shadowscolor=0x{{ shadow | lower_hex }}88
+shadows_color=0x{{ shadow | lower_hex }}88
 
 # The group bar -- mango's per-window title strip, which is the nearest thing it has to a
 # titlebar (it has no titlebars and no buttons, so no traffic lights). Focused gets the
