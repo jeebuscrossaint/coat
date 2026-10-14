@@ -18,7 +18,8 @@ use console::style;
 use indicatif::{ProgressBar, ProgressStyle};
 use modules::{apply_module, make_tera, module_docs, module_aliases, ALL_MODULES, MODULE_ALIASES};
 use scheme::{
-    find_scheme, list_schemes, pick_random_scheme, print_color_preview, schemes_clone,
+    color_preview_string, find_scheme, header_string, list_schemes, pick_random_scheme,
+    print_color_preview, schemes_clone,
     schemes_exists, schemes_update, Scheme,
 };
 use std::fs;
@@ -403,39 +404,6 @@ fn cmd_set(args: &[String]) -> Result<()> {
     set_and_apply(&scheme, wants_elevation(args))
 }
 
-/// What the user chose at the `random` apply prompt.
-enum RandomChoice {
-    Apply,
-    Reroll,
-    Quit,
-}
-
-/// Prompt after previewing a random pick. Single keypress, no Enter needed.
-/// Falls back to Apply when stdin isn't a terminal (e.g. piped/scripted).
-fn prompt_random() -> Result<RandomChoice> {
-    use console::{Key, Term};
-    let term = Term::stdout();
-    if !term.is_term() {
-        return Ok(RandomChoice::Apply);
-    }
-    print!("Apply? [Y]es · [r]eroll · [n]o: ");
-    std::io::Write::flush(&mut std::io::stdout())?;
-    loop {
-        let c = match term.read_key()? {
-            Key::Enter => 'y',
-            Key::Escape => 'n',
-            Key::Char(c) => c.to_ascii_lowercase(),
-            _ => continue,
-        };
-        match c {
-            'y' => { println!("yes\n"); return Ok(RandomChoice::Apply); }
-            'r' => { println!("reroll\n"); return Ok(RandomChoice::Reroll); }
-            'n' | 'q' => { println!("no"); return Ok(RandomChoice::Quit); }
-            _ => continue,
-        }
-    }
-}
-
 fn cmd_random(args: &[String]) -> Result<()> {
     // Optional variant filter, mirroring list/search flags.
     let variant_filter = args.iter().find_map(|a| match a.as_str() {
@@ -454,29 +422,74 @@ fn cmd_random(args: &[String]) -> Result<()> {
     // The setting itself, not the flavour of whatever is applied right now.
     let prefer_base24 = CoatConfig::load_file().map(|c| c.prefer_base24).unwrap_or(false);
 
-    loop {
-        let scheme = pick_random_scheme(variant_filter, prefer_base24)
-            .context("Failed to pick a random scheme")?;
+    let pick = || pick_random_scheme(variant_filter, prefer_base24)
+        .context("Failed to pick a random scheme");
 
+    let term = console::Term::stdout();
+    if dry || auto || !term.is_term() {
+        let scheme = pick()?;
         println!("🎲 Randomly selected: {} by {}", scheme.name, scheme.author);
         if !scheme.variant.is_empty() {
             println!("   Variant: {}", scheme.variant);
         }
         print_color_preview(&scheme);
         println!();
-
         if dry {
             println!("(preview only — not applied)");
             return Ok(());
         }
-        if auto {
-            return set_and_apply(&scheme, elevate);
+        return set_and_apply(&scheme, elevate);
+    }
+
+    // Interactive: redraw in place, keep a history so you can step back.
+    use console::Key;
+    let mut history = vec![pick()?];
+    let mut idx = 0;
+    term.hide_cursor().ok();
+    let outcome = (|| -> Result<Option<usize>> {
+        loop {
+            let scheme = &history[idx];
+            let badge = variant_filter.map(|v| format!("  [{}]", v)).unwrap_or_default();
+            let mut frame = format!(
+                "\x1b[1mcoat random\x1b[0m  {}/{}{}\n\n",
+                idx + 1,
+                history.len(),
+                badge
+            );
+            frame.push_str(&header_string(scheme));
+            frame.push_str(&color_preview_string(scheme));
+            frame.push_str(
+                "\n\x1b[2mr/space/→ reroll · ←/b back · Enter apply · q quit\x1b[0m\n",
+            );
+            term.move_cursor_to(0, 0)?;
+            term.clear_to_end_of_screen()?;
+            print!("{}", frame);
+            term.flush()?;
+
+            match term.read_key()? {
+                Key::Char('r') | Key::Char(' ') | Key::ArrowRight | Key::Char('l') | Key::Char('j') | Key::ArrowDown => {
+                    if idx + 1 < history.len() {
+                        idx += 1;
+                    } else {
+                        history.push(pick()?);
+                        idx = history.len() - 1;
+                    }
+                }
+                Key::ArrowLeft | Key::Char('b') | Key::Char('h') | Key::Char('k') | Key::ArrowUp => {
+                    idx = idx.saturating_sub(1);
+                }
+                Key::Enter | Key::Char('y') => return Ok(Some(idx)),
+                Key::Char('q') | Key::Char('n') | Key::Escape => return Ok(None),
+                _ => {}
+            }
         }
-        match prompt_random()? {
-            RandomChoice::Apply => return set_and_apply(&scheme, elevate),
-            RandomChoice::Reroll => continue,
-            RandomChoice::Quit => { println!("Not applied."); return Ok(()); }
-        }
+    })();
+    term.show_cursor().ok();
+    term.clear_screen().ok();
+
+    match outcome? {
+        Some(i) => set_and_apply(&history[i], elevate),
+        None => { println!("Not applied."); Ok(()) }
     }
 }
 
