@@ -45,4 +45,7 @@ counter={{ base03 }}ff
 # The border COLOUR lives in [colors]. [border] itself takes only width, radius
 # and selection-radius -- all geometry, all the user's -- and `[border] color` is
 # rejected outright.
-border={{ base0D }}ff
+#
+# base05, not the accent: the same slot mango's focus_color uses, so the launcher
+# wears the focused-window frame rather than standing apart from it.
+border={{ base05 }}ff
