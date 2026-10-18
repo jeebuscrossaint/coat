@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
+use crate::config::Flavour;
 
 #[derive(Debug, Deserialize)]
 struct RawScheme {
@@ -539,26 +540,38 @@ fn random_seen_path() -> Option<PathBuf> {
 ///
 /// Uniform draws repeat quickly (birthday problem), so this deals from a
 /// persisted shuffle bag instead: nothing is shown twice until every candidate
-/// has been. Only one flavour is drawn from: base24 with `prefer_base24`,
-/// base16 otherwise, so a theme's two copies can't both come up.
-pub fn pick_random_scheme(variant_filter: Option<&str>, prefer_base24: bool) -> Result<Scheme> {
+/// has been. With a single flavour only that one is drawn from; with `Any`
+/// both are, but a theme's two copies share one slot in the bag.
+pub fn pick_random_scheme(variant_filter: Option<&str>, flavour: Flavour) -> Result<Scheme> {
     let sdir = schemes_dir()?;
 
     let mut candidates: Vec<Scheme> = load_all_schemes()?
         .into_iter()
-        .filter(|s| s.is_base24 == prefer_base24)
+        .filter(|s| flavour == Flavour::Any || s.is_base24 == flavour.prefers_base24())
         .filter(|s| variant_filter.map_or(true, |vf| s.variant.to_lowercase().contains(vf)))
         .collect();
     if candidates.is_empty() {
-        let flavour = if prefer_base24 { "base24" } else { "base16" };
+        let label = match flavour {
+            Flavour::Base24 => "base24",
+            Flavour::Base16 => "base16",
+            Flavour::Any => "base16/base24",
+        };
         match variant_filter {
-            Some(vf) => bail!("No {} {} schemes found in {}", vf, flavour, sdir.display()),
-            None => bail!("No {} schemes found in {} — run 'coat clone'", flavour, sdir.display()),
+            Some(vf) => bail!("No {} {} schemes found in {}", vf, label, sdir.display()),
+            None => bail!("No {} schemes found in {} — run 'coat clone'", label, sdir.display()),
         }
     }
 
     // Keyed by flavour too, so switching prefer_base24 starts its own bag.
-    let key = |s: &Scheme| format!("{}:{}", if s.is_base24 { "base24" } else { "base16" }, s.name.to_lowercase());
+    // Under `Any` both copies of a theme map to one key; one is picked below.
+    let key = |s: &Scheme| {
+        let tag = match flavour {
+            Flavour::Any => "any",
+            _ if s.is_base24 => "base24",
+            _ => "base16",
+        };
+        format!("{}:{}", tag, s.name.to_lowercase())
+    };
     let seen_path = random_seen_path();
     let mut seen: std::collections::HashSet<String> = seen_path
         .as_ref()

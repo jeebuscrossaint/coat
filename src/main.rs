@@ -13,7 +13,7 @@ mod scheme;
 mod windows;
 
 use anyhow::{Context, Result};
-use config::CoatConfig;
+use config::{CoatConfig, Flavour};
 use console::style;
 use indicatif::{ProgressBar, ProgressStyle};
 use modules::{apply_module, make_tera, module_docs, module_aliases, ALL_MODULES, MODULE_ALIASES};
@@ -141,7 +141,7 @@ fn cmd_apply(args: &[String], _prog: &str) -> Result<()> {
     let config = CoatConfig::load().context("Failed to load coat.yaml")?;
 
     println!("Loading scheme: {}", config.scheme);
-    let scheme = find_scheme(&config.scheme, config.prefer_base24)
+    let scheme = find_scheme(&config.scheme, config.prefer_base24.prefers_base24())
         .with_context(|| format!("Failed to load scheme '{}'", config.scheme))?;
     println!("Applying scheme: {}", scheme.name);
 
@@ -379,8 +379,12 @@ fn cmd_set(args: &[String]) -> Result<()> {
         true
     } else if args.iter().any(|a| a == "--base16") {
         false
+    } else if CoatConfig::load_file().map(|c| c.prefer_base24).ok() == Some(Flavour::Any) {
+        // `any`: take the base24 copy when a theme has both -- it's a superset
+        // of the base16 one -- and fall back to base16 when that's all there is.
+        true
     } else {
-        CoatConfig::load().map(|c| c.prefer_base24).unwrap_or(false)
+        CoatConfig::load().map(|c| c.prefer_base24.prefers_base24()).unwrap_or(false)
     };
     let scheme = match find_scheme(name, prefer_base24) {
         Ok(s) => s,
@@ -420,9 +424,9 @@ fn cmd_random(args: &[String]) -> Result<()> {
     ensure_schemes()?;
 
     // The setting itself, not the flavour of whatever is applied right now.
-    let prefer_base24 = CoatConfig::load_file().map(|c| c.prefer_base24).unwrap_or(false);
+    let flavour = CoatConfig::load_file().map(|c| c.prefer_base24).unwrap_or_default();
 
-    let pick = || pick_random_scheme(variant_filter, prefer_base24)
+    let pick = || pick_random_scheme(variant_filter, flavour)
         .context("Failed to pick a random scheme");
 
     let term = console::Term::stdout();
@@ -791,7 +795,7 @@ fn cmd_info() -> Result<()> {
     if schemes_exists() {
         println!("\nScheme library: installed");
         if !config.scheme.is_empty() {
-            match find_scheme(&config.scheme, config.prefer_base24) {
+            match find_scheme(&config.scheme, config.prefer_base24.prefers_base24()) {
                 Ok(scheme) => {
                     println!("\nCurrent scheme: {} by {}", scheme.name, scheme.author);
                     if !scheme.variant.is_empty() {

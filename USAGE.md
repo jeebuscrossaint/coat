@@ -28,7 +28,7 @@ coat apply
 
 ```yaml
 scheme: gruvbox-dark-hard     # scheme name (case-insensitive)
-prefer_base24: false           # prefer Base24 variant when available
+prefer_base24: false           # true = Base24, false = Base16, any = both (set prefers base24, random mixes)
 
 enabled:
   - fish

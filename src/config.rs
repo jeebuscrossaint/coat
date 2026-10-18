@@ -197,12 +197,54 @@ pub fn save_state(scheme: &str, base24: bool) -> Result<()> {
         .with_context(|| format!("Failed to write {}", path.display()))
 }
 
+/// `prefer_base24:` — `true`, `false`, or `any`. `any` lets `coat random` deal
+/// from both flavours; everywhere else it behaves like `false`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Flavour {
+    #[default]
+    Base16,
+    Base24,
+    Any,
+}
+
+impl Flavour {
+    pub fn from_bool(b: bool) -> Self {
+        if b { Flavour::Base24 } else { Flavour::Base16 }
+    }
+
+    pub fn prefers_base24(self) -> bool {
+        self == Flavour::Base24
+    }
+}
+
+impl<'de> Deserialize<'de> for Flavour {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Raw {
+            Bool(bool),
+            Str(String),
+        }
+        match Raw::deserialize(d)? {
+            Raw::Bool(b) => Ok(Flavour::from_bool(b)),
+            Raw::Str(s) => match s.to_lowercase().as_str() {
+                "any" | "either" | "both" | "random" => Ok(Flavour::Any),
+                "true" | "base24" => Ok(Flavour::Base24),
+                "false" | "base16" => Ok(Flavour::Base16),
+                _ => Err(serde::de::Error::custom(format!(
+                    "prefer_base24: expected true, false or any, got '{}'", s
+                ))),
+            },
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct CoatConfig {
     #[serde(default = "default_scheme")]
     pub scheme: String,
     #[serde(default)]
-    pub prefer_base24: bool,
+    pub prefer_base24: Flavour,
     #[serde(default)]
     pub normalize: NormalizeConfig,
     #[serde(default)]
@@ -227,7 +269,7 @@ impl CoatConfig {
         // What is actually on screen beats what the checkout came with.
         if let Some((scheme, base24)) = load_state() {
             config.scheme = scheme;
-            config.prefer_base24 = base24;
+            config.prefer_base24 = Flavour::from_bool(base24);
         }
         Ok(config)
     }
