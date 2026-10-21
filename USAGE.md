@@ -124,6 +124,27 @@ Writes `~/.Xresources.coat` and adds an `#include` for it to `~/.Xresources` on
 first apply, then runs `xrdb -merge ~/.Xresources`. Your own DPI, cursor and
 per-app settings in `~/.Xresources` are preserved.
 
+### colors
+
+Writes `~/.config/coat/colors.json`: the scheme as plain data, for anything coat
+has no module for. Each colour is `"#RRGGBB"` under `colors.base00` … `base0F`
+(and `base10` … `base17` for Base24 schemes), plus `scheme`, `author`, `variant`
+(`dark`/`light`), `base24`, and `font`. Readers pick the slots they need:
+
+```bash
+jq -r .colors.base0D ~/.config/coat/colors.json
+```
+
+To keep a copy on other machines, list them as `host:/dir`. The copy goes over
+ssh (it must not prompt) and is only replaced when it changed, so a reader there
+can watch it:
+
+```yaml
+colors:
+  send:
+    - me@server:/opt/homelab/stacks/terminal/theme
+```
+
 ### bat
 
 Writes `~/.config/bat/themes/coat.tmTheme`.

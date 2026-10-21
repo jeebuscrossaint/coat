@@ -334,7 +334,7 @@ fn run(cmd: &str) {
 // ── Module dispatch ────────────────────────────────────────────────────────
 
 pub const ALL_MODULES: &[&str] = &[
-    "bat", "btop", "conky", "dunst", "fastfetch", "fish", "fuzzel", "gtk", "imv", "kitty",
+    "bat", "btop", "colors", "conky", "dunst", "fastfetch", "fish", "fuzzel", "gtk", "imv", "kitty",
     "lsd", "mango", "micro", "mpv", "qutebrowser", "satty", "swaylock", "vesktop", "vscode", "xresources",
     "zathura",
 ];
@@ -391,6 +391,7 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "mango"      => apply_mango(tera, &ctx, scheme, config),
         "fuzzel"     => apply_fuzzel(tera, &ctx, scheme, config),
         "swaylock"   => apply_swaylock(tera, &ctx, scheme, config),
+        "colors"     => apply_colors(scheme, config),
         "mpv"        => apply_mpv(tera, &ctx, scheme, config),
         "qutebrowser"=> apply_qutebrowser(tera, &ctx, scheme, config),
         "vesktop"    => apply_vesktop(tera, &ctx, scheme, config),
@@ -619,6 +620,73 @@ fn apply_kitty(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -
          done; [ $ok = 0 ] || pkill -SIGUSR1 -x kitty 2>/dev/null; true",
         dest.to_string_lossy()
     ));
+    Ok(())
+}
+
+/// The scheme as plain data, for anything coat has no module for: every colour
+/// with its `#`, the scheme's name and variant, and the fonts. Readers map the
+/// slots themselves, so a new consumer never needs a coat change.
+fn apply_colors(s: &Scheme, c: &CoatConfig) -> Result<()> {
+    let dest = home_dir()?.join(".config/coat/colors.json");
+    let mut colors = serde_json::Map::new();
+    let mut slots = vec![
+        ("base00", &s.base00), ("base01", &s.base01), ("base02", &s.base02), ("base03", &s.base03),
+        ("base04", &s.base04), ("base05", &s.base05), ("base06", &s.base06), ("base07", &s.base07),
+        ("base08", &s.base08), ("base09", &s.base09), ("base0A", &s.base0a), ("base0B", &s.base0b),
+        ("base0C", &s.base0c), ("base0D", &s.base0d), ("base0E", &s.base0e), ("base0F", &s.base0f),
+    ];
+    if s.is_base24 {
+        slots.extend([
+            ("base10", &s.base10), ("base11", &s.base11), ("base12", &s.base12), ("base13", &s.base13),
+            ("base14", &s.base14), ("base15", &s.base15), ("base16", &s.base16_color), ("base17", &s.base17),
+        ]);
+    }
+    for (slot, hex) in slots {
+        colors.insert(slot.into(), format!("#{}", hex).into());
+    }
+    let doc = serde_json::json!({
+        "scheme": s.name,
+        "author": s.author,
+        "variant": if s.is_dark() { "dark" } else { "light" },
+        "base24": s.is_base24,
+        "colors": colors,
+        "font": {
+            "monospace": c.font_monospace(),
+            "sansserif": c.font_sansserif(),
+            "serif": c.font_serif(),
+            "size": c.font_size_terminal(),
+        },
+    });
+    let content = serde_json::to_string_pretty(&doc)? + "\n";
+    ensure_dir(dest.parent().unwrap_or(Path::new("/")))?;
+    // Same rule as render_to: an identical file is left alone, so whatever
+    // watches it only wakes up for a real change.
+    if fs::read(&dest).ok().as_deref() != Some(content.as_bytes()) {
+        fs::write(&dest, &content).with_context(|| format!("Failed to write {}", dest.display()))?;
+    }
+    crate::manifest::record_write(&dest);
+    detail!("  ✓ {}", dest.display());
+
+    // Copies for other machines, each `host:/dir`. Written under a temp name and
+    // moved into place so a reader never sees half a file, and left alone when
+    // unchanged, for the same reason as above.
+    //
+    // `sh -c '...'` because the login shell there need not be POSIX (the homelab's
+    // is fish). BatchMode: if SSH would prompt (a key passphrase, Tailscale SSH's
+    // periodic check), give up rather than hang in the background where nobody
+    // can answer it.
+    for target in &c.colors.send {
+        let Some((host, dir)) = target.split_once(':') else {
+            detail!("  warning: colors.send entry '{}' should look like host:/dir", target);
+            continue;
+        };
+        run(&format!(
+            "ssh -o BatchMode=yes -o ConnectTimeout=5 {host} \
+             \"sh -c 'f={dir}/colors.json; cat > \\$f.new && \
+             if cmp -s \\$f.new \\$f; then rm \\$f.new; else mv \\$f.new \\$f; fi'\" < '{}'",
+            dest.to_string_lossy()
+        ));
+    }
     Ok(())
 }
 
@@ -1231,6 +1299,18 @@ pub fn module_docs(name: &str) {
             println!("Enable the theme in Discord/Vesktop:\n");
             println!("  Settings → Vencord → Themes → coat.theme.css\n");
             println!("Or restart if auto-loading is enabled.");
+        }
+        "colors" => {
+            println!("Writes ~/.config/coat/colors.json: the scheme as plain data, for");
+            println!("anything coat has no module for. Each colour is \"#RRGGBB\" under");
+            println!("colors.base00 ... base0F (and base10 ... base17 for Base24), plus");
+            println!("scheme, author, variant (dark/light), base24, and font.\n");
+            println!("To keep a copy on other machines too, in coat.yaml:\n");
+            println!("  colors:");
+            println!("    send:");
+            println!("      - me@server:/some/dir   # ssh, needs a login that doesn't prompt\n");
+            println!("The copy is only replaced when it changed, so a reader can watch it.");
+            println!("e.g. jq -r .colors.base00 ~/.config/coat/colors.json");
         }
         "xresources" => {
             println!("Writes ~/.Xresources.coat and adds an #include for it to");

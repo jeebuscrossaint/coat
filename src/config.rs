@@ -256,6 +256,16 @@ pub struct CoatConfig {
     /// Keyed by module name, exactly as it appears under `enabled:`.
     #[serde(default)]
     pub overrides: HashMap<String, ModuleOverride>,
+    /// Where the colors module also sends colors.json.
+    #[serde(default)]
+    pub colors: ColorsConfig,
+}
+
+#[derive(Debug, Deserialize, Default, Clone)]
+pub struct ColorsConfig {
+    /// `host:/dir` targets, copied to over ssh.
+    #[serde(default)]
+    pub send: Vec<String>,
 }
 
 impl CoatConfig {
@@ -352,6 +362,7 @@ impl CoatConfig {
             font: self.font.clone(),
             opacity: self.opacity.clone(),
             overrides: HashMap::new(),
+            colors: self.colors.clone(),
         }
     }
 
