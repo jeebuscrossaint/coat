@@ -271,3 +271,37 @@
     --yellow-new-{{ i }}-hsl: {{ base0A | hue }} calc(var(--saturation-factor, 1)*{{ base0A | sat }}%) {{ (97 - (i - 1) * 0.95) | round(precision=2) }}%;
     --teal-new-{{ i }}-hsl: {{ base0C | hue }} calc(var(--saturation-factor, 1)*{{ base0C | sat }}%) {{ (97 - (i - 1) * 0.95) | round(precision=2) }}%;
 {% endfor %}}
+{% if opacity_applications < 1.0 %}{% set pct = opacity_applications * 100 | round %}
+/* Translucency, for Vencord's transparent window. The tint is painted ONCE, at the
+ * root, and the surfaces on top are see-through: panels painted at alpha compound
+ * wherever they nest and come out opaque again. Text keeps full alpha, only the
+ * backgrounds thin out. */
+html, body {
+    background: transparent !important;
+}
+#app-mount {
+    background: color-mix(in srgb, var(--base00) {{ pct }}%, transparent) !important;
+}
+:root,
+.theme-dark,
+.theme-light,
+.visual-refresh {
+    --background-primary: transparent !important;
+    --background-tertiary: transparent !important;
+    --background-base-lowest: transparent !important;
+    --background-base-lower: transparent !important;
+    --background-base-tertiary: transparent !important;
+    --bg-base-primary: transparent !important;
+    --bg-base-tertiary: transparent !important;
+    --home-background: transparent !important;
+    --primary-600: transparent !important;
+    --primary-660: transparent !important;
+    --primary-800: transparent !important;
+    /* Sidebars sit one layer up, so a thin base01 wash keeps them distinct. */
+    --background-secondary: color-mix(in srgb, var(--base01) 40%, transparent) !important;
+    --background-secondary-alt: color-mix(in srgb, var(--base01) 40%, transparent) !important;
+    --background-base-low: color-mix(in srgb, var(--base01) 40%, transparent) !important;
+    --bg-base-secondary: color-mix(in srgb, var(--base01) 40%, transparent) !important;
+    --primary-630: color-mix(in srgb, var(--base01) 40%, transparent) !important;
+}
+{% endif %}

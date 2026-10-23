@@ -214,7 +214,7 @@ across a theme change.
 | Terminal | kitty |
 | Shell | fish |
 | Editors | micro, vscode |
-| Compositor | mango |
+| Compositor | mango, hyprland |
 | Screen locker | swaylock |
 | Launcher | fuzzel |
 | Notifications | dunst |

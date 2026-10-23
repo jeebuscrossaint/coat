@@ -43,6 +43,7 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("fastfetch", "fastfetch.tera"),
     tpl!("fish",      "fish.tera"),
     tpl!("fuzzel",    "fuzzel.tera"),
+    tpl!("hyprland",  "hyprland.tera"),
     tpl!("gtk",       "gtk.tera"),
     tpl!("imv",       "imv.tera"),
     tpl!("kitty",     "kitty.tera"),
@@ -334,7 +335,7 @@ fn run(cmd: &str) {
 // ── Module dispatch ────────────────────────────────────────────────────────
 
 pub const ALL_MODULES: &[&str] = &[
-    "bat", "btop", "colors", "conky", "dunst", "fastfetch", "fish", "fuzzel", "gtk", "imv", "kitty",
+    "bat", "btop", "colors", "conky", "dunst", "fastfetch", "fish", "fuzzel", "gtk", "hyprland", "imv", "kitty",
     "lsd", "mango", "micro", "mpv", "qutebrowser", "satty", "swaylock", "vesktop", "vscode", "xresources",
     "zathura",
 ];
@@ -389,6 +390,7 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "conky"      => apply_conky(tera, &ctx, scheme, config),
         "micro"      => apply_micro(tera, &ctx, scheme, config),
         "mango"      => apply_mango(tera, &ctx, scheme, config),
+        "hyprland"   => apply_hyprland(tera, &ctx, scheme, config),
         "fuzzel"     => apply_fuzzel(tera, &ctx, scheme, config),
         "swaylock"   => apply_swaylock(tera, &ctx, scheme, config),
         "colors"     => apply_colors(scheme, config),
@@ -766,6 +768,14 @@ fn apply_mango(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -
     // reload_config re-reads the whole config, which re-runs `exec=` lines but
     // NOT `exec-once=` -- daemons are left alone by design.
     run("mmsg dispatch reload_config 2>/dev/null || true");
+    Ok(())
+}
+
+fn apply_hyprland(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+    render_to(tera, "hyprland", ctx, &home.join(".config/hypr/coat-colors.lua"))?;
+    // Recolours a running session; a no-op when Hyprland is not up.
+    run("hyprctl reload >/dev/null 2>&1 || true");
     Ok(())
 }
 
