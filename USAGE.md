@@ -120,19 +120,16 @@ colors.
 
 ### qt
 
-The Stylix setup: qt6ct as the platform theme, Kvantum as the style, both filled
-from the scheme. Needs `qt6ct` and `kvantum` installed.
+qt6ct as the platform theme, Fusion as the style. Needs `qt6ct` installed.
 
-- `~/.config/Kvantum/coat/coat.{kvconfig,svg}` — the widget theme (Stylix's base16
-  SVG), selected with `theme=coat` in `kvantum.kvconfig`
-- `~/.config/qt6ct/colors/coat.conf` — the palette, which QML apps read
+- `~/.config/qt6ct/colors/coat.conf` — the palette
 - `~/.config/qt6ct/qt6ct.conf` — only `custom_palette`, `color_scheme_path`,
-  `style=kvantum` and the fonts are set; anything else you set in qt6ct stays
+  `style=Fusion` and the fonts are set; anything else you set in qt6ct stays
 - `~/.config/environment.d/90-coat-qt.conf` — `QT_QPA_PLATFORMTHEME=qt6ct`
 
-qt5ct gets the same when it is installed. The env var lands at the next login;
-after that a running app takes a new palette live, and Kvantum's widgets change
-on the app's next start.
+qt5ct gets the same when it is installed. Running Qt apps change scheme live, a
+few seconds after `coat set`. Apps started before the first apply need one
+restart; coat restarts the screen-share portal itself.
 
 ### xresources
 

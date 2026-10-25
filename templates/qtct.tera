@@ -2,8 +2,6 @@
 ;
 ; A qt5ct/qt6ct colour scheme. One entry per QPalette::ColorRole, in enum order:
 ; WindowText, Button, Light, Midlight, Dark, Mid, Text, BrightText, ButtonText, Base, Window, Shadow, Highlight, HighlightedText, Link, LinkVisited, AlternateBase, NoRole, ToolTipBase, ToolTipText, PlaceholderText, Accent.
-; The same slots as the Kvantum theme's [GeneralColors], so a QML app (which
-; reads this palette, not Kvantum's) matches the widgets beside it.
 
 [ColorScheme]
 active_colors=#ff{{ base05 }}, #ff{{ base02 }}, #ff{{ base03 }}, #ff{{ base03 }}, #ff{{ shadow }}, #ff{{ base00 }}, #ff{{ base05 }}, #ff{{ bright }}, #ff{{ base05 }}, #ff{{ base00 }}, #ff{{ base01 }}, #ff{{ shadow }}, #ff{{ base0D }}, #ff{{ base00 }}, #ff{{ base0D }}, #ff{{ base0E }}, #ff{{ base01 }}, #ff{{ base00 }}, #ff{{ base00 }}, #ff{{ base05 }}, #ff{{ base04 }}, #ff{{ base0D }}

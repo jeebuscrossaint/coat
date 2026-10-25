@@ -51,8 +51,6 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("lsd",       "lsd.tera"),
     tpl!("mango",     "mango.tera"),
     tpl!("mpv",       "mpv.tera"),
-    tpl!("kvantum",   "kvantum.tera"),
-    tpl!("kvantum_svg","kvantum_svg.tera"),
     tpl!("qtct",      "qtct.tera"),
     tpl!("qutebrowser","qutebrowser.tera"),
     tpl!("satty",     "satty.tera"),
@@ -420,7 +418,6 @@ pub const ALL_MODULES: &[&str] = &[
 pub const MODULE_ALIASES: &[(&str, &str)] = &[
     ("discord", "vesktop"),
     ("vencord", "vesktop"),
-    ("kvantum", "qt"),
     ("qt5ct", "qt"),
     ("qt6ct", "qt"),
 ];
@@ -915,21 +912,15 @@ pub fn apply_vesktop_shared(scheme: &Scheme, config: &CoatConfig, paths: &[PathB
     paths.iter().try_for_each(|path| render_to(&tera, "vesktop", &ctx, path))
 }
 
-/// Qt the way Stylix does it: qt6ct is the platform theme, Kvantum the style.
+/// Qt through qt6ct: the platform theme hands every Qt app coat's palette and
+/// fonts, and Fusion draws the widgets from nothing but that palette.
 ///
-/// Neither half is enough alone. qt6ct carries the palette, fonts and the
-/// QT_QPA_PLATFORMTHEME hook, but a palette over Fusion still looks like Fusion,
-/// and a QML app ignores the style entirely and reads only the palette. Kvantum
-/// draws the widgets from an SVG -- Stylix's base16 one -- and brings its own
-/// palette from the kvconfig, which takes over from qt6ct's in widget apps. Both
-/// are filled from the same slots, so a widget app and a QML app agree.
+/// Fusion, not Kvantum (Stylix's choice), because Kvantum cannot be live. Its
+/// polish() overwrites any palette with the colours in its own theme file and
+/// it never re-reads that file, so a running app keeps the old scheme until it
+/// restarts. Fusion takes qt6ct's new palette in place -- measured, not assumed.
 fn apply_qt(tera: &Tera, ctx: &tera::Context, _s: &Scheme, c: &CoatConfig) -> Result<()> {
     let home = home_dir()?;
-
-    let kv = home.join(".config/Kvantum");
-    render_to(tera, "kvantum", ctx, &kv.join("coat/coat.kvconfig"))?;
-    render_to(tera, "kvantum_svg", ctx, &kv.join("coat/coat.svg"))?;
-    set_ini_keys(&kv.join("kvantum.kvconfig"), &[("General", "theme", "coat".into())])?;
 
     // qt5ct only when it is there: Qt 5 apps need it and Qt 6 ones do not, and
     // coat writing its directory would not make it installed.
@@ -944,7 +935,7 @@ fn apply_qt(tera: &Tera, ctx: &tera::Context, _s: &Scheme, c: &CoatConfig) -> Re
         let mut keys = vec![
             ("Appearance", "custom_palette", "true".to_string()),
             ("Appearance", "color_scheme_path", colors.display().to_string()),
-            ("Appearance", "style", "kvantum".to_string()),
+            ("Appearance", "style", "Fusion".to_string()),
         ];
         // Quoted: unquoted, QSettings splits "Family,10" at the comma into a
         // list, and qt6ct's toString() on a list is empty -- no font at all.
@@ -955,9 +946,15 @@ fn apply_qt(tera: &Tera, ctx: &tera::Context, _s: &Scheme, c: &CoatConfig) -> Re
         if !c.font_monospace().is_empty() {
             keys.push(("Fonts", "fixed", format!("\"{},{}\"", c.font_monospace(), size)));
         }
-        // Last, after the colours exist: qt6ct watches this file and re-reads
-        // the palette in running apps when it changes.
         set_ini_keys(&dir.join(format!("{}.conf", tool)), &keys)?;
+
+        // Running apps re-read all of the above when qt6ct's watcher fires --
+        // but it watches the DIRECTORY, which only signals when an entry comes
+        // or goes. Rewriting a file in place, or anything under colors/, never
+        // trips it. A file created and removed does, unconditionally.
+        let nudge = dir.join(".coat-reload");
+        fs::write(&nudge, "").with_context(|| format!("Failed to write {}", nudge.display()))?;
+        let _ = fs::remove_file(&nudge);
     }
 
     // Nothing above is read unless Qt loads qt6ct (its plugin answers to qt5ct
@@ -968,17 +965,28 @@ fn apply_qt(tera: &Tera, ctx: &tera::Context, _s: &Scheme, c: &CoatConfig) -> Re
         &home.join(".config/environment.d/90-coat-qt.conf"),
         &format!("# Written by coat (`coat remove qt` deletes it).\n{}\n", env),
     )?;
-    // Apps started from here on by systemd or D-Bus see it now; ones started
-    // by the compositor wait for the next login. Not before qt6ct exists, or
-    // every Qt app launched meanwhile warns about a missing plugin.
-    if on_path("qt6ct") {
-        run(&format!("systemctl --user set-environment {}", env));
-    }
 
-    for (bin, pkg) in [("qt6ct", "qt6ct"), ("kvantummanager", "kvantum")] {
-        if !on_path(bin) {
-            detail!("    {} is not installed — install `{}`.", bin, pkg);
-        }
+    // A platform theme is chosen once, at app start, so an app already running
+    // without the variable cannot be brought round -- only restarted. That is a
+    // first-apply problem, and the app that hits it is the portal: a service
+    // started at login that spawns the Qt screen-share picker with its own
+    // environment. So the first time the variable lands, the session gets it
+    // and the portal restarts into it. Only then, so a later apply cannot cut
+    // off a share in progress. Not before qt6ct exists either, or every Qt app
+    // launched meanwhile warns about a missing plugin.
+    let has_env = Command::new("systemctl")
+        .args(["--user", "show-environment"])
+        .output()
+        .is_ok_and(|o| String::from_utf8_lossy(&o.stdout).lines().any(|l| l == env));
+    if !on_path("qt6ct") {
+        detail!("    qt6ct is not installed — install `qt6ct`.");
+    } else if !has_env {
+        run(&format!(
+            "systemctl --user set-environment {} \
+             && systemctl --user try-restart xdg-desktop-portal-hyprland",
+            env
+        ));
+        detail!("    Qt apps already running need one restart to pick this up.");
     }
     Ok(())
 }
@@ -1465,18 +1473,15 @@ pub fn module_docs(name: &str) {
             println!("preferred_color_scheme (what sites see) may need a restart.");
         }
         "qt" => {
-            println!("Qt the Stylix way: qt6ct is the platform theme, Kvantum the style.\n");
-            println!("Needs both:  pacman -S qt6ct kvantum\n");
+            println!("Qt through qt6ct, drawn by Fusion. Needs:  pacman -S qt6ct\n");
             println!("Writes:");
-            println!("  ~/.config/Kvantum/coat/coat.{{kvconfig,svg}}   theme=coat in kvantum.kvconfig");
-            println!("  ~/.config/qt6ct/colors/coat.conf             palette (QML apps read this)");
-            println!("  ~/.config/qt6ct/qt6ct.conf                   custom_palette, color_scheme_path,");
-            println!("                                               style=kvantum, fonts — only those keys");
-            println!("  ~/.config/environment.d/90-coat-qt.conf      QT_QPA_PLATFORMTHEME=qt6ct\n");
+            println!("  ~/.config/qt6ct/colors/coat.conf          the palette");
+            println!("  ~/.config/qt6ct/qt6ct.conf                custom_palette, color_scheme_path,");
+            println!("                                            style=Fusion, fonts — only those keys");
+            println!("  ~/.config/environment.d/90-coat-qt.conf   QT_QPA_PLATFORMTHEME=qt6ct\n");
             println!("qt5ct gets the same when it is installed.\n");
-            println!("The env var takes effect at the next login. After that, a running");
-            println!("app takes a new palette live (qt6ct watches its config); the Kvantum");
-            println!("widgets themselves change on the app's next start.");
+            println!("Live: running Qt apps change scheme a few seconds after `coat set`.");
+            println!("Apps started before the first apply need one restart.");
         }
         "satty" => {
             println!("~/.config/satty/config.toml is written whole.");
