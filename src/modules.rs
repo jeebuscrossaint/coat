@@ -51,6 +51,9 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("lsd",       "lsd.tera"),
     tpl!("mango",     "mango.tera"),
     tpl!("mpv",       "mpv.tera"),
+    tpl!("kvantum",   "kvantum.tera"),
+    tpl!("kvantum_svg","kvantum_svg.tera"),
+    tpl!("qtct",      "qtct.tera"),
     tpl!("qutebrowser","qutebrowser.tera"),
     tpl!("satty",     "satty.tera"),
     tpl!("swaylock",  "swaylock.tera"),
@@ -148,18 +151,29 @@ fn luminance(hex: &str) -> f32 {
 /// both without branching on the variant field, which schemes are free to leave
 /// unset.
 fn darkest_neutral(s: &Scheme) -> String {
+    neutral_end(s, std::cmp::Ordering::Less).unwrap_or_else(|| "000000".to_string())
+}
+
+/// The other end of the ramp: what reads against `darkest_neutral`. Qt calls it
+/// BrightText -- text drawn on the Dark role -- and like the shadow it does not
+/// flip with the variant.
+fn brightest_neutral(s: &Scheme) -> String {
+    neutral_end(s, std::cmp::Ordering::Greater).unwrap_or_else(|| "FFFFFF".to_string())
+}
+
+fn neutral_end(s: &Scheme, end: std::cmp::Ordering) -> Option<String> {
     [
         &s.base00, &s.base01, &s.base02, &s.base03, &s.base04, &s.base05, &s.base06, &s.base07,
     ]
     .into_iter()
     .filter(|c| c.trim_start_matches('#').len() >= 6)
     .min_by(|a, b| {
-        luminance(a)
+        let o = luminance(a)
             .partial_cmp(&luminance(b))
-            .unwrap_or(std::cmp::Ordering::Equal)
+            .unwrap_or(std::cmp::Ordering::Equal);
+        if end == std::cmp::Ordering::Less { o } else { o.reverse() }
     })
     .cloned()
-    .unwrap_or_else(|| "000000".to_string())
 }
 
 fn build_context(scheme: &Scheme, config: &CoatConfig) -> tera::Context {
@@ -198,6 +212,7 @@ fn build_context(scheme: &Scheme, config: &CoatConfig) -> tera::Context {
     ctx.insert("is_dark", &scheme.is_dark());
     // The scheme's dark end, for shadows -- dark on light schemes too.
     ctx.insert("shadow", &darkest_neutral(scheme));
+    ctx.insert("bright", &brightest_neutral(scheme));
     // Endpoints of the scheme's neutral ramp, as lightness percentages. Discord's
     // neutral ramp runs light (--neutral-1) to dark (--neutral-100) and coat
     // remaps it onto these, so the recolour works from either variant without
@@ -251,10 +266,15 @@ fn ensure_dir(path: &Path) -> Result<()> {
 }
 
 fn render_to(tera: &Tera, name: &str, ctx: &tera::Context, dest: &Path) -> Result<()> {
-    ensure_dir(dest.parent().unwrap_or(Path::new("/")))?;
     let content = tera
         .render(name, ctx)
         .with_context(|| format!("Failed to render template '{}'", name))?;
+    write_to(dest, &content)
+}
+
+/// Write a file coat owns outright. Recorded, so `coat remove` deletes it.
+fn write_to(dest: &Path, content: &str) -> Result<()> {
+    ensure_dir(dest.parent().unwrap_or(Path::new("/")))?;
     // Leave an identical file alone: rewriting it bumps the mtime, which file
     // watchers (conky's self-reload, for one) treat as a change.
     if fs::read(dest).ok().as_deref() != Some(content.as_bytes()) {
@@ -314,6 +334,61 @@ fn ensure_include(config: &Path, include_line: &str, comment: (&str, &str)) -> R
     Ok(())
 }
 
+/// Set `key=value` pairs, grouped by `[section]`, in an INI file another program
+/// also writes -- qt6ct's GUI rewrites qt6ct.conf whole, so it cannot take an
+/// include, and coat cannot own it either without clobbering what was set there.
+///
+/// Only the named keys change; every other line stays. A key missing from its
+/// section is added after the section's last key, and a missing section is
+/// added at the end. The keys are recorded, so `coat remove` drops exactly them.
+fn set_ini_keys(path: &Path, edits: &[(&str, &str, String)]) -> Result<()> {
+    crate::manifest::record_ini_keys(
+        path,
+        &edits.iter().map(|(s, k, _)| format!("{}/{}", s, k)).collect::<Vec<_>>(),
+    );
+    let original = fs::read_to_string(path).unwrap_or_default();
+    let mut lines: Vec<String> = original.lines().map(str::to_string).collect();
+
+    for (section, key, value) in edits {
+        let header = format!("[{}]", section);
+        let line = format!("{}={}", key, value);
+        let Some(start) = lines.iter().position(|l| l.trim() == header) else {
+            if lines.last().is_some_and(|l| !l.trim().is_empty()) {
+                lines.push(String::new());
+            }
+            lines.push(header);
+            lines.push(line);
+            continue;
+        };
+        let end = lines[start + 1..]
+            .iter()
+            .position(|l| l.trim_start().starts_with('['))
+            .map_or(lines.len(), |i| start + 1 + i);
+        let existing = (start + 1..end).find(|&i| {
+            lines[i].split_once('=').is_some_and(|(k, _)| k.trim() == *key)
+        });
+        match existing {
+            Some(i) => lines[i] = line,
+            None => {
+                let after = (start + 1..end)
+                    .rev()
+                    .find(|&i| lines[i].contains('='))
+                    .unwrap_or(start);
+                lines.insert(after + 1, line);
+            }
+        }
+    }
+
+    let mut text = lines.join("\n");
+    text.push('\n');
+    if text != original {
+        ensure_dir(path.parent().unwrap_or(Path::new("/")))?;
+        fs::write(path, &text).with_context(|| format!("Failed to write {}", path.display()))?;
+    }
+    detail!("  ✓ {} (keys merged)", path.display());
+    Ok(())
+}
+
 /// Fire off a shell command with its stdio fully silenced and DON'T wait for it —
 /// these are best-effort reload hooks (bat cache rebuilds, dunst restarts, ...)
 /// whose own chatter isn't ours to show inside a clean per-app status line, and
@@ -336,7 +411,7 @@ fn run(cmd: &str) {
 
 pub const ALL_MODULES: &[&str] = &[
     "bat", "btop", "colors", "conky", "dunst", "fastfetch", "fish", "fuzzel", "gtk", "hyprland", "imv", "kitty",
-    "lsd", "mango", "micro", "mpv", "qutebrowser", "satty", "swaylock", "vesktop", "vscode", "xresources",
+    "lsd", "mango", "micro", "mpv", "qt", "qutebrowser", "satty", "swaylock", "vesktop", "vscode", "xresources",
     "zathura",
 ];
 
@@ -345,6 +420,9 @@ pub const ALL_MODULES: &[&str] = &[
 pub const MODULE_ALIASES: &[(&str, &str)] = &[
     ("discord", "vesktop"),
     ("vencord", "vesktop"),
+    ("kvantum", "qt"),
+    ("qt5ct", "qt"),
+    ("qt6ct", "qt"),
 ];
 
 pub fn module_aliases(name: &str) -> Option<&'static str> {
@@ -395,6 +473,7 @@ pub fn apply_module(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Ter
         "swaylock"   => apply_swaylock(tera, &ctx, scheme, config),
         "colors"     => apply_colors(scheme, config),
         "mpv"        => apply_mpv(tera, &ctx, scheme, config),
+        "qt"         => apply_qt(tera, &ctx, scheme, config),
         "qutebrowser"=> apply_qutebrowser(tera, &ctx, scheme, config),
         "vesktop"    => apply_vesktop(tera, &ctx, scheme, config),
         "vscode"     => apply_vscode(scheme, config),
@@ -454,6 +533,33 @@ pub fn remove_module(name: &str, dry: bool) -> Result<Vec<String>> {
                 .with_context(|| format!("Failed to rewrite {}", config.display()))?;
         }
         done.push(format!("un-included  {}", config.display()));
+    }
+
+    for (file, keys) in &entry.ini_keys {
+        let Ok(text) = fs::read_to_string(file) else {
+            continue;
+        };
+        let mut section = String::new();
+        let mut out = String::new();
+        for l in text.lines() {
+            let t = l.trim();
+            if t.starts_with('[') && t.ends_with(']') {
+                section = t[1..t.len() - 1].to_string();
+            } else if let Some((k, _)) = l.split_once('=') {
+                if keys.contains(&format!("{}/{}", section, k.trim())) {
+                    continue;
+                }
+            }
+            out.push_str(l);
+            out.push('\n');
+        }
+        if out == text {
+            continue;
+        }
+        if !dry {
+            fs::write(file, &out).with_context(|| format!("Failed to rewrite {}", file.display()))?;
+        }
+        done.push(format!("dropped {} key(s) from  {}", keys.len(), file.display()));
     }
 
     if !dry {
@@ -807,6 +913,79 @@ pub fn apply_vesktop_shared(scheme: &Scheme, config: &CoatConfig, paths: &[PathB
     let tera = make_tera()?;
     let ctx = build_context(scheme, config);
     paths.iter().try_for_each(|path| render_to(&tera, "vesktop", &ctx, path))
+}
+
+/// Qt the way Stylix does it: qt6ct is the platform theme, Kvantum the style.
+///
+/// Neither half is enough alone. qt6ct carries the palette, fonts and the
+/// QT_QPA_PLATFORMTHEME hook, but a palette over Fusion still looks like Fusion,
+/// and a QML app ignores the style entirely and reads only the palette. Kvantum
+/// draws the widgets from an SVG -- Stylix's base16 one -- and brings its own
+/// palette from the kvconfig, which takes over from qt6ct's in widget apps. Both
+/// are filled from the same slots, so a widget app and a QML app agree.
+fn apply_qt(tera: &Tera, ctx: &tera::Context, _s: &Scheme, c: &CoatConfig) -> Result<()> {
+    let home = home_dir()?;
+
+    let kv = home.join(".config/Kvantum");
+    render_to(tera, "kvantum", ctx, &kv.join("coat/coat.kvconfig"))?;
+    render_to(tera, "kvantum_svg", ctx, &kv.join("coat/coat.svg"))?;
+    set_ini_keys(&kv.join("kvantum.kvconfig"), &[("General", "theme", "coat".into())])?;
+
+    // qt5ct only when it is there: Qt 5 apps need it and Qt 6 ones do not, and
+    // coat writing its directory would not make it installed.
+    let mut tools = vec!["qt6ct"];
+    if home.join(".config/qt5ct").is_dir() || on_path("qt5ct") {
+        tools.push("qt5ct");
+    }
+    for tool in tools {
+        let dir = home.join(".config").join(tool);
+        let colors = dir.join("colors/coat.conf");
+        render_to(tera, "qtct", ctx, &colors)?;
+        let mut keys = vec![
+            ("Appearance", "custom_palette", "true".to_string()),
+            ("Appearance", "color_scheme_path", colors.display().to_string()),
+            ("Appearance", "style", "kvantum".to_string()),
+        ];
+        // Quoted: unquoted, QSettings splits "Family,10" at the comma into a
+        // list, and qt6ct's toString() on a list is empty -- no font at all.
+        let size = c.font_size_desktop();
+        if !c.font_sansserif().is_empty() {
+            keys.push(("Fonts", "general", format!("\"{},{}\"", c.font_sansserif(), size)));
+        }
+        if !c.font_monospace().is_empty() {
+            keys.push(("Fonts", "fixed", format!("\"{},{}\"", c.font_monospace(), size)));
+        }
+        // Last, after the colours exist: qt6ct watches this file and re-reads
+        // the palette in running apps when it changes.
+        set_ini_keys(&dir.join(format!("{}.conf", tool)), &keys)?;
+    }
+
+    // Nothing above is read unless Qt loads qt6ct (its plugin answers to qt5ct
+    // too). environment.d reaches the whole session: the systemd user manager
+    // reads it, and a uwsm or systemd-launched compositor starts from that.
+    let env = "QT_QPA_PLATFORMTHEME=qt6ct";
+    write_to(
+        &home.join(".config/environment.d/90-coat-qt.conf"),
+        &format!("# Written by coat (`coat remove qt` deletes it).\n{}\n", env),
+    )?;
+    // Apps started from here on by systemd or D-Bus see it now; ones started
+    // by the compositor wait for the next login. Not before qt6ct exists, or
+    // every Qt app launched meanwhile warns about a missing plugin.
+    if on_path("qt6ct") {
+        run(&format!("systemctl --user set-environment {}", env));
+    }
+
+    for (bin, pkg) in [("qt6ct", "qt6ct"), ("kvantummanager", "kvantum")] {
+        if !on_path(bin) {
+            detail!("    {} is not installed — install `{}`.", bin, pkg);
+        }
+    }
+    Ok(())
+}
+
+fn on_path(bin: &str) -> bool {
+    std::env::var_os("PATH")
+        .is_some_and(|p| std::env::split_paths(&p).any(|d| d.join(bin).is_file()))
 }
 
 fn apply_qutebrowser(tera: &Tera, ctx: &tera::Context, _s: &Scheme, _c: &CoatConfig) -> Result<()> {
@@ -1284,6 +1463,20 @@ pub fn module_docs(name: &str) {
             println!("reloaded with :config-source; anything set later in config.py or");
             println!("autoconfig.yml still wins.\n");
             println!("preferred_color_scheme (what sites see) may need a restart.");
+        }
+        "qt" => {
+            println!("Qt the Stylix way: qt6ct is the platform theme, Kvantum the style.\n");
+            println!("Needs both:  pacman -S qt6ct kvantum\n");
+            println!("Writes:");
+            println!("  ~/.config/Kvantum/coat/coat.{{kvconfig,svg}}   theme=coat in kvantum.kvconfig");
+            println!("  ~/.config/qt6ct/colors/coat.conf             palette (QML apps read this)");
+            println!("  ~/.config/qt6ct/qt6ct.conf                   custom_palette, color_scheme_path,");
+            println!("                                               style=kvantum, fonts — only those keys");
+            println!("  ~/.config/environment.d/90-coat-qt.conf      QT_QPA_PLATFORMTHEME=qt6ct\n");
+            println!("qt5ct gets the same when it is installed.\n");
+            println!("The env var takes effect at the next login. After that, a running");
+            println!("app takes a new palette live (qt6ct watches its config); the Kvantum");
+            println!("widgets themselves change on the app's next start.");
         }
         "satty" => {
             println!("~/.config/satty/config.toml is written whole.");

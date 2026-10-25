@@ -51,7 +51,7 @@ font:
   emoji:     "Noto Color Emoji"
   sizes:
     terminal: 12   # kitty, imv, xresources
-    desktop:  10   # gtk, zathura
+    desktop:  10   # gtk, qt, zathura
     popups:   10   # fuzzel, dunst
 
 opacity:
@@ -117,6 +117,22 @@ Writes `coat-theme.css` into `~/.config/gtk-3.0/` and `~/.config/gtk-4.0/`, and
 adds `@import url("coat-theme.css");` at the top of each `gtk.css` on first
 apply. Runs `gsettings` to apply immediately. Restart GTK apps to pick up the new
 colors.
+
+### qt
+
+The Stylix setup: qt6ct as the platform theme, Kvantum as the style, both filled
+from the scheme. Needs `qt6ct` and `kvantum` installed.
+
+- `~/.config/Kvantum/coat/coat.{kvconfig,svg}` — the widget theme (Stylix's base16
+  SVG), selected with `theme=coat` in `kvantum.kvconfig`
+- `~/.config/qt6ct/colors/coat.conf` — the palette, which QML apps read
+- `~/.config/qt6ct/qt6ct.conf` — only `custom_palette`, `color_scheme_path`,
+  `style=kvantum` and the fonts are set; anything else you set in qt6ct stays
+- `~/.config/environment.d/90-coat-qt.conf` — `QT_QPA_PLATFORMTHEME=qt6ct`
+
+qt5ct gets the same when it is installed. The env var lands at the next login;
+after that a running app takes a new palette live, and Kvantum's widgets change
+on the app's next start.
 
 ### xresources
 

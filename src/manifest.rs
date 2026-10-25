@@ -1,8 +1,9 @@
 //! What the last apply actually touched, per module.
 //!
 //! `coat remove` needs to know which files coat wrote and which include lines
-//! it patched into somebody else's config. That information already exists at
-//! apply time — every `render_to` and `ensure_include` call has it in hand — so it is
+//! it patched into somebody else's config, and which ini keys it set. That
+//! information already exists at apply time — every `render_to`,
+//! `ensure_include` and `set_ini_keys` call has it in hand — so it is
 //! recorded there rather than restated in a table beside the apply functions.
 //! A hand-maintained table is a second source of truth, and it would go stale
 //! the first time a module grew a file.
@@ -26,6 +27,10 @@ pub struct Entry {
     /// own. Removing strips the line and the comment block coat added above it.
     #[serde(default)]
     pub includes: Vec<(PathBuf, String)>,
+    /// (ini file, "section/key"s) coat set in a file another program also
+    /// writes. Removing drops exactly those keys.
+    #[serde(default)]
+    pub ini_keys: Vec<(PathBuf, Vec<String>)>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -113,5 +118,19 @@ pub fn record_include(config: &Path, line: &str) {
         if !e.includes.contains(&pair) {
             e.includes.push(pair);
         }
+    });
+}
+
+pub fn record_ini_keys(file: &Path, keys: &[String]) {
+    let file = file.to_path_buf();
+    with(|e| match e.ini_keys.iter_mut().find(|(p, _)| *p == file) {
+        Some((_, have)) => {
+            for k in keys {
+                if !have.contains(k) {
+                    have.push(k.clone());
+                }
+            }
+        }
+        None => e.ini_keys.push((file, keys.to_vec())),
     });
 }

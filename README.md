@@ -218,7 +218,7 @@ across a theme change.
 | Screen locker | swaylock |
 | Launcher | fuzzel |
 | Notifications | dunst |
-| System | gtk, xresources |
+| System | gtk, qt, xresources |
 | Utilities | bat, btop, lsd, fastfetch, zathura, imv, mpv, satty, conky |
 | Browser | qutebrowser |
 | Other | vesktop |
