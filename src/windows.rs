@@ -727,7 +727,7 @@ fn apply_wt_defaults(
             font.insert("face".into(), JsonValue::String(face.to_string()));
         }
         if let Some(size) = size {
-            font.insert("size".into(), JsonValue::Number(size.into()));
+            font.insert("size".into(), crate::config::size_value(size));
         }
     }
 

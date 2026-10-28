@@ -6,7 +6,7 @@ use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use tera::{Kwargs, State, Tera};
 
-use crate::config::CoatConfig;
+use crate::config::{size_value, CoatConfig};
 use crate::scheme::Scheme;
 
 /// When true, the per-file/per-note chatter below is swallowed — the caller
@@ -237,9 +237,9 @@ fn build_context(scheme: &Scheme, config: &CoatConfig) -> tera::Context {
     ctx.insert("font_sansserif", config.font_sansserif());
     ctx.insert("font_serif", config.font_serif());
     ctx.insert("font_emoji", config.font_emoji());
-    ctx.insert("font_size_terminal", &config.font_size_terminal());
-    ctx.insert("font_size_desktop", &config.font_size_desktop());
-    ctx.insert("font_size_popups", &config.font_size_popups());
+    ctx.insert("font_size_terminal", &size_value(config.font_size_terminal()));
+    ctx.insert("font_size_desktop", &size_value(config.font_size_desktop()));
+    ctx.insert("font_size_popups", &size_value(config.font_size_popups()));
     // Opacity
     ctx.insert("opacity_terminal", &config.opacity_terminal());
     ctx.insert("opacity_desktop", &config.opacity_desktop());
@@ -759,7 +759,7 @@ fn apply_colors(s: &Scheme, c: &CoatConfig) -> Result<()> {
             "monospace": c.font_monospace(),
             "sansserif": c.font_sansserif(),
             "serif": c.font_serif(),
-            "size": c.font_size_terminal(),
+            "size": size_value(c.font_size_terminal()),
         },
     });
     let content = serde_json::to_string_pretty(&doc)? + "\n";

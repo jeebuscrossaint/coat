@@ -5,9 +5,19 @@ use std::fs;
 
 #[derive(Debug, Deserialize, Default, Clone)]
 pub struct FontSizes {
-    pub terminal: Option<u32>,
-    pub desktop: Option<u32>,
-    pub popups: Option<u32>,
+    pub terminal: Option<f64>,
+    pub desktop: Option<f64>,
+    pub popups: Option<f64>,
+}
+
+/// A size as a JSON/template value: whole sizes stay integers ("13", not
+/// "13.0"), so only a fractional size like 9.75 changes what gets written.
+pub fn size_value(size: f64) -> serde_json::Value {
+    if size.fract() == 0.0 && size >= 0.0 {
+        (size as u64).into()
+    } else {
+        serde_json::Number::from_f64(size).map_or(serde_json::Value::Null, Into::into)
+    }
 }
 
 #[derive(Debug, Deserialize, Default, Clone)]
@@ -378,14 +388,14 @@ impl CoatConfig {
     pub fn font_emoji(&self) -> &str {
         self.font.emoji.as_deref().unwrap_or("")
     }
-    pub fn font_size_terminal(&self) -> u32 {
-        self.font.sizes.as_ref().and_then(|s| s.terminal).unwrap_or(12)
+    pub fn font_size_terminal(&self) -> f64 {
+        self.font.sizes.as_ref().and_then(|s| s.terminal).unwrap_or(12.0)
     }
-    pub fn font_size_desktop(&self) -> u32 {
-        self.font.sizes.as_ref().and_then(|s| s.desktop).unwrap_or(10)
+    pub fn font_size_desktop(&self) -> f64 {
+        self.font.sizes.as_ref().and_then(|s| s.desktop).unwrap_or(10.0)
     }
-    pub fn font_size_popups(&self) -> u32 {
-        self.font.sizes.as_ref().and_then(|s| s.popups).unwrap_or(11)
+    pub fn font_size_popups(&self) -> f64 {
+        self.font.sizes.as_ref().and_then(|s| s.popups).unwrap_or(11.0)
     }
     pub fn opacity_terminal(&self) -> f64 {
         self.opacity.terminal.unwrap_or(1.0)
