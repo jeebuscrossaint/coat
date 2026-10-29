@@ -1,10 +1,10 @@
 # coat — color scheme configurator
 
-A Rust CLI that applies Base16/Base24 color schemes across 22 Linux applications — and themes Windows system colors — from a single config file.
+A Rust CLI that applies Base16/Base24 color schemes across 24 Linux applications — and themes Windows system colors — from a single config file.
 
 ## Features
 
-- **32 application modules** — terminals, editors, compositors, bars, launchers, and more
+- **24 application modules** — terminals, editors, compositors, bars, launchers, and more
 - **Windows support** — accent color, dark/light mode, Windows Terminal, and VSCode via `coat set`
 - **Base16 & Base24** — compatible with the full [tinted-theming](https://github.com/tinted-theming/home) ecosystem (~700 schemes)
 - **Scheme browser** — search and preview with live RGB color swatches in the terminal
@@ -18,8 +18,14 @@ A Rust CLI that applies Base16/Base24 color schemes across 22 Linux applications
 coat/
 ├── src/
 │   ├── main.rs       # CLI dispatch
-│   ├── config.rs     # coat.yaml deserialization
+│   ├── config.rs     # coat.yaml deserialization and checks
 │   ├── scheme.rs     # scheme loading, search, list
+│   ├── browse.rs     # interactive scheme browser
+│   ├── dynamic.rs    # `coat match`: a scheme from the wallpaper
+│   ├── normalize.rs  # optional perceptual evening-out of any scheme
+│   ├── cam16.rs      # colour appearance model used by the two above
+│   ├── icc.rs        # wallpaper colour profiles
+│   ├── paths.rs      # home and XDG directories
 │   ├── modules.rs    # module registry: what each app's theme is (plans, no IO)
 │   ├── apply.rs      # carries plans out: diff, write, record, reload
 │   ├── manifest.rs   # what coat owns, for `coat remove`
@@ -190,7 +196,20 @@ font:
 opacity:
   terminal: 0.95
   popups: 0.95
+
+# Repaint slots whatever the scheme: "#RRGGBB" or another slot's name.
+palette:
+  base0D: "#89b4fa"
+
+# Per-app patches of font, opacity and palette.
+overrides:
+  kitty:
+    opacity:
+      terminal: 0.9
 ```
+
+Every key is in [USAGE.md](USAGE.md#coatyaml-reference). `coat apply --dry`
+shows what a change would do before it is made.
 
 ## Windows
 
@@ -232,7 +251,7 @@ across a theme change.
 | System | gtk, qt, xresources |
 | Utilities | bat, btop, lsd, fastfetch, zathura, imv, mpv, satty, conky |
 | Browser | qutebrowser |
-| Other | vesktop |
+| Other | vesktop, colors (the scheme as JSON) |
 
 See [USAGE.md](USAGE.md) for per-application activation steps, or run `coat docs <app>`.
 

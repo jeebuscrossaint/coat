@@ -53,4 +53,6 @@ complete -c coat -n '__fish_seen_subcommand_from remove' -l dry -d 'Show what wo
 complete -c coat -n '__fish_seen_subcommand_from apply' -l force -s f -d 'Reload every app, changed or not'
 complete -c coat -n '__fish_seen_subcommand_from remove' -l keep-enabled -d 'Do not touch coat.yaml'
 complete -c coat -n '__fish_seen_subcommand_from random' -l yes -s y    -d 'Apply without prompting'
-complete -c coat -n '__fish_seen_subcommand_from set browse random' -l elevate -d 'Windows: prompt for admin (logon screen keys)'
+complete -c coat -n '__fish_seen_subcommand_from set' -l base16 -d 'Take the Base16 copy of the scheme'
+complete -c coat -n '__fish_seen_subcommand_from set' -l base24 -d 'Take the Base24 copy of the scheme'
+complete -c coat -n '__fish_seen_subcommand_from set browse random match' -l elevate -d 'Windows: prompt for admin (logon screen keys)'

@@ -52,6 +52,7 @@ dependencies = [
  "console",
  "dirs",
  "image",
+ "libc",
  "serde",
  "serde_json",
  "serde_norway",

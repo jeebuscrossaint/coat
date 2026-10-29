@@ -32,6 +32,10 @@ console = "0.16"
 # and wallpapers are not tiffs.
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "webp", "bmp", "pnm"] }
 
+# Already built for `console`; named here only to restore SIGPIPE (main.rs).
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [target.'cfg(windows)'.dependencies]
 # Known-folder lookup. Linux only needs $HOME and the XDG variables (paths.rs).
 dirs = "7"

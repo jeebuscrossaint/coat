@@ -194,15 +194,16 @@ fn print_usage(prog: &str) {
     println!("  list [OPTIONS]      List available color schemes");
     println!("  browse [OPTIONS]    Scroll through schemes interactively, apply on Enter");
     println!("  search <term>       Search schemes by name or author");
-    println!("  set <scheme>        Switch to a scheme and apply everywhere");
+    println!("  set <scheme>        Switch to a scheme and apply everywhere (--base16/--base24)");
     println!("  random [OPTIONS]    Pick a random scheme, preview it, and apply");
     println!("  match [image]       Build a scheme from the current wallpaper, and apply");
     println!("  apply [app]         Apply current scheme to all apps or one specific app");
     println!("                      (only apps whose files changed are reloaded)");
     println!("  watch               Apply again whenever coat.yaml or the scheme changes");
     println!("  remove <app>        Undo an app's theming and disable its module");
+    println!("                      (--dry to preview, --keep-enabled to leave coat.yaml alone)");
     println!("  docs <app>          Show setup instructions for an app");
-    println!("  completions <shell> Install shell completions (fish, powershell)");
+    println!("  completions <shell> Install shell completions (fish, powershell; --print to stdout)");
     println!("  help                Show this help message");
     println!();
     println!("List/Search/Browse/Random Options:");
@@ -223,6 +224,7 @@ fn print_usage(prog: &str) {
     println!();
     println!("Examples:");
     println!("  {} set gruvbox       Switch to gruvbox and apply everywhere", prog);
+    println!("  {} set nord --base24 Take the Base24 copy of a scheme that has both", prog);
     println!("  {} browse            Scroll schemes interactively and apply one", prog);
     println!("  {} browse --dark     Browse only dark schemes", prog);
     println!("  {} random            Pick a random scheme, preview, then confirm", prog);
@@ -237,6 +239,8 @@ fn print_usage(prog: &str) {
     println!("  {} apply             Apply current scheme to all enabled apps", prog);
     println!("  {} apply kitty       Apply current scheme only to kitty", prog);
     println!("  {} apply --dry       Show what an apply would change", prog);
+    println!("  {} watch             Re-apply on every save of coat.yaml", prog);
+    println!("  {} remove kitty      Undo kitty's theming", prog);
     println!("  {} list --dark       List dark schemes", prog);
 }
 
@@ -883,6 +887,14 @@ fn cmd_docs(args: &[String], prog: &str) -> Result<()> {
 }
 
 fn main() {
+    // Rust ignores SIGPIPE, so `coat list | head` made every later println!
+    // panic with "Broken pipe" once head had exited. The default action ends
+    // the process quietly instead, as it does for every other CLI.
+    #[cfg(unix)]
+    unsafe {
+        libc::signal(libc::SIGPIPE, libc::SIG_DFL);
+    }
+
     let args: Vec<String> = std::env::args().collect();
     let prog = args[0].as_str();
 

@@ -14,8 +14,10 @@ Register-ArgumentCompleter -Native -CommandName coat -ScriptBlock {
         'search'      = 'Search schemes by name or author'
         'set'         = 'Switch to a scheme and apply everywhere'
         'random'      = 'Pick a random scheme, preview, and apply'
+        'match'       = 'Build a scheme from the current wallpaper'
         'apply'       = 'Apply the current scheme'
         'watch'       = 'Re-apply whenever coat.yaml changes'
+        'remove'      = 'Undo the theming of one app'
         'docs'        = 'Show setup instructions for an app'
         'completions' = 'Install shell completions'
         'help'        = 'Show help'
@@ -80,7 +82,21 @@ Register-ArgumentCompleter -Native -CommandName coat -ScriptBlock {
             $pairs += [pscustomobject]@{ Text = '--dry';   Desc = 'Show the diff, write nothing' }
             $pairs += [pscustomobject]@{ Text = '--force'; Desc = 'Reload every app, changed or not' }
         }
-        if ($sub -in 'set', 'random', 'browse') {
+        if ($sub -eq 'set') {
+            $pairs += [pscustomobject]@{ Text = '--base16'; Desc = 'Take the Base16 copy of the scheme' }
+            $pairs += [pscustomobject]@{ Text = '--base24'; Desc = 'Take the Base24 copy of the scheme' }
+        }
+        if ($sub -eq 'match') {
+            $pairs += [pscustomobject]@{ Text = '--dry';   Desc = 'Preview without applying' }
+            $pairs += [pscustomobject]@{ Text = '--light'; Desc = 'Force a light palette' }
+            $pairs += [pscustomobject]@{ Text = '--auto';  Desc = "Let the image's brightness decide (default: dark)" }
+            $pairs += [pscustomobject]@{ Text = '--slots'; Desc = 'Keep base16 slot meanings' }
+        }
+        if ($sub -eq 'remove') {
+            $pairs += [pscustomobject]@{ Text = '--dry';          Desc = 'Show what would be undone' }
+            $pairs += [pscustomobject]@{ Text = '--keep-enabled'; Desc = 'Do not touch coat.yaml' }
+        }
+        if ($sub -in 'set', 'random', 'browse', 'match') {
             $pairs += [pscustomobject]@{ Text = '--elevate'; Desc = 'Prompt for admin (logon screen + HKLM keys)' }
         }
         if ($sub -eq 'completions') {

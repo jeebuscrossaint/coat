@@ -301,8 +301,13 @@ applies. Running coat from an already-elevated shell needs no flag.
 | `coat update` | Pull latest schemes |
 | `coat list [--dark\|--light] [--no-preview]` | Browse all schemes |
 | `coat search <term>` | Search by name or author |
-| `coat set <scheme>` | Switch scheme and apply everywhere |
+| `coat browse [--dark\|--light]` | Scroll through schemes, apply on Enter |
+| `coat set <scheme> [--base16\|--base24]` | Switch scheme and apply everywhere |
+| `coat random [--dark\|--light] [--dry] [-y]` | Pick a random scheme, preview, then apply |
+| `coat match [image] [--light\|--auto] [--slots] [--dry]` | Build a scheme from the wallpaper and apply it |
 | `coat apply [app] [--dry] [--force]` | Apply current scheme from coat.yaml; `--dry` shows the diff and writes nothing, `--force` reloads apps whose files did not change |
 | `coat watch` | Re-apply whenever coat.yaml or the scheme changes |
+| `coat remove <app> [--dry] [--keep-enabled]` | Undo an app's theming and disable its module |
 | `coat docs <app>` | Show activation instructions for an app |
+| `coat completions <fish\|powershell> [--print]` | Install shell completions |
 | `coat help` | Show help |
