@@ -81,6 +81,20 @@ impl Plan {
     pub fn note(&mut self, note: impl Into<String>) {
         self.notes.push(note.into());
     }
+
+    /// Everything this plan would put on disk or hand to another program
+    /// (gsettings takes values through `always`), for telling two plans apart.
+    #[allow(clippy::type_complexity)]
+    pub fn writes(&self) -> (&[(PathBuf, String)], &[(PathBuf, String)], Vec<(&PathBuf, &String)>, Vec<(&PathBuf, &String)>, &[(PathBuf, Vec<IniEdit>)], &[String]) {
+        (
+            &self.files,
+            &self.merged,
+            self.seeds.iter().map(|(p, s, _)| (p, s)).collect(),
+            self.includes.iter().map(|(p, l, _)| (p, l)).collect(),
+            &self.ini,
+            &self.always,
+        )
+    }
 }
 
 #[derive(Default, Clone, Copy)]

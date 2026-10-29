@@ -275,6 +275,7 @@ fn cmd_apply(args: &[String], _prog: &str) -> Result<()> {
     let scheme = find_scheme(&config.scheme, config.prefer_base24.prefers_base24())
         .with_context(|| format!("Failed to load scheme '{}'", config.scheme))?;
     println!("Applying scheme: {}", scheme.name);
+    print_warnings(&modules::inert_overrides(&scheme, &config));
 
     let apps: Vec<String> = match specific_app {
         Some(app) => vec![app.to_string()],
@@ -373,6 +374,7 @@ fn watch_apply() -> Result<()> {
     print_warnings(&config.check()?);
     let scheme = find_scheme(&config.scheme, config.prefer_base24.prefers_base24())
         .with_context(|| format!("Failed to load scheme '{}'", config.scheme))?;
+    print_warnings(&modules::inert_overrides(&scheme, &config));
 
     let mut changed = Vec::new();
     for (app, result) in apply::apply_all(&config.enabled, &scheme, &config, apply::Options::default()) {
@@ -460,6 +462,7 @@ fn set_and_apply(scheme: &Scheme, elevate: bool) -> Result<()> {
     // a bad config left coat.yaml naming a scheme that was never applied.
     let config = CoatConfig::load().context("Failed to load coat.yaml")?;
     print_warnings(&config.check()?);
+    print_warnings(&modules::inert_overrides(scheme, &config));
 
     // Remembered in the state file, never written back into coat.yaml. See
     // config::state_path.

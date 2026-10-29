@@ -38,7 +38,11 @@ set statusbar-fg                "#{{ base05 }}" # base05
 set highlight-color             "#{{ base0A }}" # base0A - yellow
 set highlight-active-color      "#{{ base0D }}" # base0D - blue
 
-set default-bg                  "#{{ base00 }}" # base00
+{% if opacity_applications < 1.0 %}# The canvas around the pages takes coat's applications opacity. rgba() and
+# not #RRGGBBAA: girara parses colours with GTK 3, which has no 8-digit form.
+set default-bg                  "rgba({{ base00 | r }},{{ base00 | g }},{{ base00 | b }},{{ opacity_applications }})" # base00
+{% else %}set default-bg                  "#{{ base00 }}" # base00
+{% endif %}
 set default-fg                  "#{{ base05 }}" # base05
 set render-loading-bg           "#{{ base00 }}" # base00
 set render-loading-fg           "#{{ base05 }}" # base05

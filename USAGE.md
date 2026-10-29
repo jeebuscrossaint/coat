@@ -55,9 +55,9 @@ font:
     popups:   10   # fuzzel, dunst
 
 opacity:
-  terminal:     0.95   # kitty
-  applications: 1.0
-  desktop:      1.0
+  terminal:     0.95   # kitty; btop and micro drop their own background under it
+  applications: 1.0    # vesktop, qutebrowser, zathura
+  desktop:      1.0    # conky (c.argb, see `coat docs conky`)
   popups:       0.95   # dunst, fuzzel backgrounds
 
 # Repaint scheme slots, whatever scheme is loaded. A value is "#RRGGBB" or
@@ -101,6 +101,14 @@ Typos are reported rather than ignored: an `enabled:` or `overrides:` name that
 is no module, or an unknown top-level key, prints a warning with the closest
 match; an unknown key inside `font:`, `opacity:`, `normalize:` or an override,
 and a bad `palette:` entry, stop the apply with an error naming it.
+
+An override the app has no setting for is reported too. coat changes each key
+and plans the module again; if nothing it would write differs, the key does
+nothing, and the warning says so. VSCode, for one, has no window opacity:
+
+```
+warning: overrides.vscode.opacity.applications: vscode has nothing that takes it, so it changes nothing
+```
 
 ---
 

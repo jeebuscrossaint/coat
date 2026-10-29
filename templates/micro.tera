@@ -13,16 +13,19 @@
 # scheme the same way -- identifier/base0D, keywords/base0E, strings/base0B.
 
 # ── Editor surface ───────────────────────────────────────────────────────────
-color-link default              "#{{ base05 }},#{{ base00 }}"
+# Under a translucent terminal the base00 halves are left off: an omitted
+# background is the terminal's own, which is what lets it show through.
+{% if opacity_terminal >= 1.0 %}{% set bg = ",#" ~ base00 %}{% else %}{% set bg = "" %}{% endif -%}
+color-link default              "#{{ base05 }}{{ bg }}"
 color-link cursor-line          "#{{ base01 }}"
 color-link color-column         "#{{ base01 }}"
-color-link line-number          "#{{ base03 }},#{{ base00 }}"
+color-link line-number          "#{{ base03 }}{{ bg }}"
 color-link current-line-number  "#{{ base0A }},#{{ base01 }}"
-color-link line-number.scrollbar "#{{ base03 }},#{{ base00 }}"
-color-link current-line-number.scroller "#{{ base0A }},#{{ base00 }}"
+color-link line-number.scrollbar "#{{ base03 }}{{ bg }}"
+color-link current-line-number.scroller "#{{ base0A }}{{ bg }}"
 color-link scrollbar            "#{{ base03 }}"
-color-link divider              "#{{ base03 }},#{{ base00 }}"
-color-link indent-char          "#{{ base03 }},#{{ base00 }}"
+color-link divider              "#{{ base03 }}{{ bg }}"
+color-link indent-char          "#{{ base03 }}{{ bg }}"
 color-link space                "#{{ base03 }}"
 
 # Chrome. base04 is the spec's "dark foreground" and is the one slot here that

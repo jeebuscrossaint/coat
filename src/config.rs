@@ -171,6 +171,86 @@ pub struct ModuleOverride {
     pub palette: BTreeMap<String, String>,
 }
 
+impl ModuleOverride {
+    /// Every key this override sets, each paired with a copy of the override in
+    /// which only that key holds some other value. Planning the module with both
+    /// and getting the same files back proves the app has nowhere to put it --
+    /// asked of the module's own output, so no list of who-reads-what is kept.
+    pub fn probes(&self) -> Vec<(String, ModuleOverride)> {
+        type Set<T> = fn(&mut ModuleOverride, T);
+        let sizes = self.font.sizes.clone().unwrap_or_default();
+
+        let fonts: [(&str, &Option<String>, Set<String>); 4] = [
+            ("font.monospace", &self.font.monospace, |o, v| o.font.monospace = Some(v)),
+            ("font.sansserif", &self.font.sansserif, |o, v| o.font.sansserif = Some(v)),
+            ("font.serif", &self.font.serif, |o, v| o.font.serif = Some(v)),
+            ("font.emoji", &self.font.emoji, |o, v| o.font.emoji = Some(v)),
+        ];
+        let numbers: [(&str, Option<f64>, Set<f64>); 7] = [
+            ("font.sizes.terminal", sizes.terminal, |o, v| {
+                o.font.sizes.get_or_insert_with(Default::default).terminal = Some(v)
+            }),
+            ("font.sizes.desktop", sizes.desktop, |o, v| {
+                o.font.sizes.get_or_insert_with(Default::default).desktop = Some(v)
+            }),
+            ("font.sizes.popups", sizes.popups, |o, v| {
+                o.font.sizes.get_or_insert_with(Default::default).popups = Some(v)
+            }),
+            ("opacity.terminal", self.opacity.terminal, |o, v| o.opacity.terminal = Some(v)),
+            ("opacity.applications", self.opacity.applications, |o, v| o.opacity.applications = Some(v)),
+            ("opacity.desktop", self.opacity.desktop, |o, v| o.opacity.desktop = Some(v)),
+            ("opacity.popups", self.opacity.popups, |o, v| o.opacity.popups = Some(v)),
+        ];
+
+        let mut out = Vec::new();
+        for (key, value, set) in fonts {
+            if let Some(v) = value {
+                let mut ov = self.clone();
+                set(&mut ov, format!("{} probe", v));
+                out.push((key.to_string(), ov));
+            }
+        }
+        for (key, value, set) in numbers {
+            if let Some(v) = value {
+                // A step big enough to survive any app's rounding: a whole point
+                // of size, a quarter of opacity (towards the middle, so in range).
+                let other = match key.starts_with("opacity") {
+                    true if v > 0.5 => v - 0.25,
+                    true => v + 0.25,
+                    false => v + 1.0,
+                };
+                let mut ov = self.clone();
+                set(&mut ov, other);
+                out.push((key.to_string(), ov));
+            }
+        }
+        for (slot, value) in &self.palette {
+            // Two candidates, so one of them always differs from what was set.
+            let other = if value.trim_start_matches('#').eq_ignore_ascii_case("000000") {
+                "#FFFFFF"
+            } else {
+                "#000000"
+            };
+            let mut ov = self.clone();
+            ov.palette.insert(slot.clone(), other.to_string());
+            out.push((format!("palette.{}", slot), ov));
+        }
+        out
+    }
+}
+
+impl CoatConfig {
+    /// This config with `module`'s override replaced by `ov`, under every name
+    /// it was written as.
+    pub fn with_override(&self, module: &str, ov: ModuleOverride) -> CoatConfig {
+        let mut out = self.shallow_clone();
+        out.overrides = self.overrides.clone();
+        out.overrides.retain(|k, _| crate::modules::find(k).map_or(k.as_str(), |m| m.name) != module);
+        out.overrides.insert(module.to_string(), ov);
+        out
+    }
+}
+
 /// Where the current scheme is remembered.
 ///
 /// NOT coat.yaml. The scheme in use is state, not configuration: it changes
@@ -371,7 +451,9 @@ impl CoatConfig {
     /// keep reading plain `config.font_monospace()` and cannot forget to ask for
     /// the override.
     pub fn merged_for(&self, module: &str) -> CoatConfig {
-        let Some(ov) = self.overrides.get(module) else {
+        // By any of the module's names: `overrides: { discord: … }` is vesktop's.
+        let owner = |k: &String| crate::modules::find(k).map_or(k.as_str(), |m| m.name) == module;
+        let Some(ov) = self.overrides.iter().find(|(k, _)| owner(k)).map(|(_, ov)| ov) else {
             return self.shallow_clone();
         };
 
@@ -490,6 +572,26 @@ impl CoatConfig {
                 ));
             }
         }
+        // Two names for one module: only one of them is used, and which is not
+        // something to leave to a HashMap.
+        let mut owners: BTreeMap<&str, Vec<&String>> = BTreeMap::new();
+        for name in self.overrides.keys() {
+            if let Some(m) = crate::modules::find(name) {
+                owners.entry(m.name).or_default().push(name);
+            }
+        }
+        for (module, mut keys) in owners {
+            if keys.len() > 1 {
+                keys.sort();
+                let keys: Vec<String> = keys.iter().map(|k| format!("overrides.{}", k)).collect();
+                warnings.push(format!(
+                    "{} {} name {}; only one is used, so merge them into one",
+                    keys.join(" and "),
+                    if keys.len() == 2 { "both" } else { "all" },
+                    module
+                ));
+            }
+        }
         for key in self.unknown.keys() {
             warnings.push(format!(
                 "coat.yaml: unknown key '{}'{}",
@@ -549,7 +651,14 @@ impl CoatConfig {
         self.opacity.applications.unwrap_or(1.0)
     }
     pub fn opacity_popups_hex(&self) -> String {
-        let alpha = (self.opacity_popups() * 255.0).round() as u8;
-        format!("{:02X}", alpha)
+        alpha_hex(self.opacity_popups())
     }
+    pub fn opacity_applications_hex(&self) -> String {
+        alpha_hex(self.opacity_applications())
+    }
+}
+
+/// An opacity as the two hex digits of an 8-bit alpha channel.
+fn alpha_hex(opacity: f64) -> String {
+    format!("{:02X}", (opacity.clamp(0.0, 1.0) * 255.0).round() as u8)
 }

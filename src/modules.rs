@@ -255,6 +255,7 @@ fn build_context(scheme: &Scheme, config: &CoatConfig) -> tera::Context {
     ctx.insert("opacity_popups", &config.opacity_popups());
     ctx.insert("opacity_applications", &config.opacity_applications());
     ctx.insert("opacity_popups_hex", &config.opacity_popups_hex());
+    ctx.insert("opacity_applications_hex", &config.opacity_applications_hex());
     ctx
 }
 
@@ -397,6 +398,33 @@ pub fn plan(name: &str, scheme: &Scheme, config: &CoatConfig) -> Result<Plan> {
     let mut plan = Plan::default();
     (module.plan)(&ctx, &mut plan)?;
     Ok(plan)
+}
+
+/// Override keys their module has nowhere to put: `overrides.vscode.opacity`,
+/// say, which VSCode has no setting for. Each key is changed and the module
+/// planned again; identical output means the key does nothing, which is
+/// exactly what goes unnoticed. Asked of the planners themselves, so it can't
+/// drift from what they read.
+pub fn inert_overrides(scheme: &Scheme, config: &CoatConfig) -> Vec<String> {
+    let mut names: Vec<&String> = config.overrides.keys().collect();
+    names.sort();
+    let mut out = Vec::new();
+    for name in names {
+        let Some(module) = find(name) else { continue };
+        // Against this entry alone, not whichever of `discord:`/`vesktop:` won.
+        let own = config.with_override(module.name, config.overrides[name].clone());
+        let Ok(base) = plan(module.name, scheme, &own) else { continue };
+        for (key, ov) in config.overrides[name].probes() {
+            let probed = config.with_override(module.name, ov);
+            if plan(module.name, scheme, &probed).is_ok_and(|p| p.writes() == base.writes()) {
+                out.push(format!(
+                    "overrides.{}.{}: {} has nothing that takes it, so it changes nothing",
+                    name, key, module.name
+                ));
+            }
+        }
+    }
+    out
 }
 
 /// Print `coat docs <name>`.
@@ -1709,6 +1737,32 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// A translucent surface reaches every app that can show one, and an opaque
+    /// config writes exactly the solid colours it always did.
+    #[test]
+    fn opacity_reaches_the_apps_that_take_it() {
+        let tera = make_tera().unwrap();
+        let s = scheme(false, "dark");
+        let bg = format!(",#{}\"", s.base00);
+        let opaque = build_context(&s, &config(false));
+        let clear = build_context(&s, &config(true));
+        let render = |name: &str, ctx: &tera::Context| tera.render(name, ctx).unwrap();
+
+        assert!(render("micro", &opaque).contains(&format!("default              \"#{}{}", s.base05, bg)));
+        assert!(!render("micro", &clear).contains(&bg));
+        assert!(render("btop", &opaque).contains(&format!("theme[main_bg]=\"#{}\"", s.base00)));
+        assert!(render("btop", &clear).contains("theme[main_bg]=\"\""));
+        assert!(render("zathura", &clear).contains(",0.85)\" # base00"));
+        assert!(!render("zathura", &opaque).contains("rgba("));
+        let qb = render("qutebrowser", &clear);
+        assert!(qb.contains("c.window.transparent = True"));
+        assert!(qb.contains(&format!("c.colors.tabs.bar.bg = '#D9{}'", s.base00)));
+        let qb = render("qutebrowser", &opaque);
+        assert!(!qb.contains("transparent = True"));
+        assert!(qb.contains(&format!("c.colors.tabs.bar.bg = '#{}'", s.base00)));
+        assert!(render("conky", &clear).contains("argb    = 255,"));
     }
 
     #[test]

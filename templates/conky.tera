@@ -36,6 +36,15 @@ return {
     size_terminal = {{ font_size_terminal }},
     font_size     = {{ font_size_desktop }},
 
+    -- opacity.desktop, both as the 0-1 coat.yaml value and as the 0-255 that
+    -- conky takes. conky only reads it with an ARGB window, so it is wired in
+    -- conky.conf rather than here:
+    --
+    --     own_window_argb_visual = true,
+    --     own_window_argb_value  = c.argb,
+    opacity = {{ opacity_desktop }},
+    argb    = {{ (opacity_desktop * 255) | round | int }},
+
     base00 = "{{ base00 }}",
     base01 = "{{ base01 }}",
     base02 = "{{ base02 }}",
