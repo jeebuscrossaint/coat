@@ -37,6 +37,9 @@ cargo build --release
 
 The binary appears at `target/release/coat` (or `coat.exe` on Windows). No external dependencies — all scheme parsing, JSON/YAML handling, and templating are compiled in.
 
+`cargo build --profile dist` gives the smallest binary (fat LTO, one codegen
+unit) at the cost of a much slower build; the output is `target/dist/coat`.
+
 ## Usage
 
 ```bash

@@ -333,23 +333,17 @@ pub fn spawn(commands: &[String]) {
 /// some read (VS Code's settings, qt6ct.conf). The plans are then carried out in
 /// order, the manifest is written once, and every reload goes out in one spawn.
 ///
-/// Returns each module's outcome in `names` order. Fails as a whole only when
-/// the templates do not build.
+/// Returns each module's outcome in `names` order.
 pub fn apply_all(
     names: &[String],
     scheme: &Scheme,
     config: &CoatConfig,
     opts: Options,
 ) -> Result<Vec<(String, Result<Outcome>)>> {
-    let tera = crate::modules::make_tera().context("Failed to build template engine")?;
-
     let plans: Vec<Result<Plan>> = std::thread::scope(|s| {
         let handles: Vec<_> = names
             .iter()
-            .map(|name| {
-                let tera = &tera;
-                s.spawn(move || crate::modules::plan(name, scheme, config, tera))
-            })
+            .map(|name| s.spawn(move || crate::modules::plan(name, scheme, config)))
             .collect();
         handles
             .into_iter()

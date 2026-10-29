@@ -39,8 +39,8 @@ pub struct Manifest {
 }
 
 pub fn path() -> Result<PathBuf> {
-    let base = dirs::state_dir()
-        .or_else(dirs::data_local_dir)
+    let base = crate::paths::state_dir()
+        .or_else(crate::paths::data_local_dir)
         .context("Cannot determine a state directory")?;
     Ok(base.join("coat/manifest.json"))
 }

@@ -185,7 +185,7 @@ pub struct ModuleOverride {
 pub fn state_path() -> Result<std::path::PathBuf> {
     let dir = match std::env::var_os("XDG_STATE_HOME") {
         Some(d) if !d.is_empty() => std::path::PathBuf::from(d),
-        _ => dirs::home_dir()
+        _ => crate::paths::home_dir()
             .context("Cannot determine home directory")?
             .join(".local/state"),
     };
@@ -339,7 +339,7 @@ pub struct ColorsConfig {
 
 impl CoatConfig {
     pub fn path() -> Result<std::path::PathBuf> {
-        let home = dirs::home_dir().context("Cannot determine home directory")?;
+        let home = crate::paths::home_dir().context("Cannot determine home directory")?;
         Ok(home.join(".config/coat/coat.yaml"))
     }
 

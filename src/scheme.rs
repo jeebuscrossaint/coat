@@ -209,7 +209,7 @@ pub fn scheme_dirs(prefer_base24: bool) -> Result<Vec<PathBuf>> {
 }
 
 pub fn schemes_dir() -> Result<PathBuf> {
-    let home = dirs::home_dir().context("Cannot determine home directory")?;
+    let home = crate::paths::home_dir().context("Cannot determine home directory")?;
     Ok(home.join(".config/coat/schemes"))
 }
 
@@ -327,7 +327,7 @@ struct SchemeCache {
 }
 
 fn cache_path() -> Option<PathBuf> {
-    dirs::cache_dir().map(|d| d.join("coat").join("scheme-index.json"))
+    crate::paths::cache_dir().map(|d| d.join("coat").join("scheme-index.json"))
 }
 
 /// Cheap fingerprint of the library: (number of `.yaml` files, newest mtime in
@@ -543,7 +543,19 @@ pub fn find_scheme(name: &str, prefer_base24: bool) -> Result<Scheme> {
         }
     }
 
-    // First pass: match by filename stem
+    // The usual case, `coat set gruvbox-dark-hard`: the name IS the file name,
+    // so try that path before listing anything. Walking the library stats
+    // every one of its ~700 files and took 4ms of a 9ms apply.
+    for dir in &dirs_to_try {
+        for ext in ["yaml", "yml"] {
+            let path = dir.join(format!("{}.{}", name, ext));
+            if path.is_file() {
+                return Scheme::load_file(&path);
+            }
+        }
+    }
+
+    // First pass: match by filename stem, any case, any depth
     let files = yaml_files(&dirs_to_try);
     for path in &files {
         let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
@@ -569,8 +581,8 @@ pub fn find_scheme(name: &str, prefer_base24: bool) -> Result<Scheme> {
 
 /// Where `pick_random_scheme` remembers what it has already shown.
 fn random_seen_path() -> Option<PathBuf> {
-    dirs::state_dir()
-        .or_else(dirs::data_local_dir)
+    crate::paths::state_dir()
+        .or_else(crate::paths::data_local_dir)
         .map(|d| d.join("coat").join("random-seen.json"))
 }
 

@@ -23,16 +23,18 @@ serde = { version = "1", features = ["derive"] }
 serde_norway = "0.9"
 serde_json = "1"
 tera = "2"
-dirs = "7"
 anyhow = "1"
-indicatif = "0.18"
 console = "0.16"
 # `coat match` decodes the wallpaper. Explicit format list rather than the
 # default features: this covers everything awww/swww will display and leaves out
 # avif/exr, which together cost more build time than the rest of coat.
-image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "webp", "bmp", "tiff", "pnm"] }
+# Wallpaper formats for `coat match`. No tiff: it alone pulled in 21 crates,
+# and wallpapers are not tiffs.
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "webp", "bmp", "pnm"] }
 
 [target.'cfg(windows)'.dependencies]
+# Known-folder lookup. Linux only needs $HOME and the XDG variables (paths.rs).
+dirs = "7"
 winreg = "0.56"
 # Direct Win32 calls for the shell restart, settings broadcast, and UAC
 # relaunch — these used to shell out to PowerShell + Add-Type, which cost
@@ -47,8 +49,15 @@ windows-sys = { version = "0.61", features = [
     "Win32_UI_WindowsAndMessaging",
 ] }
 
+# Cargo's default LTO and codegen units: a release rebuild after a one-line
+# change takes ~5s instead of ~40s. Fat LTO bought a 13% smaller binary and no
+# measurable speed -- an apply is ~4.6ms either way, nearly all of it file IO.
 [profile.release]
-lto = true
-codegen-units = 1
 strip = true
 panic = "abort"
+
+# The smallest binary, for packaging: `cargo build --profile dist`.
+[profile.dist]
+inherits = "release"
+lto = true
+codegen-units = 1

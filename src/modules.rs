@@ -1,5 +1,6 @@
 use anyhow::{bail, Context, Result};
 use serde_json::Value as JsonValue;
+use std::cell::RefCell;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -63,7 +64,24 @@ static TEMPLATES: &[(&str, &str)] = &[
 
 // ── Tera setup ─────────────────────────────────────────────────────────────
 
+/// Every template, parsed. For the tests and the Windows paths; an apply
+/// parses only what its modules render (see `Ctx::render`).
 pub fn make_tera() -> Result<Tera> {
+    let mut tera = engine();
+    for (name, src) in TEMPLATES {
+        tera.add_raw_template(name, src)
+            .with_context(|| format!("Failed to parse template '{}'", name))?;
+    }
+    Ok(tera)
+}
+
+/// A template engine with coat's filters and no templates yet.
+///
+/// Templates are added AFTER the filters, and that order is load-bearing in
+/// tera 2: it resolves filter names while PARSING, so a template using
+/// lower_hex fails with "Unknown filter" if it is added first. tera 1 resolved
+/// at render time and did not care.
+fn engine() -> Tera {
     let mut tera = Tera::default();
     // tera 2 filters: |value, kwargs, state| returning a plain value. In tera 1
     // these took (&Value, &HashMap) and returned Result<Value>, and Value was
@@ -88,16 +106,7 @@ pub fn make_tera() -> Result<Tera> {
 
     tera.register_filter("lower_hex", |v: &str, _: Kwargs, _: &State| v.to_lowercase());
 
-    // Templates are added AFTER the filters, and that order is load-bearing in
-    // tera 2: it resolves filter names while PARSING, so a template using
-    // lower_hex fails with "Unknown filter" if it is added first. tera 1 resolved
-    // at render time and did not care.
-    for (name, src) in TEMPLATES {
-        tera.add_raw_template(name, src)
-            .with_context(|| format!("Failed to parse template '{}'", name))?;
-    }
-
-    Ok(tera)
+    tera
 }
 
 // ── Context builder ────────────────────────────────────────────────────────
@@ -253,7 +262,7 @@ fn build_context(scheme: &Scheme, config: &CoatConfig) -> tera::Context {
 // ── Helper utilities ───────────────────────────────────────────────────────
 
 fn home_dir() -> Result<PathBuf> {
-    dirs::home_dir().context("Cannot determine home directory")
+    crate::paths::home_dir().context("Cannot determine home directory")
 }
 
 // ── Planning ───────────────────────────────────────────────────────────────
@@ -261,18 +270,32 @@ fn home_dir() -> Result<PathBuf> {
 /// Everything a planner reads. Built once per module, with that module's
 /// overrides already folded into `config` and its palette painted onto
 /// `scheme`, so no planner can forget either.
-pub struct Ctx<'a> {
-    tera: &'a Tera,
+pub struct Ctx {
+    /// This module's own engine, holding only the templates it has rendered.
+    /// Parsing all 22 up front was a sixth of an apply; parsed here, each
+    /// module's templates are parsed on its own planning thread, and a
+    /// one-app apply parses one.
+    tera: RefCell<(Tera, Vec<&'static str>)>,
     vars: tera::Context,
     pub scheme: Scheme,
     pub config: CoatConfig,
     pub home: PathBuf,
 }
 
-impl Ctx<'_> {
+impl Ctx {
     fn render(&self, template: &str) -> Result<String> {
-        self.tera
-            .render(template, &self.vars)
+        let mut guard = self.tera.borrow_mut();
+        let (tera, parsed) = &mut *guard;
+        if !parsed.contains(&template) {
+            let (name, src) = TEMPLATES
+                .iter()
+                .find(|(n, _)| *n == template)
+                .with_context(|| format!("No template '{}'", template))?;
+            tera.add_raw_template(name, src)
+                .with_context(|| format!("Failed to parse template '{}'", name))?;
+            parsed.push(name);
+        }
+        tera.render(template, &self.vars)
             .with_context(|| format!("Failed to render template '{}'", template))
     }
 
@@ -357,7 +380,7 @@ pub fn find(name: &str) -> Option<&'static Module> {
 }
 
 /// What one module would write, without writing it.
-pub fn plan(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Tera) -> Result<Plan> {
+pub fn plan(name: &str, scheme: &Scheme, config: &CoatConfig) -> Result<Plan> {
     let module = find(name).with_context(|| format!("Unknown module: {}", name))?;
 
     // Per-module overrides are folded in HERE, once, so nothing downstream has
@@ -366,7 +389,7 @@ pub fn plan(name: &str, scheme: &Scheme, config: &CoatConfig, tera: &Tera) -> Re
     let config = config.merged_for(module.name);
     let scheme = config.paint(scheme)?;
     let ctx = Ctx {
-        tera,
+        tera: RefCell::new((engine(), Vec::new())),
         vars: build_context(&scheme, &config),
         home: home_dir()?,
         scheme,
@@ -521,14 +544,18 @@ fn plan_dunst(c: &Ctx, p: &mut Plan) -> Result<()> {
     // dunstrc it finds, searching $XDG_CONFIG_HOME before $XDG_CONFIG_DIRS. With
     // no ~/.config/dunst/dunstrc the base config resolves to /etc/dunst/dunstrc
     // and our drop-in in ~/.config is never looked at — silently unthemed. So
-    // make sure a user dunstrc exists, seeded from the packaged one.
-    let seed = fs::read_to_string("/etc/dunst/dunstrc").unwrap_or_else(|_| {
-        "# Your dunst config. coat writes only dunstrc.d/50-coat.conf\n\
-         # (colours + font); geometry, timeouts and actions belong here.\n\
-         [global]\n"
-            .to_string()
-    });
-    p.seeds.push((c.path(".config/dunst/dunstrc"), seed, false));
+    // make sure a user dunstrc exists, seeded from the packaged one. Only read
+    // when it will be used: the packaged file is 20K, read on every apply.
+    let base = c.path(".config/dunst/dunstrc");
+    if !base.exists() {
+        let seed = fs::read_to_string("/etc/dunst/dunstrc").unwrap_or_else(|_| {
+            "# Your dunst config. coat writes only dunstrc.d/50-coat.conf\n\
+             # (colours + font); geometry, timeouts and actions belong here.\n\
+             [global]\n"
+                .to_string()
+        });
+        p.seeds.push((base, seed, false));
+    }
 
     c.render_to(p, "dunst", ".config/dunst/dunstrc.d/50-coat.conf")?;
     // Reload rather than kill/respawn: this re-reads dunstrc plus its drop-ins in

@@ -9,6 +9,7 @@ mod icc;
 mod manifest;
 mod modules;
 mod normalize;
+mod paths;
 mod scheme;
 #[cfg(windows)]
 mod windows;
@@ -16,7 +17,6 @@ mod windows;
 use anyhow::{Context, Result};
 use config::{CoatConfig, Flavour};
 use console::style;
-use indicatif::{ProgressBar, ProgressStyle};
 use modules::{module_docs, MODULES};
 use scheme::{
     color_preview_string, find_scheme, header_string, list_schemes, pick_random_scheme,
@@ -26,17 +26,30 @@ use scheme::{
 use std::fs;
 use std::time::Duration;
 
-/// A spinner that ticks in place, then freezes into a static ✓/✗ result line.
-fn spinner(label: &str) -> ProgressBar {
-    let pb = ProgressBar::new_spinner();
-    pb.set_style(
-        ProgressStyle::with_template("{spinner:.cyan} {msg}")
-            .unwrap()
-            .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏ "),
-    );
-    pb.set_message(label.to_string());
-    pb.enable_steady_tick(Duration::from_millis(80));
-    pb
+/// A status line shown while work runs, cleared when it is done so a result
+/// line can take its place.
+///
+/// Still, not a spinner: an apply is over in a few milliseconds, before a
+/// spinner's first frame, and animating the slow Windows steps took a thread and
+/// a progress-bar crate with three dependencies of its own.
+pub struct Status(bool);
+
+pub fn status(label: &str) -> Status {
+    let term = console::Term::stdout();
+    if !term.is_term() {
+        return Status(false);
+    }
+    print!("{} {}", style("…").cyan(), label);
+    let _ = term.flush();
+    Status(true)
+}
+
+impl Status {
+    pub fn finish_and_clear(self) {
+        if self.0 {
+            let _ = console::Term::stdout().clear_line();
+        }
+    }
 }
 
 /// Apply `scheme` to every named app under a single spinner, then clear it. Only
@@ -53,7 +66,7 @@ fn apply_with_spinner(
     opts: apply::Options,
 ) -> Result<(usize, Vec<String>)> {
     modules::set_quiet(true);
-    let pb = spinner(&format!(
+    let pb = status(&format!(
         "Applying to {} app{}...",
         apps.len(),
         if apps.len() == 1 { "" } else { "s" }
@@ -794,7 +807,7 @@ fn cmd_completions(args: &[String]) -> Result<()> {
                 print!("{}", FISH_COMPLETIONS);
                 return Ok(());
             }
-            let dir = dirs::config_dir()
+            let dir = crate::paths::config_dir()
                 .context("Cannot determine config directory")?
                 .join("fish/completions");
             fs::create_dir_all(&dir)

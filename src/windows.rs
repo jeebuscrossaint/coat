@@ -19,9 +19,9 @@ pub enum Outcome {
     Skipped(String),
 }
 
-/// Run one apply step behind a spinner that freezes into a result line.
+/// Run one apply step behind a status line that turns into a result line.
 fn step<F: FnOnce() -> Result<Outcome>>(label: &str, f: F) {
-    let pb = crate::spinner(label);
+    let pb = crate::status(label);
     let result = f();
     pb.finish_and_clear();
     match result {
