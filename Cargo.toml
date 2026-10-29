@@ -53,6 +53,11 @@ windows-sys = { version = "0.61", features = [
     "Win32_UI_WindowsAndMessaging",
 ] }
 
+# Line tables only: backtraces keep file and line, but debug builds and their
+# link (every `cargo test`) skip full debug info.
+[profile.dev]
+debug = "line-tables-only"
+
 # Cargo's default LTO and codegen units: a release rebuild after a one-line
 # change takes ~5s instead of ~40s. Fat LTO bought a 13% smaller binary and no
 # measurable speed -- an apply is ~4.6ms either way, nearly all of it file IO.

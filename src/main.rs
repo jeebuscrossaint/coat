@@ -77,7 +77,7 @@ fn apply_with_spinner(
 
     let mut applied = 0;
     let mut changed = Vec::new();
-    for (app, result) in results? {
+    for (app, result) in results {
         match result {
             Ok(outcome) => {
                 applied += 1;
@@ -336,7 +336,7 @@ fn watch_apply() -> Result<()> {
         .with_context(|| format!("Failed to load scheme '{}'", config.scheme))?;
 
     let mut changed = Vec::new();
-    for (app, result) in apply::apply_all(&config.enabled, &scheme, &config, apply::Options::default())? {
+    for (app, result) in apply::apply_all(&config.enabled, &scheme, &config, apply::Options::default()) {
         match result {
             Ok(o) if o.touched => changed.push(app),
             Ok(_) => {}

@@ -339,7 +339,7 @@ pub fn apply_all(
     scheme: &Scheme,
     config: &CoatConfig,
     opts: Options,
-) -> Result<Vec<(String, Result<Outcome>)>> {
+) -> Vec<(String, Result<Outcome>)> {
     let plans: Vec<Result<Plan>> = std::thread::scope(|s| {
         let handles: Vec<_> = names
             .iter()
@@ -395,7 +395,7 @@ pub fn apply_all(
         crate::manifest::record_all(entries);
         spawn(&commands);
     }
-    Ok(out)
+    out
 }
 
 /// A line diff of `old` -> `new`: changed lines with `context` lines around

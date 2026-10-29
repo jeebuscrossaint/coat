@@ -795,16 +795,21 @@ fn downsample_linear(img: &image::RgbImage, edge: u32, profile: &Profile) -> Vec
 
     let mut acc = vec![[0.0f64; 3]; (tw * th) as usize];
     let mut count = vec![0u32; (tw * th) as usize];
-    for (x, y, px) in img.enumerate_pixels() {
-        // Source pixel -> target cell. Every source pixel lands in exactly one
-        // cell, so this is a true box filter with no pixel counted twice.
-        let tx = ((x as u64 * tw as u64) / w as u64).min(tw as u64 - 1) as u32;
-        let ty = ((y as u64 * th as u64) / h as u64).min(th as u64 - 1) as u32;
-        let i = (ty * tw + tx) as usize;
-        acc[i][0] += lut[0][px[0] as usize];
-        acc[i][1] += lut[1][px[1] as usize];
-        acc[i][2] += lut[2][px[2] as usize];
-        count[i] += 1;
+    // Source pixel -> target cell. Every source pixel lands in exactly one
+    // cell, so this is a true box filter with no pixel counted twice. The cell
+    // depends on x and y separately, so it is worked out once per column and
+    // once per row, not with two divisions for each of 18 million pixels.
+    let cell = |i: u32, src: u32, dst: u32| ((i as u64 * dst as u64) / src as u64).min(dst as u64 - 1) as usize;
+    let cols: Vec<usize> = (0..w).map(|x| cell(x, w, tw)).collect();
+    for (y, row) in img.rows().enumerate() {
+        let base = cell(y as u32, h, th) * tw as usize;
+        for (px, &tx) in row.zip(&cols) {
+            let i = base + tx;
+            acc[i][0] += lut[0][px[0] as usize];
+            acc[i][1] += lut[1][px[1] as usize];
+            acc[i][2] += lut[2][px[2] as usize];
+            count[i] += 1;
+        }
     }
 
     acc.iter()
@@ -836,7 +841,9 @@ fn decode_with_profile(path: &Path) -> Result<(image::RgbImage, Profile)> {
         .unwrap_or_else(Profile::srgb);
     let img = image::DynamicImage::from_decoder(decoder)
         .with_context(|| format!("cannot decode {} as an image", path.display()))?;
-    Ok((img.to_rgb8(), profile))
+    // into_, not to_: an RGB8 image is moved, not copied, and a 20-megapixel
+    // wallpaper is 60MB of it.
+    Ok((img.into_rgb8(), profile))
 }
 
 /// Decode, downscale, and cluster the image in Oklab.
@@ -1255,4 +1262,50 @@ pub fn save_match(yaml: &str) -> Result<PathBuf> {
 /// The matched scheme currently kept, if there is one.
 pub fn current_match() -> Option<Scheme> {
     Scheme::load_file(&match_path().ok()?).ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The per-pixel-division form `downsample_linear` replaced, kept as the
+    /// reference: same cells, same summation order, so the output must match
+    /// bit for bit.
+    fn reference(img: &image::RgbImage, edge: u32, profile: &Profile) -> Vec<[f64; 3]> {
+        let lut = &profile.trc;
+        let (w, h) = img.dimensions();
+        let scale = (edge as f64 / w.max(h) as f64).min(1.0);
+        let (tw, th) = (
+            ((w as f64 * scale).round() as u32).max(1),
+            ((h as f64 * scale).round() as u32).max(1),
+        );
+        let mut acc = vec![[0.0f64; 3]; (tw * th) as usize];
+        let mut count = vec![0u32; (tw * th) as usize];
+        for (x, y, px) in img.enumerate_pixels() {
+            let tx = ((x as u64 * tw as u64) / w as u64).min(tw as u64 - 1) as u32;
+            let ty = ((y as u64 * th as u64) / h as u64).min(th as u64 - 1) as u32;
+            let i = (ty * tw + tx) as usize;
+            for c in 0..3 {
+                acc[i][c] += lut[c][px[c] as usize];
+            }
+            count[i] += 1;
+        }
+        acc.iter()
+            .zip(&count)
+            .filter(|(_, n)| **n > 0)
+            .map(|(a, n)| [a[0] / *n as f64, a[1] / *n as f64, a[2] / *n as f64])
+            .collect()
+    }
+
+    #[test]
+    fn downsample_matches_the_division_form() {
+        let profile = Profile::srgb();
+        // Odd sizes, both orientations, and one smaller than the edge.
+        for (w, h) in [(997, 613), (301, 1999), (90, 37)] {
+            let img = image::RgbImage::from_fn(w, h, |x, y| {
+                image::Rgb([(x * 7 + y) as u8, (x ^ y) as u8, (x * y % 251) as u8])
+            });
+            assert_eq!(downsample_linear(&img, SAMPLE_EDGE, &profile), reference(&img, SAMPLE_EDGE, &profile));
+        }
+    }
 }
