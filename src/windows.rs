@@ -871,7 +871,12 @@ pub fn apply_vscode(scheme: &Scheme, config: &CoatConfig) -> Result<Outcome> {
     let Some(path) = path else {
         return Ok(Outcome::Skipped("not installed".into()));
     };
-    crate::modules::apply_vscode_shared(scheme, &path, configured_font(config))
+    crate::modules::apply_vscode_shared(
+        scheme,
+        &path,
+        configured_font(config),
+        crate::modules::VscodeSizes::from_config(config),
+    )
         .map(|_| Outcome::Done)
 }
 

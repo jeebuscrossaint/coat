@@ -1179,22 +1179,48 @@ pub fn read_json_settings(path: &Path) -> Result<serde_json::Map<String, JsonVal
 /// Shared VSCode apply logic. Works on any `path` (Linux or Windows).
 /// `font` is optional; pass `None` to skip font injection.
 #[cfg_attr(not(windows), allow(dead_code))]
-pub fn apply_vscode_shared(scheme: &Scheme, path: &Path, font: Option<&str>) -> Result<()> {
+pub fn apply_vscode_shared(scheme: &Scheme, path: &Path, font: Option<&str>, sizes: VscodeSizes) -> Result<()> {
     let mut plan = Plan::default();
-    plan.merged.push((path.to_path_buf(), vscode_settings(scheme, path, font)?));
+    plan.merged.push((path.to_path_buf(), vscode_settings(scheme, path, font, sizes)?));
     crate::apply::execute_now(plan)
 }
 
 fn plan_vscode(c: &Ctx, p: &mut Plan) -> Result<()> {
     let path = c.path(".config/Code/User/settings.json");
     let font = Some(c.config.font_monospace()).filter(|f| !f.is_empty());
-    p.merged.push((path.clone(), vscode_settings(&c.scheme, &path, font)?));
+    let sizes = VscodeSizes::from_config(&c.config);
+    p.merged.push((path.clone(), vscode_settings(&c.scheme, &path, font, sizes)?));
     Ok(())
+}
+
+/// coat's sizes are points; VSCode's are CSS pixels, and its UI is a fixed
+/// 13px that only `window.zoomLevel` (×1.2 per step) can grow.
+#[derive(Clone, Copy)]
+pub struct VscodeSizes {
+    /// `font.sizes.terminal`, pt: the editor and integrated terminal.
+    pub text: f64,
+    /// `font.sizes.desktop`, pt: the UI chrome.
+    pub ui: f64,
+}
+
+impl VscodeSizes {
+    pub fn from_config(config: &crate::config::CoatConfig) -> Self {
+        Self { text: config.font_size_terminal(), ui: config.font_size_desktop() }
+    }
+
+    /// (zoomLevel, editor/terminal fontSize). The zoom also scales the
+    /// editor, so the font size is divided back out of it.
+    fn settings(self) -> (f64, f64) {
+        let px = |pt: f64| pt * 4.0 / 3.0;
+        let zoom = px(self.ui) / 13.0;
+        let round = |v: f64, k: f64| (v * k).round() / k;
+        (round(zoom.ln() / 1.2f64.ln(), 100.0), round(px(self.text) / zoom, 2.0))
+    }
 }
 
 /// `path`'s settings with coat's colours (and `font`) merged in, as the text to
 /// write back. Every other setting is kept.
-fn vscode_settings(scheme: &Scheme, path: &Path, font: Option<&str>) -> Result<String> {
+fn vscode_settings(scheme: &Scheme, path: &Path, font: Option<&str>, sizes: VscodeSizes) -> Result<String> {
     // Read existing settings or start fresh (JSONC-tolerant; never clobbers
     // a file it can't parse).
     let mut settings: serde_json::Map<String, JsonValue> = if path.exists() {
@@ -1338,6 +1364,11 @@ fn vscode_settings(scheme: &Scheme, path: &Path, font: Option<&str>) -> Result<S
             settings.insert("editor.fontFamily".to_string(), JsonValue::String(f.to_string()));
         }
     }
+
+    let (zoom, size) = sizes.settings();
+    settings.insert("window.zoomLevel".to_string(), serde_json::json!(zoom));
+    settings.insert("editor.fontSize".to_string(), serde_json::json!(size));
+    settings.insert("terminal.integrated.fontSize".to_string(), serde_json::json!(size));
 
     serde_json::to_string_pretty(&settings).context("Failed to serialize settings.json")
 }
