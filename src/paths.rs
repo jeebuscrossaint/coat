@@ -22,8 +22,30 @@ mod imp {
         env(var).or_else(|| home_dir().map(|h| h.join(under_home)))
     }
 
+    /// $HOME, or the account database when it is unset -- `env -i`, some
+    /// services and launchers start coat with no environment at all.
     pub fn home_dir() -> Option<PathBuf> {
-        env("HOME")
+        env("HOME").or_else(passwd_home)
+    }
+
+    fn passwd_home() -> Option<PathBuf> {
+        use std::ffi::CStr;
+        use std::os::unix::ffi::OsStrExt;
+
+        let mut buf = vec![0u8; 4096];
+        let mut pw: libc::passwd = unsafe { std::mem::zeroed() };
+        let mut result: *mut libc::passwd = std::ptr::null_mut();
+        // SAFETY: every pointer is to a live local; getpwuid_r writes only
+        // into `pw` and `buf`, and `result` is checked before `pw` is read.
+        let rc = unsafe {
+            libc::getpwuid_r(libc::getuid(), &mut pw, buf.as_mut_ptr().cast(), buf.len(), &mut result)
+        };
+        if rc != 0 || result.is_null() || pw.pw_dir.is_null() {
+            return None;
+        }
+        // SAFETY: pw_dir points into `buf`, NUL-terminated, still alive.
+        let dir = unsafe { CStr::from_ptr(pw.pw_dir) };
+        Some(PathBuf::from(std::ffi::OsStr::from_bytes(dir.to_bytes()))).filter(|p| p.is_absolute())
     }
     pub fn config_dir() -> Option<PathBuf> {
         xdg("XDG_CONFIG_HOME", ".config")

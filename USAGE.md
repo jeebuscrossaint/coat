@@ -199,6 +199,21 @@ colors:
     - me@server:/opt/homelab/stacks/terminal/theme
 ```
 
+### tty
+
+The Linux virtual console (Ctrl+Alt+F2 …) in the scheme's 16 colours, with the
+same slots as kitty. Writes `~/.config/coat/tty.esc` (the palette as console
+escapes), `~/.config/coat/tty.vtrgb` (the same for `setvtrgb` and the
+`vt.default_*` kernel parameters) and, when fish is installed,
+`~/.config/fish/conf.d/coat-tty.fish`, which applies it whenever fish starts on
+a VT.
+
+VTs you are logged in on recolour on apply. For bash or zsh, add
+`[ "$TERM" = linux ] && cat ~/.config/coat/tty.esc` to your rc file. The login
+prompt and every VT from boot need root: `sudo setvtrgb ~/.config/coat/tty.vtrgb`,
+or the kernel parameters `coat docs tty` prints. Console fonts are PSF bitmaps
+(`/etc/vconsole.conf`), so `font:` does not apply.
+
 ### bat
 
 Writes `~/.config/bat/themes/coat.tmTheme`.

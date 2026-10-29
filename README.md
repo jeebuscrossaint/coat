@@ -1,10 +1,10 @@
 # coat — color scheme configurator
 
-A Rust CLI that applies Base16/Base24 color schemes across 24 Linux applications — and themes Windows system colors — from a single config file.
+A Rust CLI that applies Base16/Base24 color schemes across 25 Linux applications — and themes Windows system colors — from a single config file.
 
 ## Features
 
-- **24 application modules** — terminals, editors, compositors, bars, launchers, and more
+- **25 application modules** — terminals, the Linux console, editors, compositors, bars, launchers, and more
 - **Windows support** — accent color, dark/light mode, Windows Terminal, and VSCode via `coat set`
 - **Base16 & Base24** — compatible with the full [tinted-theming](https://github.com/tinted-theming/home) ecosystem (~700 schemes)
 - **Scheme browser** — search and preview with live RGB color swatches in the terminal
@@ -36,6 +36,14 @@ coat/
 ```
 
 ## Building
+
+```bash
+cargo install --locked --git https://github.com/jeebuscrossaint/coat
+```
+
+`--locked` builds against the `Cargo.lock` in the repo, the versions coat is
+tested with; without it cargo picks the newest of every dependency. From a
+checkout:
 
 ```bash
 cargo build --release
@@ -241,7 +249,7 @@ across a theme change.
 
 | Category | Modules |
 |---|---|
-| Terminal | kitty |
+| Terminal | kitty, tty (the Linux console) |
 | Shell | fish |
 | Editors | micro, vscode |
 | Compositor | mango, hyprland |

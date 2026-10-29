@@ -3,7 +3,6 @@ use serde_json::Value as JsonValue;
 use std::cell::RefCell;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tera::{Kwargs, State, Tera};
 
@@ -312,13 +311,6 @@ impl Ctx {
     }
 }
 
-/// Fire off a shell command with its stdio silenced and don't wait. Only for
-/// the qt hook below, which runs after the batch; everything else goes through
-/// `Plan::reload` / `Plan::always` and is spawned with the rest.
-fn run(cmd: &str) {
-    crate::apply::spawn(&[cmd.to_string()]);
-}
-
 fn on_path(bin: &str) -> bool {
     std::env::var_os("PATH")
         .is_some_and(|p| std::env::split_paths(&p).any(|d| d.join(bin).is_file()))
@@ -368,6 +360,7 @@ pub static MODULES: &[Module] = &[
     module!("qutebrowser", plan_qutebrowser, docs::QUTEBROWSER),
     module!("satty",       plan_satty,       docs::SATTY),
     module!("swaylock",    plan_swaylock,    docs::SWAYLOCK),
+    module!("tty", ["console", "vt"], plan_tty, docs::TTY),
     module!("vesktop", ["discord", "vencord"], plan_vesktop, docs::VESKTOP),
     module!("vscode",      plan_vscode,      docs::VSCODE),
     module!("xresources",  plan_xresources,  docs::XRESOURCES),
@@ -894,21 +887,15 @@ fn plan_qt(c: &Ctx, p: &mut Plan) -> Result<()> {
     // and the portal restarts into it. Only then, so a later apply cannot cut
     // off a share in progress. Not before qt6ct exists either, or every Qt app
     // launched meanwhile warns about a missing plugin.
-    p.after.push(Box::new(move |_| {
-        let has_env = Command::new("systemctl")
-            .args(["--user", "show-environment"])
-            .output()
-            .is_ok_and(|o| String::from_utf8_lossy(&o.stdout).lines().any(|l| l == env));
-        if !has_env {
-            run(&format!(
-                "systemctl --user set-environment {} \
-                 && systemctl --user try-restart xdg-desktop-portal-hyprland",
-                env
-            ));
-            detail!("    Qt apps already running need one restart to pick this up.");
-        }
-        Ok(())
-    }));
+    //
+    // Checked in the background with the reloads: asking systemd took 6ms,
+    // half of an apply, and nothing waits on the answer. Qt apps already
+    // running need one restart to pick the variable up.
+    p.always.push(format!(
+        "systemctl --user show-environment | grep -qx '{env}' \
+         || {{ systemctl --user set-environment '{env}' \
+         && systemctl --user try-restart xdg-desktop-portal-hyprland; }}"
+    ));
     Ok(())
 }
 
@@ -970,6 +957,74 @@ fn plan_zathura(c: &Ctx, p: &mut Plan) -> Result<()> {
         r#"| awk '/^org\.pwmt\.zathura\.PID-/{print $1}' "#,
         r#"| while read -r n; do busctl --user call "$n" /org/pwmt/zathura "#,
         r#"org.pwmt.zathura SourceConfig >/dev/null 2>&1; done"#,
+    ));
+    Ok(())
+}
+
+/// The Linux virtual console: Ctrl+Alt+F2 and the rest.
+///
+/// The console takes its 16 colours from `ESC ] P n rrggbb`, per VT, at
+/// runtime and without root. Text already on screen recolours at once, since
+/// the console stores palette indices, not colours. The palette lives as those
+/// bytes in tty.esc, and two things write it:
+///
+/// - a fish conf.d snippet, when a shell starts on a VT (TERM=linux), so every
+///   new login gets it
+/// - the reload, to the VTs this user is logged in on right now
+///
+/// From boot -- the getty prompt, every VT -- takes root: setvtrgb, or the
+/// vt.default_* kernel parameters. coat writes tty.vtrgb in the format both
+/// read, and `coat docs tty` has the command.
+///
+/// No fonts: the console draws PSF bitmap fonts (vconsole.conf), not the TTF
+/// families in `font:`.
+fn plan_tty(c: &Ctx, p: &mut Plan) -> Result<()> {
+    let s = &c.scheme;
+    // The slots templates/kitty.tera uses, so a VT and a terminal window agree.
+    // The console draws text in 7 on 0: base05 on base00, as everywhere else.
+    let palette = [
+        &s.base00, &s.base08, &s.base0b, &s.base0a, &s.base0d, &s.base0e, &s.base0c, &s.base05,
+        &s.base03, &s.base08, &s.base0b, &s.base0a, &s.base0d, &s.base0e, &s.base0c, &s.base07,
+    ];
+
+    let esc_path = c.path(".config/coat/tty.esc");
+    let esc: String = palette
+        .iter()
+        .enumerate()
+        .map(|(i, hex)| format!("\x1b]P{:X}{}", i, hex))
+        .collect();
+    p.file(esc_path.clone(), esc);
+
+    // Red, green and blue, one line each: setvtrgb's decimal format, and the
+    // value of each vt.default_* kernel parameter as it stands.
+    let channel = |pick: fn((u8, u8, u8)) -> u8| {
+        palette.iter().map(|h| pick(Scheme::hex_to_rgb(h)).to_string()).collect::<Vec<_>>().join(",")
+    };
+    p.file(
+        c.path(".config/coat/tty.vtrgb"),
+        format!("{}\n{}\n{}\n", channel(|c| c.0), channel(|c| c.1), channel(|c| c.2)),
+    );
+
+    // fish sources conf.d by itself, so this needs no include line anywhere.
+    if c.path(".config/fish").is_dir() {
+        p.file(
+            c.path(".config/fish/conf.d/coat-tty.fish"),
+            format!(
+                "# Written by coat (`coat remove tty` deletes it): the scheme's palette\n\
+                 # on a Linux virtual console. Terminal windows are left alone.\n\
+                 if test \"$TERM\" = linux\n    cat '{}'\nend\n",
+                esc_path.display()
+            ),
+        );
+    }
+
+    // VTs this user is logged in on recolour now; the rest get it at their next
+    // login. Owned AND writable, so a getty prompt or another user's VT is never
+    // written to. The VT a compositor runs on is in graphics mode, where the
+    // kernel keeps the palette for later without drawing anything.
+    p.reload(format!(
+        "for t in /dev/tty[0-9]*; do [ -O \"$t\" ] && [ -w \"$t\" ] && cat '{}' > \"$t\"; done",
+        esc_path.display()
     ));
     Ok(())
 }
@@ -1475,6 +1530,33 @@ swaylock config is never touched. Pass them as flags, which swaylock
 reads after its config so they win:
 
   swaylock $(grep -v '^#' ~/.config/swaylock/coat-theme.conf | sed 's/^/--/')
+"##;
+
+    pub const TTY: &str = r##"
+The Linux virtual console (Ctrl+Alt+F2 …), in the scheme's 16 colours.
+Fonts stay as they are: the console draws PSF bitmap fonts, set in
+/etc/vconsole.conf, not the families in `font:`.
+
+Writes:
+  ~/.config/coat/tty.esc                 the palette, as console escapes
+  ~/.config/coat/tty.vtrgb               the same, for setvtrgb / kernel params
+  ~/.config/fish/conf.d/coat-tty.fish    applies tty.esc when fish starts on a VT
+
+VTs you are logged in on recolour on apply; every new login gets it from
+the fish snippet. For bash or zsh, add to ~/.bashrc or ~/.zshrc:
+
+  [ "$TERM" = linux ] && cat ~/.config/coat/tty.esc
+
+The login prompt itself, and every VT from boot, take root. Either once
+per scheme change:
+
+  sudo setvtrgb ~/.config/coat/tty.vtrgb
+
+or permanently, as kernel parameters on the boot command line:
+
+  echo vt.default_red=$(sed -n 1p ~/.config/coat/tty.vtrgb) \
+       vt.default_grn=$(sed -n 2p ~/.config/coat/tty.vtrgb) \
+       vt.default_blu=$(sed -n 3p ~/.config/coat/tty.vtrgb)
 "##;
 
     pub const VESKTOP: &str = r##"
