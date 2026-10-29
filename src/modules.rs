@@ -328,6 +328,9 @@ pub struct Module {
     plan: fn(&Ctx, &mut Plan) -> Result<()>,
     /// `coat docs <name>`.
     pub docs: &'static str,
+    /// A one-time step that needs root, offered after the first apply. See
+    /// setup.rs.
+    pub setup: Option<&'static crate::setup::Setup>,
 }
 
 macro_rules! module {
@@ -335,7 +338,10 @@ macro_rules! module {
         module!($name, [], $plan, $docs)
     };
     ($name:literal, [$($alias:literal),*], $plan:ident, $docs:expr) => {
-        Module { name: $name, aliases: &[$($alias),*], plan: $plan, docs: $docs }
+        module!($name, [$($alias),*], $plan, $docs, None)
+    };
+    ($name:literal, [$($alias:literal),*], $plan:ident, $docs:expr, $setup:expr) => {
+        Module { name: $name, aliases: &[$($alias),*], plan: $plan, docs: $docs, setup: $setup }
     };
 }
 
@@ -360,7 +366,7 @@ pub static MODULES: &[Module] = &[
     module!("qutebrowser", plan_qutebrowser, docs::QUTEBROWSER),
     module!("satty",       plan_satty,       docs::SATTY),
     module!("swaylock",    plan_swaylock,    docs::SWAYLOCK),
-    module!("tty", ["console", "vt"], plan_tty, docs::TTY),
+    module!("tty", ["console", "vt"], plan_tty, docs::TTY, Some(&crate::setup::TTY)),
     module!("vesktop", ["discord", "vencord"], plan_vesktop, docs::VESKTOP),
     module!("vscode",      plan_vscode,      docs::VSCODE),
     module!("xresources",  plan_xresources,  docs::XRESOURCES),
@@ -409,9 +415,26 @@ pub fn module_docs(name: &str) {
 /// nothing coat can prove it wrote, and it says so rather than deleting a path
 /// it merely believes it owns.
 pub fn remove_module(name: &str, dry: bool) -> Result<Vec<String>> {
-    let name = find(name).map_or(name, |m| m.name);
+    let module = find(name);
+    let name = module.map_or(name, |m| m.name);
+    let mut done = Vec::new();
+
+    // The root-installed part first: it is the one that can still fail (a
+    // cancelled sudo), and nothing else should be gone if it does.
+    if let (Some(setup), Some(home)) = (module.and_then(|m| m.setup), crate::paths::home_dir()) {
+        if (setup.installed)(&home) {
+            if !dry {
+                (setup.uninstall)(&home)?;
+            }
+            done.push(format!("uninstalled  the setup step (sudo): {}", setup.what));
+        }
+    }
+
     let manifest = crate::manifest::load();
     let Some(entry) = manifest.modules.get(name) else {
+        if !done.is_empty() {
+            return Ok(done);
+        }
         bail!(
             "coat has no record of applying '{}'.\n\
              The record is written on apply, so a module last applied by an older\n\
@@ -420,8 +443,6 @@ pub fn remove_module(name: &str, dry: bool) -> Result<Vec<String>> {
             name
         );
     };
-
-    let mut done = Vec::new();
 
     for file in &entry.written {
         if !file.exists() {
@@ -1547,16 +1568,24 @@ the fish snippet. For bash or zsh, add to ~/.bashrc or ~/.zshrc:
 
   [ "$TERM" = linux ] && cat ~/.config/coat/tty.esc
 
-The login prompt itself, and every VT from boot, take root. Either once
-per scheme change:
+The login prompt itself, and every VT nobody is logged in on, take root.
+The first `coat apply` with tty enabled offers to set that up (one sudo):
+two systemd units that run setvtrgb on tty.vtrgb at boot and again each
+time coat rewrites it. After that every scheme change recolours every
+console, with no password.
 
-  sudo setvtrgb ~/.config/coat/tty.vtrgb
+  coat setup tty     set them up now, or again after answering no
+  coat remove tty    takes them out again and restores the stock palette
 
-or permanently, as kernel parameters on the boot command line:
+The palette as kernel parameters too, for the boot messages before any
+unit runs -- add to /etc/kernel/cmdline (unified kernel images) or your
+bootloader's command line, then rebuild the image:
 
   echo vt.default_red=$(sed -n 1p ~/.config/coat/tty.vtrgb) \
        vt.default_grn=$(sed -n 2p ~/.config/coat/tty.vtrgb) \
        vt.default_blu=$(sed -n 3p ~/.config/coat/tty.vtrgb)
+
+Those are fixed at the scheme they were made from; the units follow it.
 "##;
 
     pub const VESKTOP: &str = r##"

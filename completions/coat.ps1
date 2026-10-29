@@ -18,6 +18,7 @@ Register-ArgumentCompleter -Native -CommandName coat -ScriptBlock {
         'apply'       = 'Apply the current scheme'
         'watch'       = 'Re-apply whenever coat.yaml changes'
         'remove'      = 'Undo the theming of one app'
+        'setup'       = "Do an app's one-time root step"
         'docs'        = 'Show setup instructions for an app'
         'completions' = 'Install shell completions'
         'help'        = 'Show help'
@@ -49,7 +50,7 @@ Register-ArgumentCompleter -Native -CommandName coat -ScriptBlock {
                     [pscustomobject]@{ Text = $_; Desc = 'scheme' }
                 })
             }
-            { $_ -in 'apply', 'docs', 'remove' } {
+            { $_ -in 'apply', 'docs', 'remove', 'setup' } {
                 $pairs = @(& coat __complete modules 2>$null | ForEach-Object {
                     [pscustomobject]@{ Text = $_; Desc = 'module' }
                 })
@@ -81,6 +82,9 @@ Register-ArgumentCompleter -Native -CommandName coat -ScriptBlock {
         if ($sub -eq 'apply') {
             $pairs += [pscustomobject]@{ Text = '--dry';   Desc = 'Show the diff, write nothing' }
             $pairs += [pscustomobject]@{ Text = '--force'; Desc = 'Reload every app, changed or not' }
+        }
+        if ($sub -eq 'setup') {
+            $pairs += [pscustomobject]@{ Text = '--force'; Desc = 'Do it again even if already set up' }
         }
         if ($sub -eq 'set') {
             $pairs += [pscustomobject]@{ Text = '--base16'; Desc = 'Take the Base16 copy of the scheme' }

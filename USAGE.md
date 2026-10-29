@@ -209,10 +209,17 @@ escapes), `~/.config/coat/tty.vtrgb` (the same for `setvtrgb` and the
 a VT.
 
 VTs you are logged in on recolour on apply. For bash or zsh, add
-`[ "$TERM" = linux ] && cat ~/.config/coat/tty.esc` to your rc file. The login
-prompt and every VT from boot need root: `sudo setvtrgb ~/.config/coat/tty.vtrgb`,
-or the kernel parameters `coat docs tty` prints. Console fonts are PSF bitmaps
-(`/etc/vconsole.conf`), so `font:` does not apply.
+`[ "$TERM" = linux ] && cat ~/.config/coat/tty.esc` to your rc file.
+
+The login prompt and the VTs nobody is logged in on need root. The first
+`coat apply` with tty enabled, run from a terminal, offers to set that up with
+one sudo: `coat-vtrgb.service` runs `setvtrgb` on `tty.vtrgb` at boot, and
+`coat-vtrgb.path` runs it again whenever coat rewrites the file. From then on
+every scheme change recolours every console with no password. A "no" is
+remembered; `coat setup tty` does it later, and `coat remove tty` takes the
+units out and restores the stock palette.
+
+Console fonts are PSF bitmaps (`/etc/vconsole.conf`), so `font:` does not apply.
 
 ### bat
 
@@ -322,6 +329,7 @@ applies. Running coat from an already-elevated shell needs no flag.
 | `coat match [image] [--light\|--auto] [--slots] [--dry]` | Build a scheme from the wallpaper and apply it |
 | `coat apply [app] [--dry] [--force]` | Apply current scheme from coat.yaml; `--dry` shows the diff and writes nothing, `--force` reloads apps whose files did not change |
 | `coat watch` | Re-apply whenever coat.yaml or the scheme changes |
+| `coat setup [app] [--force]` | Do an app's one-time root step (tty: every console, from boot); no app lists them |
 | `coat remove <app> [--dry] [--keep-enabled]` | Undo an app's theming and disable its module |
 | `coat docs <app>` | Show activation instructions for an app |
 | `coat completions <fish\|powershell> [--print]` | Install shell completions |

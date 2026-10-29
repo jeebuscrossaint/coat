@@ -11,6 +11,7 @@ mod modules;
 mod normalize;
 mod paths;
 mod scheme;
+mod setup;
 #[cfg(windows)]
 mod windows;
 
@@ -57,14 +58,14 @@ impl Status {
 /// so a 20-app apply stays two lines instead of twenty. Under `--dry` each app
 /// that would change is listed with a diff instead.
 ///
-/// Returns the number that applied successfully, and the apps whose files
-/// changed (and so were reloaded).
+/// Returns the apps that applied successfully, and those whose files changed
+/// (and so were reloaded).
 fn apply_with_spinner(
     apps: &[String],
     scheme: &Scheme,
     config: &CoatConfig,
     opts: apply::Options,
-) -> Result<(usize, Vec<String>)> {
+) -> Result<(Vec<String>, Vec<String>)> {
     modules::set_quiet(true);
     let pb = status(&format!(
         "Applying to {} app{}...",
@@ -75,12 +76,12 @@ fn apply_with_spinner(
     pb.finish_and_clear();
     modules::set_quiet(false);
 
-    let mut applied = 0;
+    let mut applied = Vec::new();
     let mut changed = Vec::new();
     for (app, result) in results {
         match result {
             Ok(outcome) => {
-                applied += 1;
+                applied.push(app.clone());
                 // Notes are for when one app is being looked at, not a 20-app
                 // apply where they would repeat every time.
                 if opts.dry || apps.len() == 1 {
@@ -200,6 +201,7 @@ fn print_usage(prog: &str) {
     println!("  apply [app]         Apply current scheme to all apps or one specific app");
     println!("                      (only apps whose files changed are reloaded)");
     println!("  watch               Apply again whenever coat.yaml or the scheme changes");
+    println!("  setup [app]         Do an app's one-time root step (tty: consoles from boot)");
     println!("  remove <app>        Undo an app's theming and disable its module");
     println!("                      (--dry to preview, --keep-enabled to leave coat.yaml alone)");
     println!("  docs <app>          Show setup instructions for an app");
@@ -288,8 +290,45 @@ fn cmd_apply(args: &[String], _prog: &str) -> Result<()> {
     let (applied, changed) = apply_with_spinner(&apps, &scheme, &config, opts)?;
 
     println!();
-    print_applied(applied, apps.len(), &changed, opts);
+    print_applied(applied.len(), apps.len(), &changed, opts);
+    if !opts.dry {
+        setup::offer(&applied);
+    }
 
+    Ok(())
+}
+
+/// `coat setup [module]`: a module's one-time root step, now. With no module,
+/// list the ones that have one and whether it is in place.
+fn cmd_setup(args: &[String]) -> Result<()> {
+    let home = paths::home_dir().context("Cannot determine home directory")?;
+    let Some(app) = args.iter().find(|a| !a.starts_with('-')) else {
+        println!("Modules with a one-time setup step:\n");
+        for m in MODULES {
+            let Some(s) = m.setup else { continue };
+            let state = if (s.installed)(&home) {
+                style("set up".to_string()).green()
+            } else if let Some(why) = (s.unavailable)() {
+                style(format!("unavailable: {}", why)).dim()
+            } else {
+                style("not set up".to_string()).yellow()
+            };
+            println!("  {:<6} {}\n         {}", m.name, state, s.what);
+        }
+        return Ok(());
+    };
+    let module = require_module(app);
+    let Some(setup) = module.setup else {
+        println!("{} has no setup step: `coat apply {}` does everything.", module.name, module.name);
+        return Ok(());
+    };
+    if (setup.installed)(&home) && !args.iter().any(|a| a == "--force" || a == "-f") {
+        println!("{} is already set up. --force does it again.", module.name);
+        return Ok(());
+    }
+    println!("{}: {}", module.name, setup.what);
+    setup::run(module.name, setup, &home)?;
+    println!("{} {} set up.", style("✓").green(), module.name);
     Ok(())
 }
 
@@ -441,7 +480,8 @@ fn set_and_apply(scheme: &Scheme, elevate: bool) -> Result<()> {
         } else {
             let opts = apply::Options::default();
             let (applied, changed) = apply_with_spinner(&config.enabled, scheme, &config, opts)?;
-            print_applied(applied, config.enabled.len(), &changed, opts);
+            print_applied(applied.len(), config.enabled.len(), &changed, opts);
+            setup::offer(&applied);
         }
     }
 
@@ -920,6 +960,7 @@ fn main() {
             "browse"          => cmd_browse(&args[2..]),
             "apply"           => cmd_apply(&args[2..], prog),
             "watch"           => cmd_watch(),
+            "setup"           => cmd_setup(&args[2..]),
             "remove" | "rm"   => cmd_remove(&args[2..]),
             "docs"            => cmd_docs(&args[2..], prog),
             "completions"     => cmd_completions(&args[2..]),

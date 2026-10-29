@@ -23,6 +23,7 @@ complete -c coat -n __coat_needs_command -a match       -d 'Build a scheme from 
 complete -c coat -n __coat_needs_command -a apply       -d 'Apply the current scheme'
 complete -c coat -n __coat_needs_command -a remove      -d 'Undo the theming of one app'
 complete -c coat -n __coat_needs_command -a watch       -d 'Re-apply whenever coat.yaml changes'
+complete -c coat -n __coat_needs_command -a setup       -d "Do an app's one-time root step"
 complete -c coat -n __coat_needs_command -a docs        -d 'Show setup instructions for an app'
 complete -c coat -n __coat_needs_command -a completions -d 'Install shell completions'
 complete -c coat -n __coat_needs_command -a help        -d 'Show help'
@@ -31,8 +32,8 @@ complete -c coat -n __coat_needs_command -a help        -d 'Show help'
 complete -c coat -n '__fish_seen_subcommand_from set' -a '(coat __complete schemes)' -d scheme
 
 # App/module argument for `apply` and `docs`
-complete -c coat -n '__fish_seen_subcommand_from apply docs remove' -a '(coat __complete modules)' -d module
-complete -c coat -n '__fish_seen_subcommand_from apply docs remove' -a '(coat __complete aliases | string replace \t \t"alias for ")'
+complete -c coat -n '__fish_seen_subcommand_from apply docs remove setup' -a '(coat __complete modules)' -d module
+complete -c coat -n '__fish_seen_subcommand_from apply docs remove setup' -a '(coat __complete aliases | string replace \t \t"alias for ")'
 
 # Shell argument for `completions`
 complete -c coat -n '__fish_seen_subcommand_from completions' -a fish       -d 'Fish shell'
@@ -51,6 +52,7 @@ complete -c coat -n '__fish_seen_subcommand_from match' -l slots -d 'Keep base16
 complete -c coat -n '__fish_seen_subcommand_from match' -F -d 'Image to sample'
 complete -c coat -n '__fish_seen_subcommand_from remove' -l dry -d 'Show what would be undone'
 complete -c coat -n '__fish_seen_subcommand_from apply' -l force -s f -d 'Reload every app, changed or not'
+complete -c coat -n '__fish_seen_subcommand_from setup' -l force -s f -d 'Do it again even if already set up'
 complete -c coat -n '__fish_seen_subcommand_from remove' -l keep-enabled -d 'Do not touch coat.yaml'
 complete -c coat -n '__fish_seen_subcommand_from random' -l yes -s y    -d 'Apply without prompting'
 complete -c coat -n '__fish_seen_subcommand_from set' -l base16 -d 'Take the Base16 copy of the scheme'
