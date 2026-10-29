@@ -1233,7 +1233,7 @@ pub fn scheme_from_image(path: &Path, polarity: Polarity, raw: bool) -> Result<(
 
 /// Where the applied `coat match` scheme is kept: beside the state file that
 /// names it, not in the scheme library. Overwritten by every match.
-fn match_path() -> Result<PathBuf> {
+pub fn match_path() -> Result<PathBuf> {
     let state = crate::config::state_path()?;
     Ok(state.with_file_name("match.yaml"))
 }

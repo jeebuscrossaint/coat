@@ -20,7 +20,9 @@ coat/
 │   ├── main.rs       # CLI dispatch
 │   ├── config.rs     # coat.yaml deserialization
 │   ├── scheme.rs     # scheme loading, search, list
-│   ├── modules.rs    # all 32 module apply functions
+│   ├── modules.rs    # module registry: what each app's theme is (plans, no IO)
+│   ├── apply.rs      # carries plans out: diff, write, record, reload
+│   ├── manifest.rs   # what coat owns, for `coat remove`
 │   └── windows.rs    # Windows-specific theming (registry, WT, VSCode)
 ├── templates/        # Tera templates for each module
 ├── Cargo.toml
@@ -63,6 +65,12 @@ coat apply
 
 # Apply to a single app
 coat apply kitty
+
+# Show what an apply would change, with a diff, and write nothing
+coat apply --dry
+
+# Re-apply on every save of coat.yaml: only the app you touched reloads
+coat watch
 
 # Build a scheme from the wallpaper that is on screen right now (awww, swww or
 # swaybg),

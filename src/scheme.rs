@@ -20,6 +20,14 @@ struct RawScheme {
     palette: HashMap<String, String>,
 }
 
+/// Every colour slot, as scheme files and `palette:` spell them. Base16 schemes
+/// fill the first 16.
+pub const SLOTS: [&str; 24] = [
+    "base00", "base01", "base02", "base03", "base04", "base05", "base06", "base07",
+    "base08", "base09", "base0A", "base0B", "base0C", "base0D", "base0E", "base0F",
+    "base10", "base11", "base12", "base13", "base14", "base15", "base16", "base17",
+];
+
 /// A loaded Base16/Base24 color scheme.
 /// All color fields are uppercase 6-char hex WITHOUT '#'.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -144,6 +152,37 @@ impl Scheme {
         let mut scheme = Self::from_raw(raw);
         crate::normalize::apply(&mut scheme);
         Ok(scheme)
+    }
+
+    /// A colour slot by its scheme-file name (`base0D`, case-insensitive).
+    pub fn slot_mut(&mut self, slot: &str) -> Option<&mut String> {
+        Some(match slot.to_lowercase().as_str() {
+            "base00" => &mut self.base00,
+            "base01" => &mut self.base01,
+            "base02" => &mut self.base02,
+            "base03" => &mut self.base03,
+            "base04" => &mut self.base04,
+            "base05" => &mut self.base05,
+            "base06" => &mut self.base06,
+            "base07" => &mut self.base07,
+            "base08" => &mut self.base08,
+            "base09" => &mut self.base09,
+            "base0a" => &mut self.base0a,
+            "base0b" => &mut self.base0b,
+            "base0c" => &mut self.base0c,
+            "base0d" => &mut self.base0d,
+            "base0e" => &mut self.base0e,
+            "base0f" => &mut self.base0f,
+            "base10" => &mut self.base10,
+            "base11" => &mut self.base11,
+            "base12" => &mut self.base12,
+            "base13" => &mut self.base13,
+            "base14" => &mut self.base14,
+            "base15" => &mut self.base15,
+            "base16" => &mut self.base16_color,
+            "base17" => &mut self.base17,
+            _ => return None,
+        })
     }
 
     pub fn is_dark(&self) -> bool {
@@ -412,7 +451,7 @@ fn random_index(len: usize) -> usize {
 }
 
 /// Classic iterative Levenshtein edit distance (two-row variant), on chars.
-fn levenshtein(a: &str, b: &str) -> usize {
+pub(crate) fn levenshtein(a: &str, b: &str) -> usize {
     let a: Vec<char> = a.chars().collect();
     let b: Vec<char> = b.chars().collect();
     if a.is_empty() {

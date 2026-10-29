@@ -17,7 +17,7 @@
 
 use crate::config::NormalizeConfig;
 use crate::scheme::Scheme;
-use std::sync::OnceLock;
+use std::sync::RwLock;
 
 // ── Global config ───────────────────────────────────────────────────────────
 // Normalization is a property of how coat renders colour *everywhere* — applying
@@ -26,10 +26,14 @@ use std::sync::OnceLock;
 // the single funnel every scheme load passes through (`Scheme::load_file`).
 // If it is never set (config failed to parse), every call below is a no-op.
 
-static CFG: OnceLock<NormalizeConfig> = OnceLock::new();
+// A lock rather than a OnceLock so `coat watch` can pick up an edited
+// `normalize:` block without being restarted.
+static CFG: RwLock<Option<NormalizeConfig>> = RwLock::new(None);
 
 pub fn init(cfg: NormalizeConfig) {
-    let _ = CFG.set(cfg);
+    if let Ok(mut c) = CFG.write() {
+        *c = Some(cfg);
+    }
 }
 
 // ── sRGB ↔ Oklab/Oklch ──────────────────────────────────────────────────────
@@ -359,7 +363,7 @@ fn enforce_contrast(fg: &str, bg: &str, floor: f64) -> String {
 /// Apply the configured normalization to a freshly loaded scheme, in place.
 /// No-op unless `normalize.enabled` is set.
 pub fn apply(s: &mut Scheme) {
-    let Some(cfg) = CFG.get() else { return };
+    let Some(cfg) = CFG.read().ok().and_then(|c| c.clone()) else { return };
     if !cfg.enabled {
         return;
     }

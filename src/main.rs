@@ -1,5 +1,6 @@
 #![recursion_limit = "512"]
 
+mod apply;
 mod browse;
 mod config;
 mod cam16;
@@ -16,7 +17,7 @@ use anyhow::{Context, Result};
 use config::{CoatConfig, Flavour};
 use console::style;
 use indicatif::{ProgressBar, ProgressStyle};
-use modules::{apply_module, make_tera, module_docs, module_aliases, ALL_MODULES, MODULE_ALIASES};
+use modules::{module_docs, MODULES};
 use scheme::{
     color_preview_string, find_scheme, header_string, list_schemes, pick_random_scheme,
     print_color_preview, schemes_clone,
@@ -24,7 +25,6 @@ use scheme::{
 };
 use std::fs;
 use std::time::Duration;
-use tera::Tera;
 
 /// A spinner that ticks in place, then freezes into a static ✓/✗ result line.
 fn spinner(label: &str) -> ProgressBar {
@@ -39,28 +39,137 @@ fn spinner(label: &str) -> ProgressBar {
     pb
 }
 
-/// Apply `scheme` to every named app under a single spinner that names the app
-/// currently being written, then clears itself. Only failures are printed —
-/// successes are left to the caller's one-line summary, so a 20-app apply stays
-/// two lines instead of twenty. Returns the number that applied successfully.
-fn apply_with_spinner(apps: &[String], scheme: &Scheme, config: &CoatConfig, tera: &Tera) -> usize {
+/// Apply `scheme` to every named app under a single spinner, then clear it. Only
+/// failures are printed — successes are left to the caller's one-line summary,
+/// so a 20-app apply stays two lines instead of twenty. Under `--dry` each app
+/// that would change is listed with a diff instead.
+///
+/// Returns the number that applied successfully, and the apps whose files
+/// changed (and so were reloaded).
+fn apply_with_spinner(
+    apps: &[String],
+    scheme: &Scheme,
+    config: &CoatConfig,
+    opts: apply::Options,
+) -> Result<(usize, Vec<String>)> {
     modules::set_quiet(true);
-    let pb = spinner("Applying...");
-    let mut applied = 0;
-    let mut failures: Vec<(String, String)> = Vec::new();
-    for app in apps {
-        pb.set_message(format!("Applying to {}...", app));
-        match apply_module(app, scheme, config, tera) {
-            Ok(_) => applied += 1,
-            Err(e) => failures.push((app.clone(), e.to_string())),
-        }
-    }
+    let pb = spinner(&format!(
+        "Applying to {} app{}...",
+        apps.len(),
+        if apps.len() == 1 { "" } else { "s" }
+    ));
+    let results = apply::apply_all(apps, scheme, config, opts);
     pb.finish_and_clear();
     modules::set_quiet(false);
-    for (app, err) in &failures {
-        println!("{} {}  {}", style("✗").red(), app, style(err).red());
+
+    let mut applied = 0;
+    let mut changed = Vec::new();
+    for (app, result) in results? {
+        match result {
+            Ok(outcome) => {
+                applied += 1;
+                // Notes are for when one app is being looked at, not a 20-app
+                // apply where they would repeat every time.
+                if opts.dry || apps.len() == 1 {
+                    for note in &outcome.notes {
+                        println!("{} {}: {}", style("note").yellow(), app, note);
+                    }
+                }
+                if opts.dry {
+                    print_dry(&app, &outcome);
+                }
+                if outcome.touched {
+                    changed.push(app);
+                }
+            }
+            Err(e) => println!("{} {}  {}", style("✗").red(), app, style(format!("{:#}", e)).red()),
+        }
     }
-    applied
+    Ok((applied, changed))
+}
+
+/// What `--dry` found for one app: each file it would write, with a diff of
+/// what would change in a file that exists.
+fn print_dry(app: &str, outcome: &apply::Outcome) {
+    const MAX_LINES: usize = 40;
+    if outcome.changed.is_empty() {
+        return;
+    }
+    println!("{}", style(app).bold());
+    for change in &outcome.changed {
+        let Some(old) = &change.old else {
+            println!(
+                "  {} {}  {}",
+                style("+").green(),
+                change.path.display(),
+                style(format!("(new, {} lines)", change.new.lines().count())).dim()
+            );
+            continue;
+        };
+        println!("  {} {}", style("~").yellow(), change.path.display());
+        let lines = apply::diff(old, &change.new, 1);
+        for line in lines.iter().take(MAX_LINES) {
+            let styled = match line.chars().next() {
+                Some('-') => style(line.as_str()).red(),
+                Some('+') => style(line.as_str()).green(),
+                _ => style(line.as_str()).dim(),
+            };
+            println!("      {}", styled);
+        }
+        if lines.len() > MAX_LINES {
+            println!("      {}", style(format!("… {} more", lines.len() - MAX_LINES)).dim());
+        }
+    }
+    println!();
+}
+
+/// The summary under an apply: how many apps took it, then which of them
+/// actually changed -- the only ones that were told to reload.
+fn print_applied(applied: usize, total: usize, changed: &[String], opts: apply::Options) {
+    if opts.dry {
+        if changed.is_empty() {
+            println!("Nothing would change.");
+        } else {
+            println!("Would change {} of {}: {}", changed.len(), total, changed.join(", "));
+        }
+        return;
+    }
+    println!(
+        "{} scheme to {}/{} application{}!",
+        if applied == total { "Applied" } else { "Partially applied" },
+        applied,
+        total,
+        if total == 1 { "" } else { "s" }
+    );
+    let reloaded = if opts.force { " Reloaded every app (--force)." } else { "" };
+    if applied == 0 {
+        // Nothing applied, so there is nothing to say about what changed.
+    } else if changed.is_empty() {
+        let quiet = if opts.force { "Nothing changed." } else { "Nothing changed, nothing reloaded." };
+        println!("{}", style(format!("{}{}", quiet, reloaded)).dim());
+    } else if changed.len() < applied || opts.force {
+        println!("{}", style(format!("Changed: {}.{}", changed.join(", "), reloaded)).dim());
+    }
+}
+
+/// `CoatConfig::check`'s warnings, on stderr so they never end up in a pipe.
+fn print_warnings(warnings: &[String]) {
+    for w in warnings {
+        eprintln!("{} {}", style("warning:").yellow(), w);
+    }
+}
+
+/// The module `app` names, or exit listing the ones that exist.
+fn require_module(app: &str) -> &'static modules::Module {
+    if let Some(m) = modules::find(app) {
+        return m;
+    }
+    eprintln!("Error: No module found for '{}'\n", app);
+    eprintln!("Available modules:");
+    for m in MODULES {
+        eprintln!("  - {}", m.name);
+    }
+    std::process::exit(1);
 }
 
 fn print_usage(prog: &str) {
@@ -76,6 +185,8 @@ fn print_usage(prog: &str) {
     println!("  random [OPTIONS]    Pick a random scheme, preview it, and apply");
     println!("  match [image]       Build a scheme from the current wallpaper, and apply");
     println!("  apply [app]         Apply current scheme to all apps or one specific app");
+    println!("                      (only apps whose files changed are reloaded)");
+    println!("  watch               Apply again whenever coat.yaml or the scheme changes");
     println!("  remove <app>        Undo an app's theming and disable its module");
     println!("  docs <app>          Show setup instructions for an app");
     println!("  completions <shell> Install shell completions (fish, powershell)");
@@ -87,6 +198,10 @@ fn print_usage(prog: &str) {
     println!("  --no-preview        Skip color swatches (list/search only)");
     println!("  --dry               Preview a random pick without applying (random only)");
     println!("  --yes, -y           Apply a random pick without prompting (random only)");
+    println!();
+    println!("Apply Options:");
+    println!("  --dry, -n           Show what would change, with a diff; write nothing");
+    println!("  --force, -f         Reload every app, even ones whose files did not change");
     if cfg!(windows) {
         println!();
         println!("Set/Browse/Random Options (Windows):");
@@ -108,6 +223,7 @@ fn print_usage(prog: &str) {
     println!("  {} match --dry       Generate and preview it, apply nothing", prog);
     println!("  {} apply             Apply current scheme to all enabled apps", prog);
     println!("  {} apply kitty       Apply current scheme only to kitty", prog);
+    println!("  {} apply --dry       Show what an apply would change", prog);
     println!("  {} list --dark       List dark schemes", prog);
 }
 
@@ -121,31 +237,25 @@ fn ensure_schemes() -> Result<()> {
 }
 
 fn cmd_apply(args: &[String], _prog: &str) -> Result<()> {
-    let specific_app = args.first().map(|s| s.as_str());
+    let specific_app = args.iter().find(|a| !a.starts_with('-')).map(|s| s.as_str());
+    let opts = apply::Options {
+        force: args.iter().any(|a| a == "--force" || a == "-f"),
+        dry: args.iter().any(|a| a == "--dry" || a == "--dry-run" || a == "-n"),
+    };
 
-    // Validate module name up front
     if let Some(app) = specific_app {
-        let canonical = module_aliases(app).unwrap_or(app);
-        if !ALL_MODULES.contains(&canonical) {
-            eprintln!("Error: No module found for '{}'\n", app);
-            eprintln!("Available modules:");
-            for m in ALL_MODULES {
-                eprintln!("  - {}", m);
-            }
-            std::process::exit(1);
-        }
+        require_module(app);
     }
 
     ensure_schemes()?;
 
     let config = CoatConfig::load().context("Failed to load coat.yaml")?;
+    print_warnings(&config.check()?);
 
     println!("Loading scheme: {}", config.scheme);
     let scheme = find_scheme(&config.scheme, config.prefer_base24.prefers_base24())
         .with_context(|| format!("Failed to load scheme '{}'", config.scheme))?;
     println!("Applying scheme: {}", scheme.name);
-
-    let tera = make_tera().context("Failed to build template engine")?;
 
     let apps: Vec<String> = match specific_app {
         Some(app) => vec![app.to_string()],
@@ -158,31 +268,84 @@ fn cmd_apply(args: &[String], _prog: &str) -> Result<()> {
         }
     };
 
-    let total = apps.len();
-    let applied = apply_with_spinner(&apps, &scheme, &config, &tera);
+    let (applied, changed) = apply_with_spinner(&apps, &scheme, &config, opts)?;
 
     println!();
-    println!(
-        "{} scheme to {}/{} application{}!",
-        if applied == total { "Applied" } else { "Partially applied" },
-        applied,
-        total,
-        if total == 1 { "" } else { "s" }
-    );
+    print_applied(applied, apps.len(), &changed, opts);
 
     Ok(())
 }
 
-/// Whether coat.yaml's enabled list mentions this app.
+/// `coat watch`: apply again whenever coat.yaml, the current scheme, or the
+/// matched wallpaper scheme changes on disk.
+///
+/// Because an apply only writes -- and only reloads -- what changed, saving an
+/// edit to `overrides.kitty.opacity` repaints kitty a moment later and touches
+/// nothing else. Polls mtimes rather than using inotify: three stat calls a
+/// third of a second apart cost nothing, need no dependency, and work the same
+/// on Windows.
+fn cmd_watch() -> Result<()> {
+    ensure_schemes()?;
+    let paths = [CoatConfig::path()?, config::state_path()?, dynamic::match_path()?];
+    let stamp = || -> Vec<Option<std::time::SystemTime>> {
+        paths.iter().map(|p| fs::metadata(p).and_then(|m| m.modified()).ok()).collect()
+    };
+
+    println!("Watching {} — Ctrl-C to stop.", paths[0].display());
+    modules::set_quiet(true);
+    let mut last = stamp();
+    loop {
+        std::thread::sleep(Duration::from_millis(300));
+        if stamp() == last {
+            continue;
+        }
+        // An editor's save can be more than one write (truncate, then fill; or
+        // a temp file renamed over). Let it settle before reading.
+        std::thread::sleep(Duration::from_millis(100));
+        last = stamp();
+        if let Err(e) = watch_apply() {
+            println!("{} {:#}", style("✗").red(), e);
+        }
+    }
+}
+
+/// One `coat watch` round: the whole config again, since any of it may have
+/// changed, and a line saying what that did.
+fn watch_apply() -> Result<()> {
+    let config = CoatConfig::load().context("Failed to load coat.yaml")?;
+    normalize::init(config.normalize.clone());
+    print_warnings(&config.check()?);
+    let scheme = find_scheme(&config.scheme, config.prefer_base24.prefers_base24())
+        .with_context(|| format!("Failed to load scheme '{}'", config.scheme))?;
+
+    let mut changed = Vec::new();
+    for (app, result) in apply::apply_all(&config.enabled, &scheme, &config, apply::Options::default())? {
+        match result {
+            Ok(o) if o.touched => changed.push(app),
+            Ok(_) => {}
+            Err(e) => println!("{} {}  {}", style("✗").red(), app, style(format!("{:#}", e)).red()),
+        }
+    }
+    if changed.is_empty() {
+        println!("{}", style(format!("{}: nothing changed", scheme.name)).dim());
+    } else {
+        println!("{}: changed {}", scheme.name, changed.join(", "));
+    }
+    Ok(())
+}
+
+/// Whether coat.yaml's enabled list mentions this app, by any of its names.
 fn module_is_enabled(app: &str) -> Result<bool> {
-    let canonical = module_aliases(app).unwrap_or(app);
+    let module = modules::find(app).map(|m| m.name);
     Ok(CoatConfig::load()
-        .map(|c| c.enabled.iter().any(|m| m == canonical || m == app))
+        .map(|c| c.enabled.iter().any(|m| m == app || modules::find(m).map(|f| f.name) == module))
         .unwrap_or(false))
 }
 
 /// Drop `  - <app>` from the enabled list in coat.yaml, leaving every comment
-/// and every other key exactly as it was. Returns whether a line was removed.
+/// and every other key exactly as it was. Any of the module's names counts, so
+/// `coat remove vesktop` also takes out a `- discord`. Returns whether a line
+/// was removed.
 fn disable_module_in_config(app: &str) -> Result<bool> {
     let path = CoatConfig::path()?;
     if !path.exists() {
@@ -191,7 +354,7 @@ fn disable_module_in_config(app: &str) -> Result<bool> {
     let content = fs::read_to_string(&path)
         .with_context(|| format!("Failed to read {}", path.display()))?;
 
-    let canonical = modules::module_aliases(app).unwrap_or(app);
+    let module = modules::find(app).map(|m| m.name);
     let mut removed = false;
     let kept: Vec<&str> = content
         .lines()
@@ -203,7 +366,7 @@ fn disable_module_in_config(app: &str) -> Result<bool> {
             // Only inside a list, and only an exact name — `- fish` must never
             // take out `- fishy` or a `scheme: fish` line.
             let item = item.trim();
-            if item == canonical || item == app {
+            if item == app || (module.is_some() && modules::find(item).map(|m| m.name) == module) {
                 removed = true;
                 return false;
             }
@@ -240,6 +403,7 @@ fn set_and_apply(scheme: &Scheme, elevate: bool) -> Result<()> {
     // now stops us before the file has been touched. Loading afterwards meant
     // a bad config left coat.yaml naming a scheme that was never applied.
     let config = CoatConfig::load().context("Failed to load coat.yaml")?;
+    print_warnings(&config.check()?);
 
     // Remembered in the state file, never written back into coat.yaml. See
     // config::state_path.
@@ -249,7 +413,7 @@ fn set_and_apply(scheme: &Scheme, elevate: bool) -> Result<()> {
     // Platform-specific theming
     #[cfg(windows)]
     {
-        windows::apply_all(scheme, &config, elevate)?;
+        windows::apply_all(&config.paint(scheme)?, &config, elevate)?;
     }
 
     #[cfg(not(windows))]
@@ -258,15 +422,9 @@ fn set_and_apply(scheme: &Scheme, elevate: bool) -> Result<()> {
         if config.enabled.is_empty() {
             println!("No modules enabled. Add apps to coat.yaml and run 'coat apply'.");
         } else {
-            let tera = make_tera().context("Failed to build template engine")?;
-            let total = config.enabled.len();
-            let applied = apply_with_spinner(&config.enabled, scheme, &config, &tera);
-            println!(
-                "Applied scheme to {}/{} application{}!",
-                applied,
-                total,
-                if total == 1 { "" } else { "s" }
-            );
+            let opts = apply::Options::default();
+            let (applied, changed) = apply_with_spinner(&config.enabled, scheme, &config, opts)?;
+            print_applied(applied, config.enabled.len(), &changed, opts);
         }
     }
 
@@ -680,14 +838,16 @@ fn cmd_complete(args: &[String]) -> Result<()> {
             }
         }
         Some("modules") => {
-            for m in ALL_MODULES {
-                println!("{}", m);
+            for m in MODULES {
+                println!("{}", m.name);
             }
         }
         // `alias<TAB>module`: fish reads the tab as "candidate, description".
         Some("aliases") => {
-            for (alias, module) in MODULE_ALIASES {
-                println!("{}\t{}", alias, module);
+            for m in MODULES {
+                for alias in m.aliases {
+                    println!("{}\t{}", alias, m.name);
+                }
             }
         }
         _ => {}
@@ -696,26 +856,16 @@ fn cmd_complete(args: &[String]) -> Result<()> {
 }
 
 fn cmd_docs(args: &[String], prog: &str) -> Result<()> {
-    if args.is_empty() {
+    let Some(app) = args.first() else {
         eprintln!("Error: docs requires an app name\n");
         eprintln!("Usage: {} docs <app>", prog);
         eprintln!("\nAvailable modules:");
-        for m in ALL_MODULES {
-            eprintln!("  - {}", m);
+        for m in MODULES {
+            eprintln!("  - {}", m.name);
         }
         std::process::exit(1);
-    }
-    let app = &args[0];
-    let canonical = module_aliases(app).unwrap_or(app);
-    if !ALL_MODULES.contains(&canonical) {
-        eprintln!("Error: No module found for '{}'\n", app);
-        eprintln!("Available modules:");
-        for m in ALL_MODULES {
-            eprintln!("  - {}", m);
-        }
-        std::process::exit(1);
-    }
-    module_docs(app);
+    };
+    module_docs(require_module(app).name);
     Ok(())
 }
 
@@ -744,6 +894,7 @@ fn main() {
             "random"          => cmd_random(&args[2..]),
             "browse"          => cmd_browse(&args[2..]),
             "apply"           => cmd_apply(&args[2..], prog),
+            "watch"           => cmd_watch(),
             "remove" | "rm"   => cmd_remove(&args[2..]),
             "docs"            => cmd_docs(&args[2..], prog),
             "completions"     => cmd_completions(&args[2..]),

@@ -15,6 +15,7 @@ Register-ArgumentCompleter -Native -CommandName coat -ScriptBlock {
         'set'         = 'Switch to a scheme and apply everywhere'
         'random'      = 'Pick a random scheme, preview, and apply'
         'apply'       = 'Apply the current scheme'
+        'watch'       = 'Re-apply whenever coat.yaml changes'
         'docs'        = 'Show setup instructions for an app'
         'completions' = 'Install shell completions'
         'help'        = 'Show help'
@@ -74,6 +75,10 @@ Register-ArgumentCompleter -Native -CommandName coat -ScriptBlock {
         if ($sub -eq 'random') {
             $pairs += [pscustomobject]@{ Text = '--dry'; Desc = 'Preview without applying' }
             $pairs += [pscustomobject]@{ Text = '--yes'; Desc = 'Apply without prompting' }
+        }
+        if ($sub -eq 'apply') {
+            $pairs += [pscustomobject]@{ Text = '--dry';   Desc = 'Show the diff, write nothing' }
+            $pairs += [pscustomobject]@{ Text = '--force'; Desc = 'Reload every app, changed or not' }
         }
         if ($sub -in 'set', 'random', 'browse') {
             $pairs += [pscustomobject]@{ Text = '--elevate'; Desc = 'Prompt for admin (logon screen + HKLM keys)' }

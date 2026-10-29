@@ -59,7 +59,48 @@ opacity:
   applications: 1.0
   desktop:      1.0
   popups:       0.95   # dunst, fuzzel backgrounds
+
+# Repaint scheme slots, whatever scheme is loaded. A value is "#RRGGBB" or
+# another slot's name (read from the scheme as loaded, so two slots can swap).
+palette:
+  base0D: "#89b4fa"
+
+# Per-app patches of font, opacity and palette. Only the keys listed change.
+overrides:
+  kitty:
+    opacity:
+      terminal: 0.9
+    palette:
+      base00: base01   # kitty's background one step up the ramp
 ```
+
+### What gets reloaded
+
+coat only rewrites a file whose contents changed, and only tells an app to
+reload (`kitty @ load-config`, `dunstctl reload`, `hyprctl reload`, …) when one
+of *its* files changed. Bumping `overrides.kitty.opacity` reloads kitty and
+nothing else; an apply with nothing new reloads nothing:
+
+```
+Applied scheme to 20/20 applications!
+Changed: kitty
+```
+
+`coat apply --force` reloads every app anyway — for one that was not running
+when its files last changed. `colors.send` copies are always attempted, since
+the far side compares for itself and a failed copy should be retried.
+
+`coat apply --dry` shows the same decision without acting on it: each file that
+would change, with a diff, and nothing written or reloaded.
+
+`coat watch` re-applies whenever `coat.yaml`, the current scheme, or the
+`coat match` scheme changes on disk, so an edit shows up a moment after saving
+and only in the app it concerns.
+
+Typos are reported rather than ignored: an `enabled:` or `overrides:` name that
+is no module, or an unknown top-level key, prints a warning with the closest
+match; an unknown key inside `font:`, `opacity:`, `normalize:` or an override,
+and a bad `palette:` entry, stop the apply with an error naming it.
 
 ---
 
@@ -261,6 +302,7 @@ applies. Running coat from an already-elevated shell needs no flag.
 | `coat list [--dark\|--light] [--no-preview]` | Browse all schemes |
 | `coat search <term>` | Search by name or author |
 | `coat set <scheme>` | Switch scheme and apply everywhere |
-| `coat apply [app]` | Apply current scheme from coat.yaml |
+| `coat apply [app] [--dry] [--force]` | Apply current scheme from coat.yaml; `--dry` shows the diff and writes nothing, `--force` reloads apps whose files did not change |
+| `coat watch` | Re-apply whenever coat.yaml or the scheme changes |
 | `coat docs <app>` | Show activation instructions for an app |
 | `coat help` | Show help |

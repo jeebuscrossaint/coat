@@ -1,9 +1,12 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use serde::Deserialize;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fs;
 
+use crate::scheme::{Scheme, SLOTS};
+
 #[derive(Debug, Deserialize, Default, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct FontSizes {
     pub terminal: Option<f64>,
     pub desktop: Option<f64>,
@@ -21,6 +24,7 @@ pub fn size_value(size: f64) -> serde_json::Value {
 }
 
 #[derive(Debug, Deserialize, Default, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct FontConfig {
     pub monospace: Option<String>,
     pub sansserif: Option<String>,
@@ -30,6 +34,7 @@ pub struct FontConfig {
 }
 
 #[derive(Debug, Deserialize, Default, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct OpacityConfig {
     pub terminal: Option<f64>,
     pub applications: Option<f64>,
@@ -40,6 +45,7 @@ pub struct OpacityConfig {
 /// Material-You-style perceptual regularization (see `normalize.rs`).
 /// Off by default — enabling it changes every colour coat writes.
 #[derive(Debug, Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct NormalizeConfig {
     #[serde(default)]
     pub enabled: bool,
@@ -154,11 +160,15 @@ pub fn sanitize(content: &str) -> String {
 /// Only the keys present are overridden; everything else falls through to the
 /// global block, so an override is a patch and not a replacement.
 #[derive(Debug, Deserialize, Default, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct ModuleOverride {
     #[serde(default)]
     pub font: FontConfig,
     #[serde(default)]
     pub opacity: OpacityConfig,
+    /// Slots repainted for this app only, over the global `palette:`.
+    #[serde(default)]
+    pub palette: BTreeMap<String, String>,
 }
 
 /// Where the current scheme is remembered.
@@ -263,15 +273,64 @@ pub struct CoatConfig {
     pub font: FontConfig,
     #[serde(default)]
     pub opacity: OpacityConfig,
+    /// Scheme slots to repaint, whatever scheme is loaded: `base0D: "#89b4fa"`,
+    /// or another slot's name to borrow its colour (`base01: base00`).
+    #[serde(default)]
+    pub palette: BTreeMap<String, String>,
     /// Keyed by module name, exactly as it appears under `enabled:`.
     #[serde(default)]
     pub overrides: HashMap<String, ModuleOverride>,
     /// Where the colors module also sends colors.json.
     #[serde(default)]
     pub colors: ColorsConfig,
+    /// Top-level keys coat does not know. Kept rather than rejected, so a
+    /// config from a newer coat still loads here, and reported by `check`.
+    #[serde(flatten)]
+    pub unknown: BTreeMap<String, serde_norway::Value>,
+}
+
+/// The keys `CoatConfig` reads, for "did you mean" on the ones it does not.
+const TOP_LEVEL_KEYS: &[&str] = &[
+    "scheme", "prefer_base24", "normalize", "enabled", "font", "opacity", "palette", "overrides",
+    "colors",
+];
+
+/// The closest of `candidates` to `word`, if any is close enough to be a typo.
+fn suggest<'a>(word: &str, candidates: impl IntoIterator<Item = &'a str>) -> Option<&'a str> {
+    let max = (word.len() / 3).max(2);
+    candidates
+        .into_iter()
+        .map(|c| (crate::scheme::levenshtein(&word.to_lowercase(), &c.to_lowercase()), c))
+        .filter(|(d, _)| *d <= max)
+        .min_by_key(|(d, _)| *d)
+        .map(|(_, c)| c)
+}
+
+fn did_you_mean(s: Option<&str>) -> String {
+    s.map(|s| format!(" — did you mean '{}'?", s)).unwrap_or_default()
+}
+
+/// One `palette:` entry is usable: a real slot, set to `#RRGGBB` or to another
+/// slot's name.
+fn check_palette_entry(slot: &str, value: &str) -> Result<()> {
+    let is_slot = |s: &str| SLOTS.iter().any(|k| k.eq_ignore_ascii_case(s));
+    if !is_slot(slot) {
+        bail!(
+            "palette: no slot '{}' (base00 … base17){}",
+            slot,
+            did_you_mean(suggest(slot, SLOTS))
+        );
+    }
+    let v = value.trim();
+    let h = v.trim_start_matches('#');
+    if !is_slot(v) && (h.len() != 6 || !h.chars().all(|c| c.is_ascii_hexdigit())) {
+        bail!("palette: {} = '{}' is neither #RRGGBB nor a slot name", slot, value);
+    }
+    Ok(())
 }
 
 #[derive(Debug, Deserialize, Default, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct ColorsConfig {
     /// `host:/dir` targets, copied to over ssh.
     #[serde(default)]
@@ -360,7 +419,85 @@ impl CoatConfig {
             out.opacity.popups = ov.opacity.popups;
         }
 
+        // Per slot, like everything else here: the app's entries win, the rest
+        // of the global palette still applies.
+        out.palette.extend(ov.palette.clone());
+
         out
+    }
+
+    /// `scheme` with this config's `palette:` painted over it. Call it on a
+    /// `merged_for` config to get one app's colours.
+    ///
+    /// A slot named as a value is read from the scheme as loaded, not as
+    /// repainted, so `base00: base01` + `base01: base00` swaps the two.
+    pub fn paint(&self, scheme: &Scheme) -> Result<Scheme> {
+        let mut loaded = scheme.clone();
+        let mut out = scheme.clone();
+        for (slot, value) in &self.palette {
+            check_palette_entry(slot, value)?;
+            let v = value.trim();
+            let hex = match loaded.slot_mut(v) {
+                Some(from) => from.clone(),
+                None => v.trim_start_matches('#').to_uppercase(),
+            };
+            if let Some(dest) = out.slot_mut(slot) {
+                *dest = hex;
+            }
+        }
+        Ok(out)
+    }
+
+    /// Whether this config can be applied, and what in it is probably a typo.
+    ///
+    /// A bad `palette:` entry is an error, caught here once instead of failing
+    /// every module that reads it. Names that match no module and keys coat
+    /// does not read are warnings: they do nothing, which is exactly why they
+    /// need saying -- `overrides: { kity: … }` used to be silently ignored.
+    pub fn check(&self) -> Result<Vec<String>> {
+        for (slot, value) in &self.palette {
+            check_palette_entry(slot, value)?;
+        }
+        for (module, ov) in &self.overrides {
+            for (slot, value) in &ov.palette {
+                check_palette_entry(slot, value).with_context(|| format!("in overrides.{}", module))?;
+            }
+        }
+
+        let modules = || {
+            crate::modules::MODULES
+                .iter()
+                .flat_map(|m| std::iter::once(m.name).chain(m.aliases.iter().copied()))
+        };
+        let mut warnings = Vec::new();
+        for name in &self.enabled {
+            if crate::modules::find(name).is_none() {
+                warnings.push(format!(
+                    "enabled: no module '{}'{}",
+                    name,
+                    did_you_mean(suggest(name, modules()))
+                ));
+            }
+        }
+        let mut names: Vec<&String> = self.overrides.keys().collect();
+        names.sort();
+        for name in names {
+            if crate::modules::find(name).is_none() {
+                warnings.push(format!(
+                    "overrides: no module '{}'{}",
+                    name,
+                    did_you_mean(suggest(name, modules()))
+                ));
+            }
+        }
+        for key in self.unknown.keys() {
+            warnings.push(format!(
+                "coat.yaml: unknown key '{}'{}",
+                key,
+                did_you_mean(suggest(key, TOP_LEVEL_KEYS.iter().copied()))
+            ));
+        }
+        Ok(warnings)
     }
 
     fn shallow_clone(&self) -> CoatConfig {
@@ -371,7 +508,9 @@ impl CoatConfig {
             enabled: self.enabled.clone(),
             font: self.font.clone(),
             opacity: self.opacity.clone(),
+            palette: self.palette.clone(),
             overrides: HashMap::new(),
+            unknown: BTreeMap::new(),
             colors: self.colors.clone(),
         }
     }

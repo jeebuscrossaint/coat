@@ -2,9 +2,9 @@
 //!
 //! `coat remove` needs to know which files coat wrote and which include lines
 //! it patched into somebody else's config, and which ini keys it set. That
-//! information already exists at apply time — every `render_to`,
-//! `ensure_include` and `set_ini_keys` call has it in hand — so it is
-//! recorded there rather than restated in a table beside the apply functions.
+//! information already exists at apply time — it is exactly the module's
+//! `apply::Plan` — so it is recorded from there rather than restated in a
+//! table beside the modules.
 //! A hand-maintained table is a second source of truth, and it would go stale
 //! the first time a module grew a file.
 //!
@@ -15,8 +15,7 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::path::PathBuf;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Entry {
@@ -38,9 +37,6 @@ pub struct Manifest {
     #[serde(default)]
     pub modules: BTreeMap<String, Entry>,
 }
-
-/// The module currently being applied, and what it has touched so far.
-static CURRENT: Mutex<Option<(String, Entry)>> = Mutex::new(None);
 
 pub fn path() -> Result<PathBuf> {
     let base = dirs::state_dir()
@@ -68,23 +64,15 @@ fn store(m: &Manifest) -> Result<()> {
     Ok(())
 }
 
-/// Start recording for `module`. Anything the previous module recorded and did
-/// not commit is dropped.
-pub fn begin(module: &str) {
-    if let Ok(mut cur) = CURRENT.lock() {
-        *cur = Some((module.to_string(), Entry::default()));
-    }
-}
-
-/// Write the recorded entry out, REPLACING whatever that module recorded before
-/// — the current apply is the truth about what exists now.
-pub fn commit() {
-    let Ok(mut cur) = CURRENT.lock() else { return };
-    let Some((module, entry)) = cur.take() else {
+/// Write what an apply recorded, REPLACING whatever each of those modules
+/// recorded before -- the current apply is the truth about what exists now.
+/// One read and one write for the whole apply, not one per module.
+pub fn record_all(entries: Vec<(String, Entry)>) {
+    if entries.is_empty() {
         return;
-    };
+    }
     let mut m = load();
-    m.modules.insert(module, entry);
+    m.modules.extend(entries);
     let _ = store(&m);
 }
 
@@ -93,44 +81,4 @@ pub fn forget(module: &str) {
     let mut m = load();
     m.modules.remove(module);
     let _ = store(&m);
-}
-
-fn with<F: FnOnce(&mut Entry)>(f: F) {
-    if let Ok(mut cur) = CURRENT.lock() {
-        if let Some((_, entry)) = cur.as_mut() {
-            f(entry);
-        }
-    }
-}
-
-pub fn record_write(dest: &Path) {
-    let dest = dest.to_path_buf();
-    with(|e| {
-        if !e.written.contains(&dest) {
-            e.written.push(dest);
-        }
-    });
-}
-
-pub fn record_include(config: &Path, line: &str) {
-    let pair = (config.to_path_buf(), line.to_string());
-    with(|e| {
-        if !e.includes.contains(&pair) {
-            e.includes.push(pair);
-        }
-    });
-}
-
-pub fn record_ini_keys(file: &Path, keys: &[String]) {
-    let file = file.to_path_buf();
-    with(|e| match e.ini_keys.iter_mut().find(|(p, _)| *p == file) {
-        Some((_, have)) => {
-            for k in keys {
-                if !have.contains(k) {
-                    have.push(k.clone());
-                }
-            }
-        }
-        None => e.ini_keys.push((file, keys.to_vec())),
-    });
 }
