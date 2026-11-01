@@ -1,0 +1,110 @@
+# coat labwc theme: {{ scheme_name }}
+# Generated into ~/.local/share/themes/coat/labwc/ with the traffic-light svgs
+# beside it; rc.xml selects it with <theme><name>coat</name>. Every key
+# labwc 0.20 reads is listed.
+
+border.width: 1
+window.titlebar.padding.width: 3
+window.titlebar.padding.height: 0
+
+# A hairline, not a coloured frame: focus is shown by the lights and the shadow.
+window.active.border.color: {% if is_dark %}#FFFFFF2E{% else %}#00000038{% endif %}
+window.inactive.border.color: {% if is_dark %}#FFFFFF1A{% else %}#00000024{% endif %}
+window.active.indicator.toggled-keybind.color: #{{ base08 }}
+
+window.active.title.bg: Solid
+window.active.title.bg.color: #{{ base00 }}
+window.inactive.title.bg: Solid
+window.inactive.title.bg.color: #{{ base00 }}
+
+window.active.label.text.color: #{{ base05 }}
+window.inactive.label.text.color: #{{ base03 }}
+window.label.text.justify: Center
+
+# 28px titlebar; 20px pitch puts the 12px lights 8px apart, as on macOS.
+window.button.width: 20
+window.button.height: 28
+window.button.spacing: 0
+# The svgs carry their own hover state, so this overlay never draws.
+window.button.hover.bg.color: #00000000
+window.button.hover.bg.corner-radius: 0
+
+# Only reached by xbm fallbacks; the svgs bake their colour in.
+window.active.button.unpressed.image.color: #{{ base05 }}
+window.inactive.button.unpressed.image.color: #{{ base03 }}
+window.active.button.close.unpressed.image.color: #{{ base08 }}
+window.active.button.iconify.unpressed.image.color: #{{ base0A }}
+window.active.button.max.unpressed.image.color: #{{ base0B }}
+
+# Shadows are an absence of light, so black at any scheme.
+window.active.shadow.size: 48
+window.active.shadow.color: #00000080
+window.inactive.shadow.size: 26
+window.inactive.shadow.color: #00000047
+
+menu.overlap.x: -4
+menu.overlap.y: 0
+menu.width.min: 180
+menu.width.max: 360
+menu.border.width: 1
+menu.border.color: {% if is_dark %}#FFFFFF2E{% else %}#00000038{% endif %}
+menu.items.padding.x: 12
+menu.items.padding.y: 5
+menu.items.bg.color: #{{ base00 }}
+menu.items.text.color: #{{ base05 }}
+menu.items.active.bg.color: #{{ base0D }}
+menu.items.active.text.color: #{{ base00 }}
+menu.separator.width: 1
+menu.separator.padding.width: 10
+menu.separator.padding.height: 4
+menu.separator.color: {% if is_dark %}#FFFFFF1F{% else %}#0000001F{% endif %}
+menu.title.bg.color: #{{ base00 }}
+menu.title.text.color: #{{ base03 }}
+menu.title.text.justify: Left
+
+osd.bg.color: #{{ base00 }}
+osd.border.color: {% if is_dark %}#FFFFFF2E{% else %}#00000038{% endif %}
+osd.border.width: 1
+osd.label.text.color: #{{ base05 }}
+
+osd.window-switcher.style-classic.width: 600
+osd.window-switcher.style-classic.padding: 8
+osd.window-switcher.style-classic.item.padding.x: 10
+osd.window-switcher.style-classic.item.padding.y: 4
+osd.window-switcher.style-classic.item.active.border.width: 0
+osd.window-switcher.style-classic.item.active.border.color: #{{ base05 }}00
+osd.window-switcher.style-classic.item.active.bg.color: #{{ base05 }}26
+osd.window-switcher.style-classic.item.icon.size: 24
+
+# Cmd-Tab: a row of tiles, the selected one on a soft grey plate.
+osd.window-switcher.style-thumbnail.width.max: 80%
+osd.window-switcher.style-thumbnail.padding: 12
+osd.window-switcher.style-thumbnail.item.width: 240
+osd.window-switcher.style-thumbnail.item.height: 200
+osd.window-switcher.style-thumbnail.item.padding: 12
+osd.window-switcher.style-thumbnail.item.active.border.width: 0
+osd.window-switcher.style-thumbnail.item.active.border.color: #{{ base05 }}00
+osd.window-switcher.style-thumbnail.item.active.bg.color: #{{ base05 }}26
+osd.window-switcher.style-thumbnail.item.icon.size: 64
+
+osd.window-switcher.preview.border.width: 0
+osd.window-switcher.preview.border.color: #{{ base0D }}
+
+osd.workspace-switcher.boxes.width: 20
+osd.workspace-switcher.boxes.height: 14
+osd.workspace-switcher.boxes.border.width: 1
+
+# Sequoia's tiling ghost: a pale wash, no outline.
+snapping.overlay.region.bg.enabled: yes
+snapping.overlay.edge.bg.enabled: yes
+snapping.overlay.region.border.enabled: no
+snapping.overlay.edge.border.enabled: no
+snapping.overlay.region.bg.color: #{{ base05 }}26
+snapping.overlay.edge.bg.color: #{{ base05 }}26
+snapping.overlay.region.border.width: 1
+snapping.overlay.edge.border.width: 1
+snapping.overlay.region.border.color: #{{ base05 }}66
+snapping.overlay.edge.border.color: #{{ base05 }}66
+
+magnifier.border.width: 1
+magnifier.border.color: #{{ base03 }}

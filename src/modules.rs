@@ -48,6 +48,8 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("gtk",       "gtk.tera"),
     tpl!("imv",       "imv.tera"),
     tpl!("kitty",     "kitty.tera"),
+    tpl!("labwc",     "labwc.tera"),
+    tpl!("labwc-rc",  "labwc-rc.tera"),
     tpl!("micro",     "micro.tera"),
     tpl!("lsd",       "lsd.tera"),
     tpl!("mango",     "mango.tera"),
@@ -359,6 +361,7 @@ pub static MODULES: &[Module] = &[
     module!("hyprland",    plan_hyprland,    docs::HYPRLAND),
     module!("imv",         plan_imv,         docs::IMV),
     module!("kitty",       plan_kitty,       docs::KITTY),
+    module!("labwc",       plan_labwc,       docs::LABWC),
     module!("lsd",         plan_lsd,         docs::LSD),
     module!("mango",       plan_mango,       docs::MANGO),
     module!("micro",       plan_micro,       docs::MICRO),
@@ -824,6 +827,53 @@ fn plan_hyprland(c: &Ctx, p: &mut Plan) -> Result<()> {
     // Recolours a running session; a no-op when Hyprland is not up.
     p.reload("hyprctl reload");
     Ok(())
+}
+
+fn plan_labwc(c: &Ctx, p: &mut Plan) -> Result<()> {
+    // labwc reads themerc and button images only from a theme directory;
+    // themerc in ~/.config/labwc is never looked at.
+    let dir = ".local/share/themes/coat/labwc";
+    c.render_to(p, "labwc", &format!("{dir}/themerc"))?;
+    // Fonts exist only in rc.xml, which has no include. labwc's --merge-config
+    // layers every rc.xml on XDG_CONFIG_DIRS under the user's own, so this one
+    // supplies theme name and fonts without coat touching the tracked file.
+    c.render_to(p, "labwc-rc", ".local/share/coat/labwc/labwc/rc.xml")?;
+
+    // labwc recolours xbm masks only, and a 1-bit 12px disc is jagged, so the
+    // lights are svgs with the colour baked in per apply.
+    let s = &c.scheme;
+    let idle = format!("{}8C", s.base03);
+    for (name, lit, glyph) in [
+        ("close", &s.base08, GLYPH_CLOSE),
+        ("iconify", &s.base0a, GLYPH_ICONIFY),
+        ("max", &s.base0b, GLYPH_MAX),
+        ("max_toggled", &s.base0b, GLYPH_MAX_TOGGLED),
+    ] {
+        for (state, fill, glyph) in [
+            ("-active", lit.as_str(), ""),
+            ("-inactive", idle.as_str(), ""),
+            ("_hover-active", lit.as_str(), glyph),
+            ("_hover-inactive", lit.as_str(), glyph),
+        ] {
+            p.file(c.path(&format!("{dir}/{name}{state}.svg")), traffic_light(fill, glyph));
+        }
+    }
+    // SIGHUP is labwc's reconfigure; a no-op when it is not running.
+    p.reload("pkill -HUP -x labwc");
+    Ok(())
+}
+
+// A 20x28 box, the button size themerc sets, so labwc draws them 1:1.
+const GLYPH_CLOSE: &str = r##"<path d="M7.9 11.9l4.2 4.2M12.1 11.9l-4.2 4.2" stroke="#000" stroke-opacity=".55" stroke-width="1.2" stroke-linecap="round"/>"##;
+const GLYPH_ICONIFY: &str = r##"<path d="M7 14h6" stroke="#000" stroke-opacity=".55" stroke-width="1.3" stroke-linecap="round"/>"##;
+const GLYPH_MAX: &str = r##"<path d="M7.4 11.4h3.4l-3.4 3.4zM12.6 16.6h-3.4l3.4-3.4z" fill="#000" fill-opacity=".55"/>"##;
+const GLYPH_MAX_TOGGLED: &str = r##"<path d="M9.6 13.6h-3l3-3zM10.4 14.4h3l-3 3z" fill="#000" fill-opacity=".55"/>"##;
+
+fn traffic_light(fill: &str, glyph: &str) -> String {
+    format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="20" height="28" viewBox="0 0 20 28"><circle cx="10" cy="14" r="5.75" fill="#{fill}" stroke="#000" stroke-opacity=".18" stroke-width=".5"/>{glyph}</svg>
+"##
+    )
 }
 
 fn plan_swaylock(c: &Ctx, p: &mut Plan) -> Result<()> {
@@ -1514,6 +1564,20 @@ Some apps may require a restart.
 Writes ~/.config/hypr/coat-colors.lua and runs `hyprctl reload`, so a
 running session recolours in place. Load the file from your Hyprland
 config to use its colours.
+"##;
+
+    pub const LABWC: &str = r##"
+Writes a labwc theme to ~/.local/share/themes/coat/labwc/: themerc plus
+macOS traffic-light svgs (scheme red/yellow/green, grey when unfocused,
+glyphs on hover). Select it with <theme><name>coat</name>.
+
+Fonts live only in rc.xml, so coat also writes
+~/.local/share/coat/labwc/labwc/rc.xml. labwc picks it up when started as
+
+  XDG_CONFIG_DIRS=$HOME/.local/share/coat/labwc:/etc/xdg labwc -m
+
+Your own ~/.config/labwc/rc.xml still wins any key it sets. A running
+labwc reconfigures on apply (SIGHUP).
 "##;
 
     pub const IMV: &str = r##"

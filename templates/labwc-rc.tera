@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<!-- coat: {{ scheme_name }}. Merged UNDER ~/.config/labwc/rc.xml when labwc
+     runs with -m (merge-config) and this directory's parent on XDG_CONFIG_DIRS,
+     so the user's file wins any key it also sets. -->
+<labwc_config>
+  <theme>
+    <name>coat</name>
+    <font place="ActiveWindow">
+      <name>{{ font_sansserif }}</name>
+      <size>{{ font_size_desktop }}</size>
+      <slant>normal</slant>
+      <weight>normal</weight>
+    </font>
+    <font place="InactiveWindow">
+      <name>{{ font_sansserif }}</name>
+      <size>{{ font_size_desktop }}</size>
+      <slant>normal</slant>
+      <weight>normal</weight>
+    </font>
+    <font place="MenuHeader">
+      <name>{{ font_sansserif }}</name>
+      <size>{{ font_size_popups }}</size>
+      <slant>normal</slant>
+      <weight>normal</weight>
+    </font>
+    <font place="MenuItem">
+      <name>{{ font_sansserif }}</name>
+      <size>{{ font_size_popups }}</size>
+      <slant>normal</slant>
+      <weight>normal</weight>
+    </font>
+    <font place="OnScreenDisplay">
+      <name>{{ font_sansserif }}</name>
+      <size>{{ font_size_popups }}</size>
+      <slant>normal</slant>
+      <weight>normal</weight>
+    </font>
+  </theme>
+</labwc_config>
