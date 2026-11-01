@@ -1,0 +1,18 @@
+# coat: {{ scheme_name }}. Sourced by ~/.config/hypr/hyprlock.conf.
+$font = {{ font_sansserif }}
+$base00 = {{ base00 | lower_hex }}
+$base01 = {{ base01 | lower_hex }}
+$base02 = {{ base02 | lower_hex }}
+$base03 = {{ base03 | lower_hex }}
+$base04 = {{ base04 | lower_hex }}
+$base05 = {{ base05 | lower_hex }}
+$base06 = {{ base06 | lower_hex }}
+$base07 = {{ base07 | lower_hex }}
+$base08 = {{ base08 | lower_hex }}
+$base09 = {{ base09 | lower_hex }}
+$base0A = {{ base0A | lower_hex }}
+$base0B = {{ base0B | lower_hex }}
+$base0C = {{ base0C | lower_hex }}
+$base0D = {{ base0D | lower_hex }}
+$base0E = {{ base0E | lower_hex }}
+$base0F = {{ base0F | lower_hex }}

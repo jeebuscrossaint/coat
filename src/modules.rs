@@ -45,6 +45,7 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("fish",      "fish.tera"),
     tpl!("fuzzel",    "fuzzel.tera"),
     tpl!("hyprland",  "hyprland.tera"),
+    tpl!("hyprlock",  "hyprlock.tera"),
     tpl!("gtk",       "gtk.tera"),
     tpl!("imv",       "imv.tera"),
     tpl!("kitty",     "kitty.tera"),
@@ -359,6 +360,7 @@ pub static MODULES: &[Module] = &[
     module!("fuzzel",      plan_fuzzel,      docs::FUZZEL),
     module!("gtk",         plan_gtk,         docs::GTK),
     module!("hyprland",    plan_hyprland,    docs::HYPRLAND),
+    module!("hyprlock",    plan_hyprlock,    docs::HYPRLOCK),
     module!("imv",         plan_imv,         docs::IMV),
     module!("kitty",       plan_kitty,       docs::KITTY),
     module!("labwc",       plan_labwc,       docs::LABWC),
@@ -826,6 +828,12 @@ fn plan_hyprland(c: &Ctx, p: &mut Plan) -> Result<()> {
     c.render_to(p, "hyprland", ".config/hypr/coat-colors.lua")?;
     // Recolours a running session; a no-op when Hyprland is not up.
     p.reload("hyprctl reload");
+    Ok(())
+}
+
+fn plan_hyprlock(c: &Ctx, p: &mut Plan) -> Result<()> {
+    // hyprlock reads its config at every start, so there is nothing to reload.
+    c.render_to(p, "hyprlock", ".config/hypr/hyprlock-colors.conf")?;
     Ok(())
 }
 
@@ -1578,6 +1586,16 @@ Fonts live only in rc.xml, so coat also writes
 
 Your own ~/.config/labwc/rc.xml still wins any key it sets. A running
 labwc reconfigures on apply (SIGHUP).
+"##;
+
+    pub const HYPRLOCK: &str = r##"
+Writes ~/.config/hypr/hyprlock-colors.conf: $font and $base00..$base0F as
+bare hex. Use it from hyprlock.conf with
+
+  source = ~/.config/hypr/hyprlock-colors.conf
+  color = rgb($base00)
+
+Picked up the next time hyprlock starts.
 "##;
 
     pub const IMV: &str = r##"
