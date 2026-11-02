@@ -55,6 +55,7 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("lsd",       "lsd.tera"),
     tpl!("mango",     "mango.tera"),
     tpl!("mpv",       "mpv.tera"),
+    tpl!("niri",      "niri.tera"),
     tpl!("qtct",      "qtct.tera"),
     tpl!("qutebrowser","qutebrowser.tera"),
     tpl!("satty",     "satty.tera"),
@@ -368,6 +369,7 @@ pub static MODULES: &[Module] = &[
     module!("mango",       plan_mango,       docs::MANGO),
     module!("micro",       plan_micro,       docs::MICRO),
     module!("mpv",         plan_mpv,         docs::MPV),
+    module!("niri",        plan_niri,        docs::NIRI),
     module!("qt", ["qt5ct", "qt6ct"], plan_qt, docs::QT),
     module!("qutebrowser", plan_qutebrowser, docs::QUTEBROWSER),
     module!("satty",       plan_satty,       docs::SATTY),
@@ -828,6 +830,20 @@ fn plan_hyprland(c: &Ctx, p: &mut Plan) -> Result<()> {
     c.render_to(p, "hyprland", ".config/hypr/coat-colors.lua")?;
     // Recolours a running session; a no-op when Hyprland is not up.
     p.reload("hyprctl reload");
+    Ok(())
+}
+
+fn plan_niri(c: &Ctx, p: &mut Plan) -> Result<()> {
+    c.render_to(p, "niri", ".config/niri/coat.kdl")?;
+    // `~` rather than a relative path: config.kdl is usually a dotfiles
+    // symlink, and a relative include would resolve beside the link target.
+    // optional=true so the config still loads before the first apply.
+    p.include(
+        c.path(".config/niri/config.kdl"),
+        "include optional=true \"~/.config/niri/coat.kdl\"",
+        ("//", ""),
+    );
+    // No reload: niri watches included files and recolours on its own.
     Ok(())
 }
 
@@ -1625,6 +1641,17 @@ ONLY when ~/.config/lsd/config.yaml contains:
     theme: custom
 
 coat writes that file when lsd has none of its own.
+"##;
+
+    pub const NIRI: &str = r##"
+Writes ~/.config/niri/coat.kdl: focus ring, border, shadow, tab indicator,
+insert hint, overview backdrop and recent-windows highlight colours. Adds
+
+  include optional=true "~/.config/niri/coat.kdl"
+
+to the top of config.kdl on first apply. Sections merge across includes,
+so config.kdl keeps widths and on/off, and any colour it sets after the
+include wins. niri live-reloads included files; nothing to restart.
 "##;
 
     pub const MANGO: &str = r##"
