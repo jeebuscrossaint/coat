@@ -1645,7 +1645,8 @@ coat writes that file when lsd has none of its own.
 
     pub const NIRI: &str = r##"
 Writes ~/.config/niri/coat.kdl: focus ring, border, shadow, tab indicator,
-insert hint, overview backdrop and recent-windows highlight colours. Adds
+insert hint, overview backdrop and recent-windows highlight colours, and a
+window-rule outlining the screen-shared window in base08. Adds
 
   include optional=true "~/.config/niri/coat.kdl"
 

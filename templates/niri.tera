@@ -55,3 +55,18 @@ recent-windows {
         urgent-color "#{{ base08 | lower_hex }}ff"
     }
 }
+
+// Whatever window is being screen-shared is outlined in base08.
+window-rule {
+    match is-window-cast-target=true
+
+    focus-ring {
+        active-color "#{{ base08 | lower_hex }}"
+        inactive-color "#{{ base08 | lower_hex }}"
+    }
+
+    border {
+        active-color "#{{ base08 | lower_hex }}"
+        inactive-color "#{{ base08 | lower_hex }}"
+    }
+}
