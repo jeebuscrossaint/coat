@@ -40,6 +40,7 @@ static TEMPLATES: &[(&str, &str)] = &[
     tpl!("bat",       "bat.tera"),
     tpl!("btop",      "btop.tera"),
     tpl!("dunst",     "dunst.tera"),
+    tpl!("dwl",       "dwl.tera"),
     tpl!("conky",     "conky.tera"),
     tpl!("fastfetch", "fastfetch.tera"),
     tpl!("fish",      "fish.tera"),
@@ -356,6 +357,7 @@ pub static MODULES: &[Module] = &[
     module!("colors",      plan_colors,      docs::COLORS),
     module!("conky",       plan_conky,       docs::CONKY),
     module!("dunst",       plan_dunst,       docs::DUNST),
+    module!("dwl",         plan_dwl,         docs::DWL),
     module!("fastfetch",   plan_fastfetch,   docs::FASTFETCH),
     module!("fish",        plan_fish,        docs::FISH),
     module!("fuzzel",      plan_fuzzel,      docs::FUZZEL),
@@ -830,6 +832,14 @@ fn plan_hyprland(c: &Ctx, p: &mut Plan) -> Result<()> {
     c.render_to(p, "hyprland", ".config/hypr/coat-colors.lua")?;
     // Recolours a running session; a no-op when Hyprland is not up.
     p.reload("hyprctl reload");
+    Ok(())
+}
+
+fn plan_dwl(c: &Ctx, p: &mut Plan) -> Result<()> {
+    // dwl has no config file; its colours come from this one only with the
+    // coat patch applied. Stock dwl dies on SIGUSR1, hence the docs warning.
+    c.render_to(p, "dwl", ".config/dwl/colors")?;
+    p.reload("pkill -USR1 -x dwl");
     Ok(())
 }
 
@@ -1641,6 +1651,15 @@ ONLY when ~/.config/lsd/config.yaml contains:
     theme: custom
 
 coat writes that file when lsd has none of its own.
+"##;
+
+    pub const DWL: &str = r##"
+Writes ~/.config/dwl/colors (root, border, focus, urgent as RRGGBBAA) and
+sends SIGUSR1 to dwl, which recolours borders and the background in place.
+
+Needs dwl built with the coat patch (loadcolors/reloadcolors in dwl.c).
+Stock dwl does not handle SIGUSR1 and exits on it: do not enable this
+module for an unpatched dwl.
 "##;
 
     pub const NIRI: &str = r##"
